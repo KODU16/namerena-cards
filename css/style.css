@@ -834,3 +834,14 @@ body, .app { background: #ffffff; }
 /* 战报逐条出现（连击等多段行动） */
 .log__line--step { animation: logIn .18s ease-out both; }
 @keyframes logIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
+/* 狂暴：屏幕边缘泛红（淡入） */
+.battle.is-berserk::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 30;
+  box-shadow: inset 0 0 140px 34px rgba(190, 26, 26, .55);
+  animation: berserkIn .7s ease-out both;
+}
+@keyframes berserkIn { from { opacity: 0; } to { opacity: 1; } }

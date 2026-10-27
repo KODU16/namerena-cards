@@ -333,6 +333,17 @@ export class DuelView {
       this.logEl.append(line);
     });    this.logEl.scrollTop = this.logEl.scrollHeight;
     for (const state of frame.states || []) this.patchUnit(state);
+    // 己方有人进入狂暴（含被附体）：屏幕边缘泛红，提示本回合由引擎接管
+    const berserkNow = (frame.states || []).some((st) => st.team_index === this.duel.playerTeam
+      && (st.status_labels || []).some((l) => l.includes('狂暴')));
+    const battle = this.root.querySelector('.battle');
+    if (battle) battle.classList.toggle('is-berserk', berserkNow);
+    if (berserkNow && !this.berserkShown) {
+      this.berserkShown = true;
+      this.logEl.append(el('div', { class: 'log__you' }, '→ 进入狂暴：本回合由引擎接管行动'));
+      this.logEl.scrollTop = this.logEl.scrollHeight;
+    }
+    if (!berserkNow) this.berserkShown = false;
   }
 
   async play(from, to) {
