@@ -1,0 +1,2523 @@
+{
+ "meta": {
+  "engine": {
+   "wasm": "0.5.6",
+   "core": "0.7.0"
+  },
+  "generatedAt": "2026-10-27T11:27:09.585Z",
+  "method": "名字经 to_diy 导出 ol 覆盖，name_factor_enabled=false 固定数值；费用由全卡池 1v1 循环赛胜率五等分。",
+  "matchCount": 1560
+ },
+ "cards": [
+  {
+   "id": "星垂平野",
+   "name": "星垂平野",
+   "clan": "白",
+   "flavor": "原野尽头是星星。",
+   "attrs": [
+    70,
+    45,
+    53,
+    37,
+    76,
+    57,
+    62,
+    332
+   ],
+   "stats": {
+    "atk": 34,
+    "def": 9,
+    "spd": 177,
+    "agi": 1,
+    "mag": 40,
+    "res": 21,
+    "wis": 26,
+    "hp": 332
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbklEQVR4nO2TwQ2AIAxFi2Echyj7uINxB/fhD+E+moqQRmNC5eKBd+D2XloInpl3asDLwYj0BXBIAWGeHFlY1jT4QI30wBWwvoB2frJC2JisZOdcJP+HOMIkA3Dl9mojWi4T1Ebu8iOgI29oWTgAzXwlZMbuogAAAAAASUVORK5CYII=",
+   "winrate": 0.32051282051282054,
+   "cost": 1,
+   "tier": "D",
+   "skillList": [
+    {
+     "id": "sklupgrade",
+     "name": "垂死抗争",
+     "lv": 33
+    },
+    {
+     "id": "sklcurse",
+     "name": "诅咒",
+     "lv": 23
+    },
+    {
+     "id": "sklslow",
+     "name": "减速术",
+     "lv": 20
+    },
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 14
+    },
+    {
+     "id": "skldefend",
+     "name": "防御",
+     "lv": 13
+    },
+    {
+     "id": "sklmerge",
+     "name": "吞噬",
+     "lv": 9
+    },
+    {
+     "id": "sklrapid",
+     "name": "连击",
+     "lv": 6
+    },
+    {
+     "id": "sklquake",
+     "name": "地裂术",
+     "lv": 4
+    },
+    {
+     "id": "sklcritical",
+     "name": "会心一击",
+     "lv": 2
+    },
+    {
+     "id": "sklcharge",
+     "name": "蓄力",
+     "lv": 1
+    }
+   ]
+  },
+  {
+   "id": "铁马冰河",
+   "name": "铁马冰河",
+   "clan": "赤",
+   "flavor": "梦里也是冲锋号。",
+   "attrs": [
+    88,
+    57,
+    60,
+    57,
+    71,
+    69,
+    48,
+    261
+   ],
+   "stats": {
+    "atk": 52,
+    "def": 21,
+    "spd": 184,
+    "agi": 21,
+    "mag": 35,
+    "res": 33,
+    "wis": 12,
+    "hp": 261
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nM2SSw6AMAhEwfRg9OTlZig2xE/QBNj0bbphhoHS4AURCQRonpCZrwr59qPep4GJH8JoAh4DMrTozG6CMzqiXyH//hsUKRvMJUp+DauMkECvsGSgHN+PKQPrHk5wF2p3fTF6yiY0dgTgIbZmoYAjAAAAAElFTkSuQmCC",
+   "winrate": 0.3076923076923077,
+   "cost": 1,
+   "tier": "D",
+   "skillList": [
+    {
+     "id": "sklaccumulate",
+     "name": "聚气",
+     "lv": 72
+    },
+    {
+     "id": "sklzombie",
+     "name": "召唤亡灵",
+     "lv": 14
+    },
+    {
+     "id": "skldefend",
+     "name": "防御",
+     "lv": 13
+    },
+    {
+     "id": "sklheal",
+     "name": "治愈魔法",
+     "lv": 6
+    },
+    {
+     "id": "sklhalf",
+     "name": "瘟疫",
+     "lv": 6
+    }
+   ]
+  },
+  {
+   "id": "长夜未央",
+   "name": "长夜未央",
+   "clan": "玄",
+   "flavor": "夜还长，慢慢玩。",
+   "attrs": [
+    58,
+    47,
+    40,
+    87,
+    78,
+    84,
+    85,
+    318
+   ],
+   "stats": {
+    "atk": 22,
+    "def": 11,
+    "spd": 164,
+    "agi": 51,
+    "mag": 42,
+    "res": 48,
+    "wis": 49,
+    "hp": 318
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAkElEQVR4nKWTDQ6AIAhGgXkwOnncrEaG0wR/FluTud770jTBp5j5go1KHiinPOOFY/hgzgKDTxHAKl/7mYSsUdhLxcmCyFtzkWB+RhKq09voto8k5E1iMOlJaAkeSAh+VicYbrrzWyl4bwkOBZ3FgfUUaiWPLRv1jtFpFBFMIQwxbOndF8zgGtT0h9m9vgZa3f3vNqukhmUoAAAAAElFTkSuQmCC",
+   "winrate": 0.3076923076923077,
+   "cost": 1,
+   "tier": "D",
+   "skillList": [
+    {
+     "id": "sklupgrade",
+     "name": "垂死抗争",
+     "lv": 14
+    },
+    {
+     "id": "sklassassinate",
+     "name": "潜行",
+     "lv": 12
+    },
+    {
+     "id": "sklheal",
+     "name": "治愈魔法",
+     "lv": 6
+    },
+    {
+     "id": "sklprotect",
+     "name": "守护",
+     "lv": 3
+    },
+    {
+     "id": "sklmerge",
+     "name": "吞噬",
+     "lv": 2
+    }
+   ]
+  },
+  {
+   "id": "咕咕咕",
+   "name": "咕咕咕",
+   "clan": "青",
+   "flavor": "说好今天，就是不说哪天。",
+   "attrs": [
+    45,
+    65,
+    82,
+    75,
+    61,
+    70,
+    65,
+    238
+   ],
+   "stats": {
+    "atk": 9,
+    "def": 29,
+    "spd": 206,
+    "agi": 39,
+    "mag": 25,
+    "res": 34,
+    "wis": 29,
+    "hp": 238
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAk0lEQVR4nKWT0Q2AIAxEgbiHjtJR3ETdwBEYwRG6ipOgxZAolAJyP0DoOw5CB3ULAJz6IUTUOsBoQSzep/WzPuCpNzUwe7p9GfRokDbduPhRn1u2xpTgeF6VQAKKBi0wqfsREwPpwaoMWk28AcwomnCGgTH0n1VGBEppiM1+JC4VJyPBdEJIGJonSekBpp3jq+VqLhz4NqJ6vEexAAAAAElFTkSuQmCC",
+   "winrate": 0.2948717948717949,
+   "cost": 1,
+   "tier": "D",
+   "skillList": [
+    {
+     "id": "sklcounter",
+     "name": "反击",
+     "lv": 13
+    },
+    {
+     "id": "sklquake",
+     "name": "地裂术",
+     "lv": 10
+    },
+    {
+     "id": "sklexchange",
+     "name": "生命之轮",
+     "lv": 9
+    },
+    {
+     "id": "sklreflect",
+     "name": "伤害反弹",
+     "lv": 3
+    },
+    {
+     "id": "sklhalf",
+     "name": "瘟疫",
+     "lv": 2
+    },
+    {
+     "id": "sklheal",
+     "name": "治愈魔法",
+     "lv": 2
+    },
+    {
+     "id": "sklice",
+     "name": "冰冻术",
+     "lv": 1
+    }
+   ]
+  },
+  {
+   "id": "退堂鼓手",
+   "name": "退堂鼓手",
+   "clan": "玄",
+   "flavor": "开打前先撤。",
+   "attrs": [
+    82,
+    62,
+    44,
+    54,
+    54,
+    63,
+    86,
+    267
+   ],
+   "stats": {
+    "atk": 46,
+    "def": 26,
+    "spd": 168,
+    "agi": 18,
+    "mag": 18,
+    "res": 27,
+    "wis": 50,
+    "hp": 267
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAkElEQVR4nKWTDQ6AIAhGgXkwOnncrEaG0wR/FluTud770jTBp5j5go1KHiinPOOFY/hgzgKDTxHAKl/7mYSsUdhLxcmCyFtzkWB+RhKq09voto8k5E1iMOlJaAkeSAh+VicYbrrzWyl4bwkOBZ3FgfUUaiWPLRv1jtFpFBFMIQwxbOndF8zgGtT0h9m9vgZa3f3vNqukhmUoAAAAAElFTkSuQmCC",
+   "winrate": 0.2692307692307692,
+   "cost": 1,
+   "tier": "D",
+   "skillList": [
+    {
+     "id": "sklabsorb",
+     "name": "吸血",
+     "lv": 20
+    },
+    {
+     "id": "sklhalf",
+     "name": "瘟疫",
+     "lv": 19
+    },
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 18
+    },
+    {
+     "id": "sklreflect",
+     "name": "伤害反弹",
+     "lv": 15
+    },
+    {
+     "id": "sklaccumulate",
+     "name": "聚气",
+     "lv": 8
+    },
+    {
+     "id": "sklassassinate",
+     "name": "潜行",
+     "lv": 6
+    },
+    {
+     "id": "sklberserk",
+     "name": "狂暴术",
+     "lv": 2
+    },
+    {
+     "id": "sklhaste",
+     "name": "加速术",
+     "lv": 2
+    }
+   ]
+  },
+  {
+   "id": "摸鱼大师",
+   "name": "摸鱼大师",
+   "clan": "玄",
+   "flavor": "上班摸鱼，摸出境界。",
+   "attrs": [
+    49,
+    62,
+    68,
+    47,
+    44,
+    95,
+    57,
+    333
+   ],
+   "stats": {
+    "atk": 13,
+    "def": 26,
+    "spd": 192,
+    "agi": 11,
+    "mag": 8,
+    "res": 59,
+    "wis": 21,
+    "hp": 333
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAkElEQVR4nKWTDQ6AIAhGgXkwOnncrEaG0wR/FluTud770jTBp5j5go1KHiinPOOFY/hgzgKDTxHAKl/7mYSsUdhLxcmCyFtzkWB+RhKq09voto8k5E1iMOlJaAkeSAh+VicYbrrzWyl4bwkOBZ3FgfUUaiWPLRv1jtFpFBFMIQwxbOndF8zgGtT0h9m9vgZa3f3vNqukhmUoAAAAAElFTkSuQmCC",
+   "winrate": 0.2564102564102564,
+   "cost": 1,
+   "tier": "D",
+   "skillList": [
+    {
+     "id": "sklclone",
+     "name": "分身",
+     "lv": 14
+    },
+    {
+     "id": "sklrapid",
+     "name": "连击",
+     "lv": 14
+    },
+    {
+     "id": "sklmerge",
+     "name": "吞噬",
+     "lv": 9
+    },
+    {
+     "id": "sklcounter",
+     "name": "反击",
+     "lv": 6
+    },
+    {
+     "id": "sklice",
+     "name": "冰冻术",
+     "lv": 5
+    },
+    {
+     "id": "skliron",
+     "name": "铁壁",
+     "lv": 4
+    }
+   ]
+  },
+  {
+   "id": "烈焰红唇",
+   "name": "烈焰红唇",
+   "clan": "赤",
+   "flavor": "一吻灼心。",
+   "attrs": [
+    61,
+    73,
+    45,
+    63,
+    70,
+    69,
+    59,
+    242
+   ],
+   "stats": {
+    "atk": 25,
+    "def": 37,
+    "spd": 169,
+    "agi": 27,
+    "mag": 34,
+    "res": 33,
+    "wis": 23,
+    "hp": 242
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nM2SSw6AMAhEwfRg9OTlZig2xE/QBNj0bbphhoHS4AURCQRonpCZrwr59qPep4GJH8JoAh4DMrTozG6CMzqiXyH//hsUKRvMJUp+DauMkECvsGSgHN+PKQPrHk5wF2p3fTF6yiY0dgTgIbZmoYAjAAAAAElFTkSuQmCC",
+   "winrate": 0.23076923076923078,
+   "cost": 1,
+   "tier": "D",
+   "skillList": [
+    {
+     "id": "sklclone",
+     "name": "分身",
+     "lv": 29
+    },
+    {
+     "id": "sklassassinate",
+     "name": "潜行",
+     "lv": 22
+    },
+    {
+     "id": "sklaccumulate",
+     "name": "聚气",
+     "lv": 11
+    },
+    {
+     "id": "sklzombie",
+     "name": "召唤亡灵",
+     "lv": 8
+    },
+    {
+     "id": "sklthunder",
+     "name": "雷击术",
+     "lv": 5
+    },
+    {
+     "id": "sklreflect",
+     "name": "伤害反弹",
+     "lv": 2
+    },
+    {
+     "id": "sklice",
+     "name": "冰冻术",
+     "lv": 2
+    }
+   ]
+  },
+  {
+   "id": "青灯古佛",
+   "name": "青灯古佛",
+   "clan": "青",
+   "flavor": "念经也是输出。",
+   "attrs": [
+    71,
+    58,
+    52,
+    62,
+    74,
+    56,
+    42,
+    236
+   ],
+   "stats": {
+    "atk": 35,
+    "def": 22,
+    "spd": 176,
+    "agi": 26,
+    "mag": 38,
+    "res": 20,
+    "wis": 6,
+    "hp": 236
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAk0lEQVR4nKWT0Q2AIAxEgbiHjtJR3ETdwBEYwRG6ipOgxZAolAJyP0DoOw5CB3ULAJz6IUTUOsBoQSzep/WzPuCpNzUwe7p9GfRokDbduPhRn1u2xpTgeF6VQAKKBi0wqfsREwPpwaoMWk28AcwomnCGgTH0n1VGBEppiM1+JC4VJyPBdEJIGJonSekBpp3jq+VqLhz4NqJ6vEexAAAAAElFTkSuQmCC",
+   "winrate": 0.15384615384615385,
+   "cost": 1,
+   "tier": "D",
+   "skillList": [
+    {
+     "id": "sklshield",
+     "name": "蓄盾",
+     "lv": 31
+    },
+    {
+     "id": "sklquake",
+     "name": "地裂术",
+     "lv": 16
+    },
+    {
+     "id": "sklthunder",
+     "name": "雷击术",
+     "lv": 13
+    },
+    {
+     "id": "sklhalf",
+     "name": "瘟疫",
+     "lv": 12
+    },
+    {
+     "id": "sklmerge",
+     "name": "吞噬",
+     "lv": 12
+    },
+    {
+     "id": "sklheal",
+     "name": "治愈魔法",
+     "lv": 8
+    }
+   ]
+  },
+  {
+   "id": "电子木鱼",
+   "name": "电子木鱼",
+   "clan": "青",
+   "flavor": "敲一下，加一点。",
+   "attrs": [
+    85,
+    52,
+    77,
+    63,
+    66,
+    43,
+    55,
+    290
+   ],
+   "stats": {
+    "atk": 49,
+    "def": 16,
+    "spd": 201,
+    "agi": 27,
+    "mag": 30,
+    "res": 7,
+    "wis": 19,
+    "hp": 290
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAk0lEQVR4nKWT0Q2AIAxEgbiHjtJR3ETdwBEYwRG6ipOgxZAolAJyP0DoOw5CB3ULAJz6IUTUOsBoQSzep/WzPuCpNzUwe7p9GfRokDbduPhRn1u2xpTgeF6VQAKKBi0wqfsREwPpwaoMWk28AcwomnCGgTH0n1VGBEppiM1+JC4VJyPBdEJIGJonSekBpp3jq+VqLhz4NqJ6vEexAAAAAElFTkSuQmCC",
+   "winrate": 0.4230769230769231,
+   "cost": 2,
+   "tier": "C",
+   "skillList": [
+    {
+     "id": "sklquake",
+     "name": "地裂术",
+     "lv": 24
+    },
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 20
+    },
+    {
+     "id": "sklheal",
+     "name": "治愈魔法",
+     "lv": 14
+    },
+    {
+     "id": "skliron",
+     "name": "铁壁",
+     "lv": 10
+    },
+    {
+     "id": "sklcharge",
+     "name": "蓄力",
+     "lv": 9
+    },
+    {
+     "id": "sklthunder",
+     "name": "雷击术",
+     "lv": 4
+    },
+    {
+     "id": "sklhide",
+     "name": "隐匿",
+     "lv": 3
+    }
+   ]
+  },
+  {
+   "id": "sybil",
+   "name": "sybil",
+   "clan": "玄",
+   "flavor": "她有很多个她。",
+   "attrs": [
+    62,
+    51,
+    89,
+    49,
+    39,
+    57,
+    60,
+    307
+   ],
+   "stats": {
+    "atk": 26,
+    "def": 15,
+    "spd": 213,
+    "agi": 13,
+    "mag": 3,
+    "res": 21,
+    "wis": 24,
+    "hp": 307
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAkElEQVR4nKWTDQ6AIAhGgXkwOnncrEaG0wR/FluTud770jTBp5j5go1KHiinPOOFY/hgzgKDTxHAKl/7mYSsUdhLxcmCyFtzkWB+RhKq09voto8k5E1iMOlJaAkeSAh+VicYbrrzWyl4bwkOBZ3FgfUUaiWPLRv1jtFpFBFMIQwxbOndF8zgGtT0h9m9vgZa3f3vNqukhmUoAAAAAElFTkSuQmCC",
+   "winrate": 0.4230769230769231,
+   "cost": 2,
+   "tier": "C",
+   "skillList": [
+    {
+     "id": "sklslow",
+     "name": "减速术",
+     "lv": 54
+    },
+    {
+     "id": "sklshadow",
+     "name": "幻术",
+     "lv": 19
+    },
+    {
+     "id": "sklpoison",
+     "name": "投毒",
+     "lv": 12
+    },
+    {
+     "id": "sklsummon",
+     "name": "血祭",
+     "lv": 10
+    }
+   ]
+  },
+  {
+   "id": "打工人",
+   "name": "打工人",
+   "clan": "赤",
+   "flavor": "工位即战场，咖啡即军粮。",
+   "attrs": [
+    62,
+    79,
+    61,
+    86,
+    83,
+    71,
+    43,
+    269
+   ],
+   "stats": {
+    "atk": 26,
+    "def": 43,
+    "spd": 185,
+    "agi": 50,
+    "mag": 47,
+    "res": 35,
+    "wis": 7,
+    "hp": 269
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nM2SSw6AMAhEwfRg9OTlZig2xE/QBNj0bbphhoHS4AURCQRonpCZrwr59qPep4GJH8JoAh4DMrTozG6CMzqiXyH//hsUKRvMJUp+DauMkECvsGSgHN+PKQPrHk5wF2p3fTF6yiY0dgTgIbZmoYAjAAAAAElFTkSuQmCC",
+   "winrate": 0.3974358974358974,
+   "cost": 2,
+   "tier": "C",
+   "skillList": [
+    {
+     "id": "sklzombie",
+     "name": "召唤亡灵",
+     "lv": 40
+    },
+    {
+     "id": "sklclone",
+     "name": "分身",
+     "lv": 29
+    },
+    {
+     "id": "sklcurse",
+     "name": "诅咒",
+     "lv": 20
+    },
+    {
+     "id": "sklexchange",
+     "name": "生命之轮",
+     "lv": 16
+    },
+    {
+     "id": "skliron",
+     "name": "铁壁",
+     "lv": 12
+    },
+    {
+     "id": "sklabsorb",
+     "name": "吸血",
+     "lv": 9
+    },
+    {
+     "id": "sklhide",
+     "name": "隐匿",
+     "lv": 8
+    },
+    {
+     "id": "sklaccumulate",
+     "name": "聚气",
+     "lv": 2
+    }
+   ]
+  },
+  {
+   "id": "大雪满弓刀",
+   "name": "大雪满弓刀",
+   "clan": "玄",
+   "flavor": "弓拉满，雪也满。",
+   "attrs": [
+    52,
+    64,
+    75,
+    65,
+    49,
+    43,
+    83,
+    302
+   ],
+   "stats": {
+    "atk": 16,
+    "def": 28,
+    "spd": 199,
+    "agi": 29,
+    "mag": 13,
+    "res": 7,
+    "wis": 47,
+    "hp": 302
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAkElEQVR4nKWTDQ6AIAhGgXkwOnncrEaG0wR/FluTud770jTBp5j5go1KHiinPOOFY/hgzgKDTxHAKl/7mYSsUdhLxcmCyFtzkWB+RhKq09voto8k5E1iMOlJaAkeSAh+VicYbrrzWyl4bwkOBZ3FgfUUaiWPLRv1jtFpFBFMIQwxbOndF8zgGtT0h9m9vgZa3f3vNqukhmUoAAAAAElFTkSuQmCC",
+   "winrate": 0.3974358974358974,
+   "cost": 2,
+   "tier": "C",
+   "skillList": [
+    {
+     "id": "sklcounter",
+     "name": "反击",
+     "lv": 16
+    },
+    {
+     "id": "sklberserk",
+     "name": "狂暴术",
+     "lv": 12
+    },
+    {
+     "id": "sklheal",
+     "name": "治愈魔法",
+     "lv": 8
+    },
+    {
+     "id": "sklslow",
+     "name": "减速术",
+     "lv": 8
+    },
+    {
+     "id": "sklzombie",
+     "name": "召唤亡灵",
+     "lv": 7
+    },
+    {
+     "id": "sklhalf",
+     "name": "瘟疫",
+     "lv": 5
+    }
+   ]
+  },
+  {
+   "id": "明月几时有",
+   "name": "明月几时有",
+   "clan": "青",
+   "flavor": "举杯问天，天不应。",
+   "attrs": [
+    64,
+    68,
+    72,
+    53,
+    50,
+    54,
+    85,
+    257
+   ],
+   "stats": {
+    "atk": 28,
+    "def": 32,
+    "spd": 196,
+    "agi": 17,
+    "mag": 14,
+    "res": 18,
+    "wis": 49,
+    "hp": 257
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAk0lEQVR4nKWT0Q2AIAxEgbiHjtJR3ETdwBEYwRG6ipOgxZAolAJyP0DoOw5CB3ULAJz6IUTUOsBoQSzep/WzPuCpNzUwe7p9GfRokDbduPhRn1u2xpTgeF6VQAKKBi0wqfsREwPpwaoMWk28AcwomnCGgTH0n1VGBEppiM1+JC4VJyPBdEJIGJonSekBpp3jq+VqLhz4NqJ6vEexAAAAAElFTkSuQmCC",
+   "winrate": 0.38461538461538464,
+   "cost": 2,
+   "tier": "C",
+   "skillList": [
+    {
+     "id": "sklexchange",
+     "name": "生命之轮",
+     "lv": 34
+    },
+    {
+     "id": "sklpoison",
+     "name": "投毒",
+     "lv": 5
+    },
+    {
+     "id": "sklheal",
+     "name": "治愈魔法",
+     "lv": 5
+    },
+    {
+     "id": "sklprotect",
+     "name": "守护",
+     "lv": 3
+    },
+    {
+     "id": "sklassassinate",
+     "name": "潜行",
+     "lv": 1
+    }
+   ]
+  },
+  {
+   "id": "神秘代码",
+   "name": "神秘代码",
+   "clan": "玄",
+   "flavor": "能跑就别动。",
+   "attrs": [
+    51,
+    66,
+    57,
+    65,
+    86,
+    76,
+    52,
+    357
+   ],
+   "stats": {
+    "atk": 15,
+    "def": 30,
+    "spd": 181,
+    "agi": 29,
+    "mag": 50,
+    "res": 40,
+    "wis": 16,
+    "hp": 357
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAkElEQVR4nKWTDQ6AIAhGgXkwOnncrEaG0wR/FluTud770jTBp5j5go1KHiinPOOFY/hgzgKDTxHAKl/7mYSsUdhLxcmCyFtzkWB+RhKq09voto8k5E1iMOlJaAkeSAh+VicYbrrzWyl4bwkOBZ3FgfUUaiWPLRv1jtFpFBFMIQwxbOndF8zgGtT0h9m9vgZa3f3vNqukhmUoAAAAAElFTkSuQmCC",
+   "winrate": 0.38461538461538464,
+   "cost": 2,
+   "tier": "C",
+   "skillList": [
+    {
+     "id": "sklprotect",
+     "name": "守护",
+     "lv": 34
+    },
+    {
+     "id": "sklheal",
+     "name": "治愈魔法",
+     "lv": 18
+    },
+    {
+     "id": "sklaccumulate",
+     "name": "聚气",
+     "lv": 15
+    },
+    {
+     "id": "sklshadow",
+     "name": "幻术",
+     "lv": 8
+    },
+    {
+     "id": "sklshield",
+     "name": "蓄盾",
+     "lv": 4
+    },
+    {
+     "id": "sklsummon",
+     "name": "血祭",
+     "lv": 3
+    },
+    {
+     "id": "sklassassinate",
+     "name": "潜行",
+     "lv": 3
+    }
+   ]
+  },
+  {
+   "id": "落霞孤鹜",
+   "name": "落霞孤鹜",
+   "clan": "白",
+   "flavor": "一起飞，一起落。",
+   "attrs": [
+    52,
+    53,
+    79,
+    78,
+    69,
+    56,
+    58,
+    307
+   ],
+   "stats": {
+    "atk": 16,
+    "def": 17,
+    "spd": 203,
+    "agi": 42,
+    "mag": 33,
+    "res": 20,
+    "wis": 22,
+    "hp": 307
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbklEQVR4nO2TwQ2AIAxFi2Echyj7uINxB/fhD+E+moqQRmNC5eKBd+D2XloInpl3asDLwYj0BXBIAWGeHFlY1jT4QI30wBWwvoB2frJC2JisZOdcJP+HOMIkA3Dl9mojWi4T1Ebu8iOgI29oWTgAzXwlZMbuogAAAAAASUVORK5CYII=",
+   "winrate": 0.3717948717948718,
+   "cost": 2,
+   "tier": "C",
+   "skillList": [
+    {
+     "id": "sklaccumulate",
+     "name": "聚气",
+     "lv": 30
+    },
+    {
+     "id": "sklreflect",
+     "name": "伤害反弹",
+     "lv": 23
+    },
+    {
+     "id": "sklcurse",
+     "name": "诅咒",
+     "lv": 14
+    },
+    {
+     "id": "sklmerge",
+     "name": "吞噬",
+     "lv": 12
+    },
+    {
+     "id": "sklzombie",
+     "name": "召唤亡灵",
+     "lv": 5
+    }
+   ]
+  },
+  {
+   "id": "oscar",
+   "name": "oscar",
+   "clan": "玄",
+   "flavor": "奖杯自己带。",
+   "attrs": [
+    91,
+    44,
+    50,
+    73,
+    84,
+    89,
+    71,
+    236
+   ],
+   "stats": {
+    "atk": 55,
+    "def": 8,
+    "spd": 174,
+    "agi": 37,
+    "mag": 48,
+    "res": 53,
+    "wis": 35,
+    "hp": 236
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAkElEQVR4nKWTDQ6AIAhGgXkwOnncrEaG0wR/FluTud770jTBp5j5go1KHiinPOOFY/hgzgKDTxHAKl/7mYSsUdhLxcmCyFtzkWB+RhKq09voto8k5E1iMOlJaAkeSAh+VicYbrrzWyl4bwkOBZ3FgfUUaiWPLRv1jtFpFBFMIQwxbOndF8zgGtT0h9m9vgZa3f3vNqukhmUoAAAAAElFTkSuQmCC",
+   "winrate": 0.3333333333333333,
+   "cost": 2,
+   "tier": "C",
+   "skillList": [
+    {
+     "id": "sklmerge",
+     "name": "吞噬",
+     "lv": 24
+    },
+    {
+     "id": "sklhalf",
+     "name": "瘟疫",
+     "lv": 18
+    },
+    {
+     "id": "sklcounter",
+     "name": "反击",
+     "lv": 11
+    },
+    {
+     "id": "sklhaste",
+     "name": "加速术",
+     "lv": 6
+    },
+    {
+     "id": "sklslow",
+     "name": "减速术",
+     "lv": 4
+    },
+    {
+     "id": "sklfire",
+     "name": "火球术",
+     "lv": 3
+    },
+    {
+     "id": "sklcharm",
+     "name": "魅惑",
+     "lv": 2
+    },
+    {
+     "id": "sklabsorb",
+     "name": "吸血",
+     "lv": 1
+    }
+   ]
+  },
+  {
+   "id": "judy",
+   "name": "judy",
+   "clan": "白",
+   "flavor": "温柔一刀。",
+   "attrs": [
+    46,
+    70,
+    75,
+    85,
+    64,
+    75,
+    81,
+    253
+   ],
+   "stats": {
+    "atk": 10,
+    "def": 34,
+    "spd": 199,
+    "agi": 49,
+    "mag": 28,
+    "res": 39,
+    "wis": 45,
+    "hp": 253
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbklEQVR4nO2TwQ2AIAxFi2Echyj7uINxB/fhD+E+moqQRmNC5eKBd+D2XloInpl3asDLwYj0BXBIAWGeHFlY1jT4QI30wBWwvoB2frJC2JisZOdcJP+HOMIkA3Dl9mojWi4T1Ebu8iOgI29oWTgAzXwlZMbuogAAAAAASUVORK5CYII=",
+   "winrate": 0.5512820512820513,
+   "cost": 3,
+   "tier": "B",
+   "skillList": [
+    {
+     "id": "sklquake",
+     "name": "地裂术",
+     "lv": 28
+    },
+    {
+     "id": "sklzombie",
+     "name": "召唤亡灵",
+     "lv": 24
+    },
+    {
+     "id": "sklpoison",
+     "name": "投毒",
+     "lv": 13
+    },
+    {
+     "id": "skldefend",
+     "name": "防御",
+     "lv": 11
+    },
+    {
+     "id": "sklreraise",
+     "name": "护身符",
+     "lv": 2
+    }
+   ]
+  },
+  {
+   "id": "alice",
+   "name": "alice",
+   "clan": "青",
+   "flavor": "标准测试角色，别小看。",
+   "attrs": [
+    65,
+    56,
+    46,
+    87,
+    63,
+    79,
+    90,
+    261
+   ],
+   "stats": {
+    "atk": 29,
+    "def": 20,
+    "spd": 170,
+    "agi": 51,
+    "mag": 27,
+    "res": 43,
+    "wis": 54,
+    "hp": 261
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAk0lEQVR4nKWT0Q2AIAxEgbiHjtJR3ETdwBEYwRG6ipOgxZAolAJyP0DoOw5CB3ULAJz6IUTUOsBoQSzep/WzPuCpNzUwe7p9GfRokDbduPhRn1u2xpTgeF6VQAKKBi0wqfsREwPpwaoMWk28AcwomnCGgTH0n1VGBEppiM1+JC4VJyPBdEJIGJonSekBpp3jq+VqLhz4NqJ6vEexAAAAAElFTkSuQmCC",
+   "winrate": 0.5128205128205128,
+   "cost": 3,
+   "tier": "B",
+   "skillList": [
+    {
+     "id": "sklsummon",
+     "name": "血祭",
+     "lv": 40
+    },
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 38
+    },
+    {
+     "id": "sklshadow",
+     "name": "幻术",
+     "lv": 8
+    },
+    {
+     "id": "sklzombie",
+     "name": "召唤亡灵",
+     "lv": 2
+    },
+    {
+     "id": "sklmerge",
+     "name": "吞噬",
+     "lv": 2
+    }
+   ]
+  },
+  {
+   "id": "半城烟沙",
+   "name": "半城烟沙",
+   "clan": "赤",
+   "flavor": "兵临城下，先点一支。",
+   "attrs": [
+    78,
+    65,
+    46,
+    71,
+    53,
+    83,
+    67,
+    250
+   ],
+   "stats": {
+    "atk": 42,
+    "def": 29,
+    "spd": 170,
+    "agi": 35,
+    "mag": 17,
+    "res": 47,
+    "wis": 31,
+    "hp": 250
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nM2SSw6AMAhEwfRg9OTlZig2xE/QBNj0bbphhoHS4AURCQRonpCZrwr59qPep4GJH8JoAh4DMrTozG6CMzqiXyH//hsUKRvMJUp+DauMkECvsGSgHN+PKQPrHk5wF2p3fTF6yiY0dgTgIbZmoYAjAAAAAElFTkSuQmCC",
+   "winrate": 0.5,
+   "cost": 3,
+   "tier": "B",
+   "skillList": [
+    {
+     "id": "sklfire",
+     "name": "火球术",
+     "lv": 58
+    },
+    {
+     "id": "sklcurse",
+     "name": "诅咒",
+     "lv": 26
+    },
+    {
+     "id": "sklabsorb",
+     "name": "吸血",
+     "lv": 4
+    },
+    {
+     "id": "sklreflect",
+     "name": "伤害反弹",
+     "lv": 4
+    }
+   ]
+  },
+  {
+   "id": "复读机",
+   "name": "复读机",
+   "clan": "玄",
+   "flavor": "你说什么，我说什么。",
+   "attrs": [
+    78,
+    62,
+    87,
+    86,
+    56,
+    54,
+    38,
+    255
+   ],
+   "stats": {
+    "atk": 42,
+    "def": 26,
+    "spd": 211,
+    "agi": 50,
+    "mag": 20,
+    "res": 18,
+    "wis": 2,
+    "hp": 255
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAkElEQVR4nKWTDQ6AIAhGgXkwOnncrEaG0wR/FluTud770jTBp5j5go1KHiinPOOFY/hgzgKDTxHAKl/7mYSsUdhLxcmCyFtzkWB+RhKq09voto8k5E1iMOlJaAkeSAh+VicYbrrzWyl4bwkOBZ3FgfUUaiWPLRv1jtFpFBFMIQwxbOndF8zgGtT0h9m9vgZa3f3vNqukhmUoAAAAAElFTkSuQmCC",
+   "winrate": 0.48717948717948717,
+   "cost": 3,
+   "tier": "B",
+   "skillList": [
+    {
+     "id": "sklsummon",
+     "name": "血祭",
+     "lv": 31
+    },
+    {
+     "id": "skliron",
+     "name": "铁壁",
+     "lv": 18
+    },
+    {
+     "id": "sklice",
+     "name": "冰冻术",
+     "lv": 14
+    },
+    {
+     "id": "sklrevive",
+     "name": "苏生术",
+     "lv": 10
+    },
+    {
+     "id": "sklberserk",
+     "name": "狂暴术",
+     "lv": 7
+    },
+    {
+     "id": "sklexchange",
+     "name": "生命之轮",
+     "lv": 4
+    },
+    {
+     "id": "sklabsorb",
+     "name": "吸血",
+     "lv": 3
+    }
+   ]
+  },
+  {
+   "id": "山河故人",
+   "name": "山河故人",
+   "clan": "白",
+   "flavor": "山河还在，故人已老。",
+   "attrs": [
+    59,
+    55,
+    78,
+    54,
+    62,
+    81,
+    65,
+    324
+   ],
+   "stats": {
+    "atk": 23,
+    "def": 19,
+    "spd": 202,
+    "agi": 18,
+    "mag": 26,
+    "res": 45,
+    "wis": 29,
+    "hp": 324
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbklEQVR4nO2TwQ2AIAxFi2Echyj7uINxB/fhD+E+moqQRmNC5eKBd+D2XloInpl3asDLwYj0BXBIAWGeHFlY1jT4QI30wBWwvoB2frJC2JisZOdcJP+HOMIkA3Dl9mojWi4T1Ebu8iOgI29oWTgAzXwlZMbuogAAAAAASUVORK5CYII=",
+   "winrate": 0.48717948717948717,
+   "cost": 3,
+   "tier": "B",
+   "skillList": [
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 23
+    },
+    {
+     "id": "sklpoison",
+     "name": "投毒",
+     "lv": 22
+    },
+    {
+     "id": "sklrapid",
+     "name": "连击",
+     "lv": 18
+    },
+    {
+     "id": "sklslow",
+     "name": "减速术",
+     "lv": 10
+    },
+    {
+     "id": "sklice",
+     "name": "冰冻术",
+     "lv": 4
+    },
+    {
+     "id": "skldefend",
+     "name": "防御",
+     "lv": 2
+    }
+   ]
+  },
+  {
+   "id": "grace",
+   "name": "grace",
+   "clan": "青",
+   "flavor": "优雅地把你送走。",
+   "attrs": [
+    77,
+    54,
+    63,
+    48,
+    61,
+    74,
+    75,
+    311
+   ],
+   "stats": {
+    "atk": 41,
+    "def": 18,
+    "spd": 187,
+    "agi": 12,
+    "mag": 25,
+    "res": 38,
+    "wis": 39,
+    "hp": 311
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAk0lEQVR4nKWT0Q2AIAxEgbiHjtJR3ETdwBEYwRG6ipOgxZAolAJyP0DoOw5CB3ULAJz6IUTUOsBoQSzep/WzPuCpNzUwe7p9GfRokDbduPhRn1u2xpTgeF6VQAKKBi0wqfsREwPpwaoMWk28AcwomnCGgTH0n1VGBEppiM1+JC4VJyPBdEJIGJonSekBpp3jq+VqLhz4NqJ6vEexAAAAAElFTkSuQmCC",
+   "winrate": 0.47435897435897434,
+   "cost": 3,
+   "tier": "B",
+   "skillList": [
+    {
+     "id": "sklupgrade",
+     "name": "垂死抗争",
+     "lv": 33
+    },
+    {
+     "id": "sklberserk",
+     "name": "狂暴术",
+     "lv": 10
+    },
+    {
+     "id": "sklabsorb",
+     "name": "吸血",
+     "lv": 9
+    },
+    {
+     "id": "sklshield",
+     "name": "蓄盾",
+     "lv": 8
+    },
+    {
+     "id": "skldefend",
+     "name": "防御",
+     "lv": 1
+    },
+    {
+     "id": "sklpoison",
+     "name": "投毒",
+     "lv": 1
+    }
+   ]
+  },
+  {
+   "id": "孤舟蓑笠翁",
+   "name": "孤舟蓑笠翁",
+   "clan": "玄",
+   "flavor": "独钓一江寒雪。",
+   "attrs": [
+    54,
+    74,
+    53,
+    82,
+    48,
+    76,
+    62,
+    331
+   ],
+   "stats": {
+    "atk": 18,
+    "def": 38,
+    "spd": 177,
+    "agi": 46,
+    "mag": 12,
+    "res": 40,
+    "wis": 26,
+    "hp": 331
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAkElEQVR4nKWTDQ6AIAhGgXkwOnncrEaG0wR/FluTud770jTBp5j5go1KHiinPOOFY/hgzgKDTxHAKl/7mYSsUdhLxcmCyFtzkWB+RhKq09voto8k5E1iMOlJaAkeSAh+VicYbrrzWyl4bwkOBZ3FgfUUaiWPLRv1jtFpFBFMIQwxbOndF8zgGtT0h9m9vgZa3f3vNqukhmUoAAAAAElFTkSuQmCC",
+   "winrate": 0.44871794871794873,
+   "cost": 3,
+   "tier": "B",
+   "skillList": [
+    {
+     "id": "sklprotect",
+     "name": "守护",
+     "lv": 14
+    },
+    {
+     "id": "sklslow",
+     "name": "减速术",
+     "lv": 12
+    },
+    {
+     "id": "sklrapid",
+     "name": "连击",
+     "lv": 11
+    },
+    {
+     "id": "sklquake",
+     "name": "地裂术",
+     "lv": 5
+    },
+    {
+     "id": "sklfire",
+     "name": "火球术",
+     "lv": 4
+    },
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 4
+    },
+    {
+     "id": "sklupgrade",
+     "name": "垂死抗争",
+     "lv": 1
+    }
+   ]
+  },
+  {
+   "id": "柠檬精",
+   "name": "柠檬精",
+   "clan": "白",
+   "flavor": "酸，但强。",
+   "attrs": [
+    65,
+    95,
+    71,
+    74,
+    92,
+    72,
+    41,
+    211
+   ],
+   "stats": {
+    "atk": 29,
+    "def": 59,
+    "spd": 195,
+    "agi": 38,
+    "mag": 56,
+    "res": 36,
+    "wis": 5,
+    "hp": 211
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbklEQVR4nO2TwQ2AIAxFi2Echyj7uINxB/fhD+E+moqQRmNC5eKBd+D2XloInpl3asDLwYj0BXBIAWGeHFlY1jT4QI30wBWwvoB2frJC2JisZOdcJP+HOMIkA3Dl9mojWi4T1Ebu8iOgI29oWTgAzXwlZMbuogAAAAAASUVORK5CYII=",
+   "winrate": 0.44871794871794873,
+   "cost": 3,
+   "tier": "B",
+   "skillList": [
+    {
+     "id": "skliron",
+     "name": "铁壁",
+     "lv": 60
+    },
+    {
+     "id": "sklslow",
+     "name": "减速术",
+     "lv": 9
+    },
+    {
+     "id": "sklprotect",
+     "name": "守护",
+     "lv": 7
+    },
+    {
+     "id": "sklmerge",
+     "name": "吞噬",
+     "lv": 5
+    },
+    {
+     "id": "sklexchange",
+     "name": "生命之轮",
+     "lv": 2
+    }
+   ]
+  },
+  {
+   "id": "trent",
+   "name": "trent",
+   "clan": "白",
+   "flavor": "新来的，狠角色。",
+   "attrs": [
+    86,
+    87,
+    54,
+    75,
+    76,
+    52,
+    63,
+    261
+   ],
+   "stats": {
+    "atk": 50,
+    "def": 51,
+    "spd": 178,
+    "agi": 39,
+    "mag": 40,
+    "res": 16,
+    "wis": 27,
+    "hp": 261
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbklEQVR4nO2TwQ2AIAxFi2Echyj7uINxB/fhD+E+moqQRmNC5eKBd+D2XloInpl3asDLwYj0BXBIAWGeHFlY1jT4QI30wBWwvoB2frJC2JisZOdcJP+HOMIkA3Dl9mojWi4T1Ebu8iOgI29oWTgAzXwlZMbuogAAAAAASUVORK5CYII=",
+   "winrate": 0.6666666666666666,
+   "cost": 4,
+   "tier": "A",
+   "skillList": [
+    {
+     "id": "sklsummon",
+     "name": "血祭",
+     "lv": 27
+    },
+    {
+     "id": "sklshield",
+     "name": "蓄盾",
+     "lv": 20
+    },
+    {
+     "id": "sklpoison",
+     "name": "投毒",
+     "lv": 2
+    },
+    {
+     "id": "sklclone",
+     "name": "分身",
+     "lv": 1
+    }
+   ]
+  },
+  {
+   "id": "一剑霜寒",
+   "name": "一剑霜寒",
+   "clan": "赤",
+   "flavor": "剑未出鞘，霜已满襟。",
+   "attrs": [
+    79,
+    58,
+    43,
+    66,
+    55,
+    71,
+    81,
+    350
+   ],
+   "stats": {
+    "atk": 43,
+    "def": 22,
+    "spd": 167,
+    "agi": 30,
+    "mag": 19,
+    "res": 35,
+    "wis": 45,
+    "hp": 350
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nM2SSw6AMAhEwfRg9OTlZig2xE/QBNj0bbphhoHS4AURCQRonpCZrwr59qPep4GJH8JoAh4DMrTozG6CMzqiXyH//hsUKRvMJUp+DauMkECvsGSgHN+PKQPrHk5wF2p3fTF6yiY0dgTgIbZmoYAjAAAAAElFTkSuQmCC",
+   "winrate": 0.6153846153846154,
+   "cost": 4,
+   "tier": "A",
+   "skillList": [
+    {
+     "id": "sklexchange",
+     "name": "生命之轮",
+     "lv": 29
+    },
+    {
+     "id": "sklcritical",
+     "name": "会心一击",
+     "lv": 28
+    },
+    {
+     "id": "sklupgrade",
+     "name": "垂死抗争",
+     "lv": 27
+    },
+    {
+     "id": "sklreraise",
+     "name": "护身符",
+     "lv": 7
+    },
+    {
+     "id": "skldefend",
+     "name": "防御",
+     "lv": 4
+    }
+   ]
+  },
+  {
+   "id": "春风不度",
+   "name": "春风不度",
+   "clan": "白",
+   "flavor": "玉门关外，风也懒。",
+   "attrs": [
+    62,
+    87,
+    90,
+    55,
+    68,
+    59,
+    67,
+    231
+   ],
+   "stats": {
+    "atk": 26,
+    "def": 51,
+    "spd": 214,
+    "agi": 19,
+    "mag": 32,
+    "res": 23,
+    "wis": 31,
+    "hp": 231
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbklEQVR4nO2TwQ2AIAxFi2Echyj7uINxB/fhD+E+moqQRmNC5eKBd+D2XloInpl3asDLwYj0BXBIAWGeHFlY1jT4QI30wBWwvoB2frJC2JisZOdcJP+HOMIkA3Dl9mojWi4T1Ebu8iOgI29oWTgAzXwlZMbuogAAAAAASUVORK5CYII=",
+   "winrate": 0.6025641025641025,
+   "cost": 4,
+   "tier": "A",
+   "skillList": [
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 48
+    },
+    {
+     "id": "sklhide",
+     "name": "隐匿",
+     "lv": 24
+    },
+    {
+     "id": "sklexchange",
+     "name": "生命之轮",
+     "lv": 22
+    },
+    {
+     "id": "skldefend",
+     "name": "防御",
+     "lv": 18
+    },
+    {
+     "id": "sklcounter",
+     "name": "反击",
+     "lv": 5
+    },
+    {
+     "id": "sklslow",
+     "name": "减速术",
+     "lv": 3
+    },
+    {
+     "id": "sklupgrade",
+     "name": "垂死抗争",
+     "lv": 1
+    }
+   ]
+  },
+  {
+   "id": "早八人",
+   "name": "早八人",
+   "clan": "白",
+   "flavor": "早八，是一种信仰。",
+   "attrs": [
+    81,
+    66,
+    70,
+    79,
+    74,
+    68,
+    39,
+    297
+   ],
+   "stats": {
+    "atk": 45,
+    "def": 30,
+    "spd": 194,
+    "agi": 43,
+    "mag": 38,
+    "res": 32,
+    "wis": 3,
+    "hp": 297
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbklEQVR4nO2TwQ2AIAxFi2Echyj7uINxB/fhD+E+moqQRmNC5eKBd+D2XloInpl3asDLwYj0BXBIAWGeHFlY1jT4QI30wBWwvoB2frJC2JisZOdcJP+HOMIkA3Dl9mojWi4T1Ebu8iOgI29oWTgAzXwlZMbuogAAAAAASUVORK5CYII=",
+   "winrate": 0.6025641025641025,
+   "cost": 4,
+   "tier": "A",
+   "skillList": [
+    {
+     "id": "sklrapid",
+     "name": "连击",
+     "lv": 46
+    },
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 24
+    },
+    {
+     "id": "sklcurse",
+     "name": "诅咒",
+     "lv": 17
+    },
+    {
+     "id": "sklabsorb",
+     "name": "吸血",
+     "lv": 11
+    },
+    {
+     "id": "sklheal",
+     "name": "治愈魔法",
+     "lv": 9
+    },
+    {
+     "id": "sklberserk",
+     "name": "狂暴术",
+     "lv": 8
+    },
+    {
+     "id": "sklclone",
+     "name": "分身",
+     "lv": 7
+    },
+    {
+     "id": "sklrevive",
+     "name": "苏生术",
+     "lv": 6
+    },
+    {
+     "id": "sklmerge",
+     "name": "吞噬",
+     "lv": 3
+    },
+    {
+     "id": "sklquake",
+     "name": "地裂术",
+     "lv": 2
+    },
+    {
+     "id": "sklslow",
+     "name": "减速术",
+     "lv": 1
+    }
+   ]
+  },
+  {
+   "id": "mallory",
+   "name": "mallory",
+   "clan": "玄",
+   "flavor": "专业捣乱二十年。",
+   "attrs": [
+    61,
+    66,
+    92,
+    49,
+    65,
+    83,
+    82,
+    297
+   ],
+   "stats": {
+    "atk": 25,
+    "def": 30,
+    "spd": 216,
+    "agi": 13,
+    "mag": 29,
+    "res": 47,
+    "wis": 46,
+    "hp": 297
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAkElEQVR4nKWTDQ6AIAhGgXkwOnncrEaG0wR/FluTud770jTBp5j5go1KHiinPOOFY/hgzgKDTxHAKl/7mYSsUdhLxcmCyFtzkWB+RhKq09voto8k5E1iMOlJaAkeSAh+VicYbrrzWyl4bwkOBZ3FgfUUaiWPLRv1jtFpFBFMIQwxbOndF8zgGtT0h9m9vgZa3f3vNqukhmUoAAAAAElFTkSuQmCC",
+   "winrate": 0.5897435897435898,
+   "cost": 4,
+   "tier": "A",
+   "skillList": [
+    {
+     "id": "sklcritical",
+     "name": "会心一击",
+     "lv": 38
+    },
+    {
+     "id": "sklthunder",
+     "name": "雷击术",
+     "lv": 22
+    },
+    {
+     "id": "sklclone",
+     "name": "分身",
+     "lv": 20
+    },
+    {
+     "id": "sklsummon",
+     "name": "血祭",
+     "lv": 12
+    },
+    {
+     "id": "sklice",
+     "name": "冰冻术",
+     "lv": 5
+    },
+    {
+     "id": "sklberserk",
+     "name": "狂暴术",
+     "lv": 4
+    }
+   ]
+  },
+  {
+   "id": "frank",
+   "name": "frank",
+   "clan": "赤",
+   "flavor": "老实人发起火来。",
+   "attrs": [
+    54,
+    87,
+    69,
+    90,
+    42,
+    46,
+    75,
+    279
+   ],
+   "stats": {
+    "atk": 18,
+    "def": 51,
+    "spd": 193,
+    "agi": 54,
+    "mag": 6,
+    "res": 10,
+    "wis": 39,
+    "hp": 279
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nM2SSw6AMAhEwfRg9OTlZig2xE/QBNj0bbphhoHS4AURCQRonpCZrwr59qPep4GJH8JoAh4DMrTozG6CMzqiXyH//hsUKRvMJUp+DauMkECvsGSgHN+PKQPrHk5wF2p3fTF6yiY0dgTgIbZmoYAjAAAAAElFTkSuQmCC",
+   "winrate": 0.5769230769230769,
+   "cost": 4,
+   "tier": "A",
+   "skillList": [
+    {
+     "id": "sklupgrade",
+     "name": "垂死抗争",
+     "lv": 38
+    },
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 22
+    },
+    {
+     "id": "sklshadow",
+     "name": "幻术",
+     "lv": 9
+    },
+    {
+     "id": "sklshield",
+     "name": "蓄盾",
+     "lv": 2
+    }
+   ]
+  },
+  {
+   "id": "火中取栗",
+   "name": "火中取栗",
+   "clan": "赤",
+   "flavor": "手快有，手慢烫。",
+   "attrs": [
+    86,
+    85,
+    52,
+    45,
+    92,
+    57,
+    51,
+    311
+   ],
+   "stats": {
+    "atk": 50,
+    "def": 49,
+    "spd": 176,
+    "agi": 9,
+    "mag": 56,
+    "res": 21,
+    "wis": 15,
+    "hp": 311
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nM2SSw6AMAhEwfRg9OTlZig2xE/QBNj0bbphhoHS4AURCQRonpCZrwr59qPep4GJH8JoAh4DMrTozG6CMzqiXyH//hsUKRvMJUp+DauMkECvsGSgHN+PKQPrHk5wF2p3fTF6yiY0dgTgIbZmoYAjAAAAAElFTkSuQmCC",
+   "winrate": 0.5512820512820513,
+   "cost": 4,
+   "tier": "A",
+   "skillList": [
+    {
+     "id": "sklheal",
+     "name": "治愈魔法",
+     "lv": 27
+    },
+    {
+     "id": "sklcounter",
+     "name": "反击",
+     "lv": 13
+    },
+    {
+     "id": "sklreraise",
+     "name": "护身符",
+     "lv": 13
+    },
+    {
+     "id": "sklupgrade",
+     "name": "垂死抗争",
+     "lv": 10
+    },
+    {
+     "id": "sklmerge",
+     "name": "吞噬",
+     "lv": 9
+    },
+    {
+     "id": "sklsummon",
+     "name": "血祭",
+     "lv": 8
+    },
+    {
+     "id": "sklice",
+     "name": "冰冻术",
+     "lv": 6
+    }
+   ]
+  },
+  {
+   "id": "林深见鹿",
+   "name": "林深见鹿",
+   "clan": "青",
+   "flavor": "雾里有鹿，也有坑。",
+   "attrs": [
+    54,
+    74,
+    88,
+    63,
+    57,
+    81,
+    85,
+    291
+   ],
+   "stats": {
+    "atk": 18,
+    "def": 38,
+    "spd": 212,
+    "agi": 27,
+    "mag": 21,
+    "res": 45,
+    "wis": 49,
+    "hp": 291
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAk0lEQVR4nKWT0Q2AIAxEgbiHjtJR3ETdwBEYwRG6ipOgxZAolAJyP0DoOw5CB3ULAJz6IUTUOsBoQSzep/WzPuCpNzUwe7p9GfRokDbduPhRn1u2xpTgeF6VQAKKBi0wqfsREwPpwaoMWk28AcwomnCGgTH0n1VGBEppiM1+JC4VJyPBdEJIGJonSekBpp3jq+VqLhz4NqJ6vEexAAAAAElFTkSuQmCC",
+   "winrate": 0.5512820512820513,
+   "cost": 4,
+   "tier": "A",
+   "skillList": [
+    {
+     "id": "sklreraise",
+     "name": "护身符",
+     "lv": 26
+    },
+    {
+     "id": "sklcritical",
+     "name": "会心一击",
+     "lv": 9
+    },
+    {
+     "id": "sklcharm",
+     "name": "魅惑",
+     "lv": 8
+    },
+    {
+     "id": "sklrapid",
+     "name": "连击",
+     "lv": 8
+    },
+    {
+     "id": "sklabsorb",
+     "name": "吸血",
+     "lv": 3
+    }
+   ]
+  },
+  {
+   "id": "甲方爸爸",
+   "name": "甲方爸爸",
+   "clan": "赤",
+   "flavor": "这个需求很简单。",
+   "attrs": [
+    89,
+    88,
+    69,
+    77,
+    44,
+    58,
+    64,
+    317
+   ],
+   "stats": {
+    "atk": 53,
+    "def": 52,
+    "spd": 193,
+    "agi": 41,
+    "mag": 8,
+    "res": 22,
+    "wis": 28,
+    "hp": 317
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nM2SSw6AMAhEwfRg9OTlZig2xE/QBNj0bbphhoHS4AURCQRonpCZrwr59qPep4GJH8JoAh4DMrTozG6CMzqiXyH//hsUKRvMJUp+DauMkECvsGSgHN+PKQPrHk5wF2p3fTF6yiY0dgTgIbZmoYAjAAAAAElFTkSuQmCC",
+   "winrate": 0.8205128205128205,
+   "cost": 5,
+   "tier": "S",
+   "skillList": [
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 30
+    },
+    {
+     "id": "sklrevive",
+     "name": "苏生术",
+     "lv": 19
+    },
+    {
+     "id": "sklreflect",
+     "name": "伤害反弹",
+     "lv": 16
+    },
+    {
+     "id": "sklshield",
+     "name": "蓄盾",
+     "lv": 10
+    },
+    {
+     "id": "sklprotect",
+     "name": "守护",
+     "lv": 6
+    },
+    {
+     "id": "sklreraise",
+     "name": "护身符",
+     "lv": 5
+    },
+    {
+     "id": "sklberserk",
+     "name": "狂暴术",
+     "lv": 1
+    }
+   ]
+  },
+  {
+   "id": "peggy",
+   "name": "peggy",
+   "clan": "白",
+   "flavor": "账都记着呢。",
+   "attrs": [
+    60,
+    89,
+    86,
+    93,
+    63,
+    70,
+    81,
+    259
+   ],
+   "stats": {
+    "atk": 24,
+    "def": 53,
+    "spd": 210,
+    "agi": 57,
+    "mag": 27,
+    "res": 34,
+    "wis": 45,
+    "hp": 259
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbklEQVR4nO2TwQ2AIAxFi2Echyj7uINxB/fhD+E+moqQRmNC5eKBd+D2XloInpl3asDLwYj0BXBIAWGeHFlY1jT4QI30wBWwvoB2frJC2JisZOdcJP+HOMIkA3Dl9mojWi4T1Ebu8iOgI29oWTgAzXwlZMbuogAAAAAASUVORK5CYII=",
+   "winrate": 0.8205128205128205,
+   "cost": 5,
+   "tier": "S",
+   "skillList": [
+    {
+     "id": "sklrapid",
+     "name": "连击",
+     "lv": 20
+    },
+    {
+     "id": "sklberserk",
+     "name": "狂暴术",
+     "lv": 14
+    },
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 8
+    },
+    {
+     "id": "sklhalf",
+     "name": "瘟疫",
+     "lv": 5
+    }
+   ]
+  },
+  {
+   "id": "dave",
+   "name": "dave",
+   "clan": "赤",
+   "flavor": "稳，但只稳三秒。",
+   "attrs": [
+    77,
+    84,
+    46,
+    53,
+    68,
+    68,
+    67,
+    351
+   ],
+   "stats": {
+    "atk": 41,
+    "def": 48,
+    "spd": 170,
+    "agi": 17,
+    "mag": 32,
+    "res": 32,
+    "wis": 31,
+    "hp": 351
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nM2SSw6AMAhEwfRg9OTlZig2xE/QBNj0bbphhoHS4AURCQRonpCZrwr59qPep4GJH8JoAh4DMrTozG6CMzqiXyH//hsUKRvMJUp+DauMkECvsGSgHN+PKQPrHk5wF2p3fTF6yiY0dgTgIbZmoYAjAAAAAElFTkSuQmCC",
+   "winrate": 0.782051282051282,
+   "cost": 5,
+   "tier": "S",
+   "skillList": [
+    {
+     "id": "skliron",
+     "name": "铁壁",
+     "lv": 64
+    },
+    {
+     "id": "sklcharge",
+     "name": "蓄力",
+     "lv": 20
+    },
+    {
+     "id": "sklreraise",
+     "name": "护身符",
+     "lv": 20
+    },
+    {
+     "id": "sklcritical",
+     "name": "会心一击",
+     "lv": 11
+    },
+    {
+     "id": "sklcurse",
+     "name": "诅咒",
+     "lv": 7
+    },
+    {
+     "id": "sklabsorb",
+     "name": "吸血",
+     "lv": 5
+    },
+    {
+     "id": "sklheal",
+     "name": "治愈魔法",
+     "lv": 4
+    },
+    {
+     "id": "sklupgrade",
+     "name": "垂死抗争",
+     "lv": 2
+    }
+   ]
+  },
+  {
+   "id": "熬夜冠军",
+   "name": "熬夜冠军",
+   "clan": "赤",
+   "flavor": "见过凌晨四点的服务器。",
+   "attrs": [
+    75,
+    83,
+    67,
+    88,
+    42,
+    76,
+    93,
+    288
+   ],
+   "stats": {
+    "atk": 39,
+    "def": 47,
+    "spd": 191,
+    "agi": 52,
+    "mag": 6,
+    "res": 40,
+    "wis": 57,
+    "hp": 288
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbElEQVR4nM2SSw6AMAhEwfRg9OTlZig2xE/QBNj0bbphhoHS4AURCQRonpCZrwr59qPep4GJH8JoAh4DMrTozG6CMzqiXyH//hsUKRvMJUp+DauMkECvsGSgHN+PKQPrHk5wF2p3fTF6yiY0dgTgIbZmoYAjAAAAAElFTkSuQmCC",
+   "winrate": 0.7564102564102564,
+   "cost": 5,
+   "tier": "S",
+   "skillList": [
+    {
+     "id": "sklheal",
+     "name": "治愈魔法",
+     "lv": 36
+    },
+    {
+     "id": "sklhide",
+     "name": "隐匿",
+     "lv": 20
+    },
+    {
+     "id": "skliron",
+     "name": "铁壁",
+     "lv": 20
+    },
+    {
+     "id": "skldefend",
+     "name": "防御",
+     "lv": 19
+    },
+    {
+     "id": "sklabsorb",
+     "name": "吸血",
+     "lv": 11
+    },
+    {
+     "id": "sklreraise",
+     "name": "护身符",
+     "lv": 1
+    }
+   ]
+  },
+  {
+   "id": "白露为霜",
+   "name": "白露为霜",
+   "clan": "青",
+   "flavor": "蒹葭苍苍，伤害凉凉。",
+   "attrs": [
+    84,
+    85,
+    58,
+    73,
+    61,
+    78,
+    84,
+    277
+   ],
+   "stats": {
+    "atk": 48,
+    "def": 49,
+    "spd": 182,
+    "agi": 37,
+    "mag": 25,
+    "res": 42,
+    "wis": 48,
+    "hp": 277
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAk0lEQVR4nKWT0Q2AIAxEgbiHjtJR3ETdwBEYwRG6ipOgxZAolAJyP0DoOw5CB3ULAJz6IUTUOsBoQSzep/WzPuCpNzUwe7p9GfRokDbduPhRn1u2xpTgeF6VQAKKBi0wqfsREwPpwaoMWk28AcwomnCGgTH0n1VGBEppiM1+JC4VJyPBdEJIGJonSekBpp3jq+VqLhz4NqJ6vEexAAAAAElFTkSuQmCC",
+   "winrate": 0.7564102564102564,
+   "cost": 5,
+   "tier": "S",
+   "skillList": [
+    {
+     "id": "sklcharm",
+     "name": "魅惑",
+     "lv": 42
+    },
+    {
+     "id": "sklmerge",
+     "name": "吞噬",
+     "lv": 32
+    },
+    {
+     "id": "sklzombie",
+     "name": "召唤亡灵",
+     "lv": 24
+    },
+    {
+     "id": "skldefend",
+     "name": "防御",
+     "lv": 22
+    },
+    {
+     "id": "sklhaste",
+     "name": "加速术",
+     "lv": 15
+    },
+    {
+     "id": "sklpoison",
+     "name": "投毒",
+     "lv": 9
+    },
+    {
+     "id": "sklhide",
+     "name": "隐匿",
+     "lv": 8
+    },
+    {
+     "id": "sklice",
+     "name": "冰冻术",
+     "lv": 6
+    },
+    {
+     "id": "sklcurse",
+     "name": "诅咒",
+     "lv": 3
+    }
+   ]
+  },
+  {
+   "id": "heidi",
+   "name": "heidi",
+   "clan": "青",
+   "flavor": "山里来的，不讲道理。",
+   "attrs": [
+    89,
+    95,
+    87,
+    63,
+    65,
+    73,
+    75,
+    302
+   ],
+   "stats": {
+    "atk": 53,
+    "def": 59,
+    "spd": 211,
+    "agi": 27,
+    "mag": 29,
+    "res": 37,
+    "wis": 39,
+    "hp": 302
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAk0lEQVR4nKWT0Q2AIAxEgbiHjtJR3ETdwBEYwRG6ipOgxZAolAJyP0DoOw5CB3ULAJz6IUTUOsBoQSzep/WzPuCpNzUwe7p9GfRokDbduPhRn1u2xpTgeF6VQAKKBi0wqfsREwPpwaoMWk28AcwomnCGgTH0n1VGBEppiM1+JC4VJyPBdEJIGJonSekBpp3jq+VqLhz4NqJ6vEexAAAAAElFTkSuQmCC",
+   "winrate": 0.7564102564102564,
+   "cost": 5,
+   "tier": "S",
+   "skillList": [
+    {
+     "id": "sklclone",
+     "name": "分身",
+     "lv": 34
+    },
+    {
+     "id": "sklaccumulate",
+     "name": "聚气",
+     "lv": 14
+    },
+    {
+     "id": "sklzombie",
+     "name": "召唤亡灵",
+     "lv": 13
+    },
+    {
+     "id": "sklrevive",
+     "name": "苏生术",
+     "lv": 7
+    },
+    {
+     "id": "sklprotect",
+     "name": "守护",
+     "lv": 4
+    }
+   ]
+  },
+  {
+   "id": "ivan",
+   "name": "ivan",
+   "clan": "白",
+   "flavor": "看起来很能打。",
+   "attrs": [
+    81,
+    83,
+    62,
+    79,
+    69,
+    63,
+    58,
+    300
+   ],
+   "stats": {
+    "atk": 45,
+    "def": 47,
+    "spd": 186,
+    "agi": 43,
+    "mag": 33,
+    "res": 27,
+    "wis": 22,
+    "hp": 300
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAbklEQVR4nO2TwQ2AIAxFi2Echyj7uINxB/fhD+E+moqQRmNC5eKBd+D2XloInpl3asDLwYj0BXBIAWGeHFlY1jT4QI30wBWwvoB2frJC2JisZOdcJP+HOMIkA3Dl9mojWi4T1Ebu8iOgI29oWTgAzXwlZMbuogAAAAAASUVORK5CYII=",
+   "winrate": 0.717948717948718,
+   "cost": 5,
+   "tier": "S",
+   "skillList": [
+    {
+     "id": "sklcounter",
+     "name": "反击",
+     "lv": 27
+    },
+    {
+     "id": "sklberserk",
+     "name": "狂暴术",
+     "lv": 13
+    },
+    {
+     "id": "sklzombie",
+     "name": "召唤亡灵",
+     "lv": 9
+    },
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 8
+    }
+   ]
+  },
+  {
+   "id": "赛博佛祖",
+   "name": "赛博佛祖",
+   "clan": "青",
+   "flavor": "电子功德，实时结算。",
+   "attrs": [
+    82,
+    69,
+    87,
+    61,
+    63,
+    73,
+    84,
+    257
+   ],
+   "stats": {
+    "atk": 46,
+    "def": 33,
+    "spd": 211,
+    "agi": 25,
+    "mag": 27,
+    "res": 37,
+    "wis": 48,
+    "hp": 257
+   },
+   "icon": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAAk0lEQVR4nKWT0Q2AIAxEgbiHjtJR3ETdwBEYwRG6ipOgxZAolAJyP0DoOw5CB3ULAJz6IUTUOsBoQSzep/WzPuCpNzUwe7p9GfRokDbduPhRn1u2xpTgeF6VQAKKBi0wqfsREwPpwaoMWk28AcwomnCGgTH0n1VGBEppiM1+JC4VJyPBdEJIGJonSekBpp3jq+VqLhz4NqJ6vEexAAAAAElFTkSuQmCC",
+   "winrate": 0.6666666666666666,
+   "cost": 5,
+   "tier": "S",
+   "skillList": [
+    {
+     "id": "sklquake",
+     "name": "地裂术",
+     "lv": 38
+    },
+    {
+     "id": "skldisperse",
+     "name": "净化",
+     "lv": 35
+    },
+    {
+     "id": "sklrapid",
+     "name": "连击",
+     "lv": 28
+    },
+    {
+     "id": "sklberserk",
+     "name": "狂暴术",
+     "lv": 3
+    },
+    {
+     "id": "sklrevive",
+     "name": "苏生术",
+     "lv": 1
+    }
+   ]
+  }
+ ]
+}

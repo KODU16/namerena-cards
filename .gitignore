@@ -1,0 +1,9 @@
+﻿# 构建产物与临时文件
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+
+# 本地草稿
+_site_backup/
+docs/*.png

@@ -1,0 +1,27 @@
+name: refresh ladder snapshot
+
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Fetch 1A ladder
+        run: node tools/fetch-ladder.mjs
+      - name: Commit if changed
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add data/ladder.json
+          git diff --quiet && git diff --staged --quiet || git commit -m "chore: refresh ladder snapshot"
+          git push

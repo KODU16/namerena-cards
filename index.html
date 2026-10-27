@@ -1,0 +1,47 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>名字竞技场 · 卡牌对决</title>
+  <meta name="description" content="用 tswn_core 把名字变成卡牌：轮到你的单位时抽三张技能卡，选一张打出，挑战天梯各线。" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%230d0f14'/%3E%3Ctext x='32' y='44' font-size='34' text-anchor='middle' fill='%23d9b46a' font-family='serif'%3E%E5%90%8D%3C/text%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="css/style.css?v=3" />
+</head>
+<body data-screen="home">
+  <div id="app" class="app is-loading">
+    <div id="topbar-slot"></div>
+    <main id="screen" class="screen"></main>
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <div id="overlay" class="overlay hidden" role="dialog" aria-modal="true"></div>
+  </div>
+  <noscript>这个游戏需要 JavaScript 与 WebAssembly。</noscript>
+
+  <!-- 启动兜底：file:// 或模块加载失败时不要一直停在「正在唤醒引擎」 -->
+  <script>
+    (function () {
+      function fail(title, detail) {
+        var app = document.getElementById('app');
+        var screen = document.getElementById('screen');
+        if (!app || !screen) return;
+        app.classList.remove('is-loading');
+        screen.innerHTML =
+          '<div class="boot-error"><h1>' + title + '</h1><p>' + detail + '</p>' +
+          '<p class="muted">正确做法：双击项目里的 <b>start.cmd</b>，或在项目目录执行 ' +
+          '<code>python -m http.server 8123</code> 后访问 ' +
+          '<code>http://127.0.0.1:8123/</code>。</p></div>';
+      }
+      if (location.protocol === 'file:') {
+        fail('需要用本地服务器打开', '浏览器禁止 file:// 页面加载 ES Module 和 .wasm，所以引擎无法启动。');
+        return;
+      }
+      setTimeout(function () {
+        if (!window.__namerenaBooted) {
+          fail('引擎没有启动', '页面已加载，但 wasm 没有在 8 秒内初始化。请打开浏览器控制台看第一条红色报错。');
+        }
+      }, 8000);
+    })();
+  </script>
+  <script type="module" src="js/main.js?v=3"></script>
+</body>
+</html>

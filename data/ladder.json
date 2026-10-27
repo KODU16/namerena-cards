@@ -1,0 +1,3960 @@
+{
+ "meta": {
+  "source": "https://shenjack.top:10007/",
+  "fetchedAt": "2026-10-27T12:28:08.807Z",
+  "lanes": [
+   "1A",
+   "1B",
+   "2A",
+   "2B",
+   "3A"
+  ]
+ },
+ "lanes": {
+  "1A": {
+   "teamSize": 1,
+   "queue": [
+    {
+     "rank": 100,
+     "score": 7695,
+     "name": "6$(`YeH)MzKz[X(\"Kyt(y%x",
+     "clan": "Flying_hq",
+     "lineup": [
+      "6$(`YeH)MzKz[X(\"Kyt(y%x@Flying_hq"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 99,
+     "score": 8221,
+     "name": "0m3PheJm0WlEfvqkvWxy",
+     "clan": "d909rca",
+     "lineup": [
+      "0m3PheJm0WlEfvqkvWxy@d909rca"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 98,
+     "score": 8478,
+     "name": "fIqPhRsLS",
+     "clan": "ManusVindictae",
+     "lineup": [
+      "fIqPhRsLS@ManusVindictae"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 97,
+     "score": 8511,
+     "name": "荧屏上的梦想 NWKm7L_6",
+     "clan": "dream_on_screen",
+     "lineup": [
+      "荧屏上的梦想 NWKm7L_6@dream_on_screen"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 96,
+     "score": 8521,
+     "name": "deyumkdklhzikhultgbvexkc",
+     "clan": "WDGod",
+     "lineup": [
+      "deyumkdklhzikhultgbvexkc@WDGod"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 95,
+     "score": 8716,
+     "name": "岫烟onFhjfDKUQ",
+     "clan": "长尾山雀",
+     "lineup": [
+      "岫烟onFhjfDKUQ@长尾山雀"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 94,
+     "score": 8897,
+     "name": "E.Isle GlGBztkWgThq",
+     "clan": "ΡΑΝΤΗΕΟΝ",
+     "lineup": [
+      "E.Isle GlGBztkWgThq@ΡΑΝΤΗΕΟΝ"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 93,
+     "score": 8948,
+     "name": "tya_love_zrh #htjMI4Iwlfknd4viHyKN",
+     "clan": "test",
+     "lineup": [
+      "tya_love_zrh #htjMI4Iwlfknd4viHyKN@test"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 92,
+     "score": 9086,
+     "name": "paradox #ANyItJ2TEyDyyzCJ",
+     "clan": "Paradox",
+     "lineup": [
+      "paradox #ANyItJ2TEyDyyzCJ@Paradox"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 91,
+     "score": 9132,
+     "name": "乌云阻拦明月涌河湾 9fPX6VcbFY",
+     "clan": "郊眠寺",
+     "lineup": [
+      "乌云阻拦明月涌河湾 9fPX6VcbFY@郊眠寺"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 90,
+     "score": 9206,
+     "name": "浸茬曼逼闪堡赵破淮窥江矾隶惜蚜刀药双喵",
+     "clan": "swirl",
+     "lineup": [
+      "浸茬曼逼闪堡赵破淮窥江矾隶惜蚜刀药双喵@swirl"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 89,
+     "score": 9360,
+     "name": "仗剑20290883KA873天下",
+     "clan": "启诲",
+     "lineup": [
+      "仗剑20290883KA873天下@启诲"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 88,
+     "score": 9422,
+     "name": "znVC21OCNJp1",
+     "clan": "rp_inf",
+     "lineup": [
+      "znVC21OCNJp1@rp_inf"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 87,
+     "score": 9450,
+     "name": "霜曙HKWTeGUsCGSFoLkKtO9K",
+     "clan": "Hollyleaf",
+     "lineup": [
+      "霜曙HKWTeGUsCGSFoLkKtO9K@Hollyleaf"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 86,
+     "score": 9504,
+     "name": "幻云 VOPZMZBEERU",
+     "clan": "紫璃",
+     "lineup": [
+      "幻云 VOPZMZBEERU@紫璃"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 85,
+     "score": 9547,
+     "name": "雨落狂流之暗 \"cyjmlsvpktstmuda",
+     "clan": "黑月之潮",
+     "lineup": [
+      "雨落狂流之暗 \"cyjmlsvpktstmuda @黑月之潮"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 84,
+     "score": 9641,
+     "name": "GOD6107 2;2A>*<",
+     "clan": "6107",
+     "lineup": [
+      "GOD6107 2;2A>*<@6107"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 83,
+     "score": 9706,
+     "name": "H8Rdqh7",
+     "clan": "仲夏夜梦",
+     "lineup": [
+      "H8Rdqh7@仲夏夜梦"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 82,
+     "score": 9735,
+     "name": "不是豹 EGGLDXQUZ",
+     "clan": "云淡风轻",
+     "lineup": [
+      "不是豹 EGGLDXQUZ@云淡风轻"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 81,
+     "score": 9757,
+     "name": "以实玛利 #あちュヲヘゾパぼなそワクびへュガだぬ",
+     "clan": "X_m_X",
+     "lineup": [
+      "以实玛利 #あちュヲヘゾパぼなそワクびへュガだぬ@X_m_X"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 80,
+     "score": 9933,
+     "name": "0Ksd|,M",
+     "clan": "Miracle",
+     "lineup": [
+      "0Ksd|,M@Miracle"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 79,
+     "score": 10209,
+     "name": "这几个字只是用来凑数的oFhruvXzyW_",
+     "clan": "7cunn",
+     "lineup": [
+      "这几个字只是用来凑数的oFhruvXzyW_@7cunn"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 78,
+     "score": 10227,
+     "name": "「北极星」 #c2 #VQhi3bRG0",
+     "clan": "mwh_",
+     "lineup": [
+      "「北极星」 #c2 #VQhi3bRG0@mwh_"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 77,
+     "score": 10261,
+     "name": "Jupitaris #jY7JagO3i",
+     "clan": "tya",
+     "lineup": [
+      "Jupitaris #jY7JagO3i@tya"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 76,
+     "score": 10286,
+     "name": "9q8mrzx9",
+     "clan": "GAME ON",
+     "lineup": [
+      "9q8mrzx9@GAME ON"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 75,
+     "score": 10350,
+     "name": "飞花 SMVDGESP",
+     "clan": "test1123",
+     "lineup": [
+      "飞花 SMVDGESP@test1123"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 74,
+     "score": 10423,
+     "name": "eot1GsKVJT",
+     "clan": "_s_z_y_",
+     "lineup": [
+      "eot1GsKVJT@_s_z_y_"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 72,
+     "score": 10531,
+     "name": "7kОЗΙηΙЁΕΛΞκ",
+     "clan": "lzk",
+     "lineup": [
+      "7kОЗΙηΙЁΕΛΞκ@lzk"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 73,
+     "score": 10531,
+     "name": "谣芯聆∯蜴蝆┗◉",
+     "clan": "柯1梦铃",
+     "lineup": [
+      "谣芯聆∯蜴蝆┗◉@柯1梦铃"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 71,
+     "score": 10753,
+     "name": "iqYDJWy",
+     "clan": "cyclone",
+     "lineup": [
+      "iqYDJWy@cyclone"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 70,
+     "score": 10916,
+     "name": "福灵剂 ~X;ITzfz",
+     "clan": "OldComputerBigDeal_",
+     "lineup": [
+      "福灵剂 ~X;ITzfz@OldComputerBigDeal_"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 69,
+     "score": 10944,
+     "name": "Furina 9Bz3hpw",
+     "clan": "碰数",
+     "lineup": [
+      "Furina 9Bz3hpw@碰数"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 68,
+     "score": 10975,
+     "name": "rcwuswga",
+     "clan": "空",
+     "lineup": [
+      "rcwuswga@空"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 67,
+     "score": 10980,
+     "name": "KingO #3]T-E<RZC=i",
+     "clan": "流浪冒险者",
+     "lineup": [
+      "KingO #3]T-E<RZC=i@流浪冒险者"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 66,
+     "score": 11040,
+     "name": "Smash!!6337591489231th",
+     "clan": "acceed",
+     "lineup": [
+      "Smash!!6337591489231th@acceed"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 65,
+     "score": 11089,
+     "name": "伊丽卡 #WDNTIAXQJ",
+     "clan": "星球结晶",
+     "lineup": [
+      "伊丽卡 #WDNTIAXQJ@星球结晶"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 64,
+     "score": 11310,
+     "name": "血月 T47\"<`LpF8",
+     "clan": "天基屠龙炮",
+     "lineup": [
+      "血月 T47\"<`LpF8@天基屠龙炮"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 63,
+     "score": 11395,
+     "name": "VIMYKPJ",
+     "clan": "Stellar",
+     "lineup": [
+      "VIMYKPJ@Stellar"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 62,
+     "score": 11424,
+     "name": "DESTRUCTION_3_2_1 \\k2xfG8uPRhNB\\",
+     "clan": "时落之雨",
+     "lineup": [
+      "DESTRUCTION_3_2_1 \\k2xfG8uPRhNB\\@时落之雨"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 61,
+     "score": 11592,
+     "name": "刚铎 .5qrDhcRT:",
+     "clan": "中土世界",
+     "lineup": [
+      "刚铎 .5qrDhcRT:@中土世界"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 60,
+     "score": 11604,
+     "name": "Patchouli jhyIqj4NY3St",
+     "clan": "lfemx",
+     "lineup": [
+      "Patchouli jhyIqj4NY3St@lfemx"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 59,
+     "score": 11654,
+     "name": "F=ma 9P8mcPnWs1YGE4J",
+     "clan": "樱花庄",
+     "lineup": [
+      "F=ma 9P8mcPnWs1YGE4J@樱花庄"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 58,
+     "score": 11675,
+     "name": "K2[PtCl6] zbWtxTX3Ksvq",
+     "clan": "柚子不是油渍",
+     "lineup": [
+      "K2[PtCl6] zbWtxTX3Ksvq@柚子不是油渍"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 57,
+     "score": 11682,
+     "name": "在绝望之前将我的誓言默念 WI1CKII66FTM",
+     "clan": "Unbound",
+     "lineup": [
+      "在绝望之前将我的誓言默念 WI1CKII66FTM@Unbound"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 56,
+     "score": 11693,
+     "name": "XXRw6CViqt",
+     "clan": "huangboning",
+     "lineup": [
+      "XXRw6CViqt@huangboning"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 55,
+     "score": 11754,
+     "name": "秋濑或 4MzDtAzWT5",
+     "clan": "yodel",
+     "lineup": [
+      "秋濑或 4MzDtAzWT5@yodel"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 54,
+     "score": 11762,
+     "name": "`I!.lf",
+     "clan": "紫微垣",
+     "lineup": [
+      "`I!.lf@紫微垣"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 53,
+     "score": 11775,
+     "name": "不像人类的图片 tvUczBnPgfF6",
+     "clan": "Al³⁺",
+     "lineup": [
+      "不像人类的图片 tvUczBnPgfF6@Al³⁺"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 52,
+     "score": 11855,
+     "name": "史莱德 #XPMTVPKY",
+     "clan": "暗黑突击",
+     "lineup": [
+      "史莱德 #XPMTVPKY@暗黑突击"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 51,
+     "score": 11948,
+     "name": "Istar-325438679405",
+     "clan": "Mithril",
+     "lineup": [
+      "Istar-325438679405@Mithril"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 50,
+     "score": 12005,
+     "name": "ただいま #VHt0kU7to",
+     "clan": "tyakasha",
+     "lineup": [
+      "ただいま #VHt0kU7to@tyakasha"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 49,
+     "score": 12062,
+     "name": "Seben OOjTXWQTFFEB",
+     "clan": "橙红耀阳",
+     "lineup": [
+      "Seben OOjTXWQTFFEB@橙红耀阳"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 48,
+     "score": 12122,
+     "name": "木之幡米拉 #OMZTMZYFV",
+     "clan": "琪拉拉",
+     "lineup": [
+      "木之幡米拉 #OMZTMZYFV@琪拉拉"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 47,
+     "score": 12173,
+     "name": "#pl-2 1TTN=Oh",
+     "clan": "YJC",
+     "lineup": [
+      "#pl-2 1TTN=Oh@YJC"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 46,
+     "score": 12221,
+     "name": "zO7pSI7T0",
+     "clan": "凌",
+     "lineup": [
+      "zO7pSI7T0@凌"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 45,
+     "score": 12289,
+     "name": "手持机械复印机 #l3cXAEuDs",
+     "clan": "CO₃²⁻",
+     "lineup": [
+      "手持机械复印机 #l3cXAEuDs@CO₃²⁻"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 44,
+     "score": 12373,
+     "name": "0000006wFviVb0d",
+     "clan": "aaa",
+     "lineup": [
+      "0000006wFviVb0d@aaa"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 43,
+     "score": 12407,
+     "name": "星咲明里 NECZIKDEGAZB",
+     "clan": "Asunder",
+     "lineup": [
+      "星咲明里 NECZIKDEGAZB@Asunder"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 42,
+     "score": 12454,
+     "name": "babylonstage6579741737257",
+     "clan": "coat",
+     "lineup": [
+      "babylonstage6579741737257@coat"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 41,
+     "score": 12475,
+     "name": "莐頋瓂，我给你踩背来咯",
+     "clan": "otto",
+     "lineup": [
+      "莐頋瓂，我给你踩背来咯@otto"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 40,
+     "score": 12579,
+     "name": "cxum8YxIcR1ulvd",
+     "clan": "XJ联队",
+     "lineup": [
+      "cxum8YxIcR1ulvd@XJ联队"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 39,
+     "score": 12585,
+     "name": "0 P0xHGpDa4z",
+     "clan": "807139",
+     "lineup": [
+      "0 P0xHGpDa4z@807139"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 38,
+     "score": 12682,
+     "name": "薇奥莉特 #EKMTVEOTA",
+     "clan": "公主连结",
+     "lineup": [
+      "薇奥莉特 #EKMTVEOTA@公主连结"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 37,
+     "score": 12716,
+     "name": "黄陆汹聊级神秘战巡舰",
+     "clan": "巡洋舰",
+     "lineup": [
+      "黄陆汹聊级神秘战巡舰@巡洋舰"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 36,
+     "score": 12720,
+     "name": "《论如何处理猴子和区》 🃕🃔🃉🂴🂠🃔🂾",
+     "clan": "幻景殇",
+     "lineup": [
+      "《论如何处理猴子和区》 🃕🃔🃉🂴🂠🃔🂾@幻景殇"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 35,
+     "score": 12750,
+     "name": "硫 d3kf8wilr218",
+     "clan": "芒萁",
+     "lineup": [
+      "硫 d3kf8wilr218@芒萁"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 34,
+     "score": 12784,
+     "name": "🟪🤖:用户已经极度不满，我们必须停止任何猜测， #542P5T7IuYID",
+     "clan": "！？区猴猴区？！",
+     "lineup": [
+      "🟪🤖:用户已经极度不满，我们必须停止任何猜测， #542P5T7IuYID@！？区猴猴区？！"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 33,
+     "score": 12843,
+     "name": "袱00337829972259",
+     "clan": "abruce",
+     "lineup": [
+      "袱00337829972259@abruce"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 32,
+     "score": 12898,
+     "name": "十周年 fjS1br5WeS0v",
+     "clan": "fx",
+     "lineup": [
+      "十周年 fjS1br5WeS0v@fx"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 31,
+     "score": 12950,
+     "name": "境FoEBX2",
+     "clan": "余華",
+     "lineup": [
+      "境FoEBX2@余華"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 30,
+     "score": 13112,
+     "name": "satsujinki #eFGZ4xZMWkjoruZ",
+     "clan": "czr2012",
+     "lineup": [
+      "satsujinki #eFGZ4xZMWkjoruZ@czr2012"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 29,
+     "score": 13137,
+     "name": "冰413555098522",
+     "clan": "酸橙",
+     "lineup": [
+      "冰413555098522@酸橙"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 28,
+     "score": 13138,
+     "name": "Limit1-608000844Lillia",
+     "clan": "shadowT",
+     "lineup": [
+      "Limit1-608000844Lillia@shadowT"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 27,
+     "score": 13145,
+     "name": "拔山 21#vI41AF",
+     "clan": "仙蛊屋",
+     "lineup": [
+      "拔山 21#vI41AF@仙蛊屋"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 26,
+     "score": 13200,
+     "name": "“狮心骑士”邓肯 -b3TlIrOXb2-",
+     "clan": "新纪元",
+     "lineup": [
+      "“狮心骑士”邓肯 -b3TlIrOXb2-@新纪元"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 25,
+     "score": 13287,
+     "name": "Momomomo #YAORzaY",
+     "clan": "Arcadia",
+     "lineup": [
+      "Momomomo #YAORzaY@Arcadia"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 24,
+     "score": 13352,
+     "name": "1Reh>\\Ma",
+     "clan": "Hell",
+     "lineup": [
+      "1Reh>\\Ma@Hell"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 23,
+     "score": 13373,
+     "name": "椋梨隼太 $000001Bsbd6T",
+     "clan": "爱",
+     "lineup": [
+      "椋梨隼太 $000001Bsbd6T@爱"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 22,
+     "score": 13399,
+     "name": "\\Empire\\-692175165208",
+     "clan": "\\XIV\\-14",
+     "lineup": [
+      "\\Empire\\-692175165208@\\XIV\\-14"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 21,
+     "score": 13571,
+     "name": "リズと青い鳥 #GDatSLaSpu",
+     "clan": "🥒",
+     "lineup": [
+      "リズと青い鳥 #GDatSLaSpu@🥒"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 20,
+     "score": 13597,
+     "name": "天依 'i[8S`Aw",
+     "clan": "LuoTianyi",
+     "lineup": [
+      "天依 'i[8S`Aw@LuoTianyi"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 19,
+     "score": 13641,
+     "name": "ΞaksRSckQ",
+     "clan": "ssg",
+     "lineup": [
+      "ΞaksRSckQ@ssg"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 18,
+     "score": 13704,
+     "name": "涵虚 00CRYaQr0",
+     "clan": "fAIgFUL",
+     "lineup": [
+      "涵虚 00CRYaQr0@fAIgFUL"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 17,
+     "score": 13719,
+     "name": "艾泽莉娅 #DANOKVKIUZ",
+     "clan": "无惨",
+     "lineup": [
+      "艾泽莉娅 #DANOKVKIUZ@无惨"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 16,
+     "score": 13774,
+     "name": "冷碱蓝℃.嶷霜 ,XsG{r_7",
+     "clan": "四象霄",
+     "lineup": [
+      "冷碱蓝℃.嶷霜 ,XsG{r_7@四象霄"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 15,
+     "score": 13829,
+     "name": "解 c5hlvevqciBk",
+     "clan": "Afterglow",
+     "lineup": [
+      "解 c5hlvevqciBk@Afterglow"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 14,
+     "score": 13928,
+     "name": "芳寒滢.霜栀痛魔 S/*`kms`6",
+     "clan": "四象柯",
+     "lineup": [
+      "芳寒滢.霜栀痛魔 S/*`kms`6@四象柯"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 13,
+     "score": 13939,
+     "name": "射却S4z1tff7m",
+     "clan": "candle",
+     "lineup": [
+      "射却S4z1tff7m@candle"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 12,
+     "score": 14164,
+     "name": "秋菊 mcrP7gX?shadow",
+     "clan": "魔",
+     "lineup": [
+      "秋菊 mcrP7gX?shadow@魔"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 11,
+     "score": 14170,
+     "name": "DRG XOV9jrO1PE",
+     "clan": "RbCl",
+     "lineup": [
+      "DRG XOV9jrO1PE@RbCl"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 10,
+     "score": 14314,
+     "name": "1Thpazm|r",
+     "clan": "master",
+     "lineup": [
+      "1Thpazm|r@master"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 9,
+     "score": 14319,
+     "name": "跙坥咀诅阻珇伹伹怚",
+     "clan": "涵虚",
+     "lineup": [
+      "跙坥咀诅阻珇伹伹怚@涵虚"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 8,
+     "score": 14377,
+     "name": "MBxm6 A",
+     "clan": "Nexus_Mirabilis",
+     "lineup": [
+      "MBxm6 A@Nexus_Mirabilis"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 7,
+     "score": 14409,
+     "name": "抗人被围倒钩卡身飞机被压摘球",
+     "clan": "昀澤",
+     "lineup": [
+      "抗人被围倒钩卡身飞机被压摘球@昀澤"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 6,
+     "score": 14974,
+     "name": "涵虚abrfxfx黄瓜a0smdda0smddsmdd阿郎新纪元",
+     "clan": "名字竞技场",
+     "lineup": [
+      "涵虚abrfxfx黄瓜a0smdda0smddsmdd阿郎新纪元@名字竞技场"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 5,
+     "score": 15092,
+     "name": "蕾蒂·怀特洛可-65HEZHB264LFPFQ",
+     "clan": "Squall",
+     "lineup": [
+      "蕾蒂·怀特洛可-65HEZHB264LFPFQ@Squall"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 4,
+     "score": 15751,
+     "name": "Gordon RLHTKAZRMFFJ",
+     "clan": "nan",
+     "lineup": [
+      "Gordon RLHTKAZRMFFJ@nan"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 3,
+     "score": 15974,
+     "name": "<ξκ>-thbr4zmf",
+     "clan": "ReturnVoid",
+     "lineup": [
+      "<ξκ>-thbr4zmf@ReturnVoid"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 2,
+     "score": 16353,
+     "name": "涵虚不等式 PFVKEUPBU",
+     "clan": "TigerStar",
+     "lineup": [
+      "涵虚不等式 PFVKEUPBU@TigerStar"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 1,
+     "score": 17072,
+     "name": "Tik_Tok #IBxWzGZtr",
+     "clan": "Shabby_fish",
+     "lineup": [
+      "Tik_Tok #IBxWzGZtr@Shabby_fish"
+     ],
+     "teamSize": 1
+    }
+   ]
+  },
+  "1B": {
+   "teamSize": 1,
+   "queue": [
+    {
+     "rank": 97,
+     "score": 669,
+     "name": "譜面-349948290590号",
+     "clan": "NANA",
+     "lineup": [
+      "譜面-349948290590号@NANA"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 96,
+     "score": 4787,
+     "name": "<§omeDztiKBN§>",
+     "clan": "<§Yae_Miko_PKdom§>",
+     "lineup": [
+      "<§omeDztiKBN§>@<§Yae_Miko_PKdom§>"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 95,
+     "score": 6266,
+     "name": "6j,_)/",
+     "clan": "神装天卫",
+     "lineup": [
+      "6j,_)/@神装天卫"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 94,
+     "score": 6557,
+     "name": "弱云霞色点缀 🂤🃚🃓🃑🃔🃕🂺",
+     "clan": "柯2云霞",
+     "lineup": [
+      "弱云霞色点缀 🂤🃚🃓🃑🃔🃕🂺@柯2云霞"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 93,
+     "score": 7275,
+     "name": "乌云阻拦明月涌河湾 CjKwMJrnSr",
+     "clan": "郊眠寺",
+     "lineup": [
+      "乌云阻拦明月涌河湾 CjKwMJrnSr@郊眠寺"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 92,
+     "score": 7553,
+     "name": "Sophia #1cJrd4bsDWP",
+     "clan": "ManusVindictae",
+     "lineup": [
+      "Sophia #1cJrd4bsDWP@ManusVindictae"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 91,
+     "score": 7895,
+     "name": "小丑鱼 Y1rdQlLafk",
+     "clan": "幽灵",
+     "lineup": [
+      "小丑鱼 Y1rdQlLafk@幽灵"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 90,
+     "score": 7953,
+     "name": "GCpSEyAPYSWCimcVYWnq",
+     "clan": "d909rca",
+     "lineup": [
+      "GCpSEyAPYSWCimcVYWnq@d909rca"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 89,
+     "score": 8105,
+     "name": "wangifc5NuJx52y1cMSaD",
+     "clan": "WDGod",
+     "lineup": [
+      "wangifc5NuJx52y1cMSaD@WDGod"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 88,
+     "score": 8283,
+     "name": "地狱 jbf8bCwfZ",
+     "clan": "6107",
+     "lineup": [
+      "地狱 jbf8bCwfZ@6107"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 87,
+     "score": 8485,
+     "name": "paradox #Egk3m65Yy6fMp7Z4",
+     "clan": "Paradox",
+     "lineup": [
+      "paradox #Egk3m65Yy6fMp7Z4@Paradox"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 86,
+     "score": 8945,
+     "name": "唐皓班长mwRHF8mgR9VMxOjRoIyo",
+     "clan": "X_m_X",
+     "lineup": [
+      "唐皓班长mwRHF8mgR9VMxOjRoIyo@X_m_X"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 85,
+     "score": 9075,
+     "name": "馏芜蔫嗤捷艳卧啃炬撑妻荤驼绢觅慨噪拭喵",
+     "clan": "swirl",
+     "lineup": [
+      "馏芜蔫嗤捷艳卧啃炬撑妻荤驼绢觅慨噪拭喵@swirl"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 84,
+     "score": 9218,
+     "name": "龟驱醋薇拴",
+     "clan": "顺其自然",
+     "lineup": [
+      "龟驱醋薇拴@顺其自然"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 83,
+     "score": 9309,
+     "name": "sto_pbb_orz_:__]'</;<.:</}{[",
+     "clan": "7cunn",
+     "lineup": [
+      "sto_pbb_orz_:__]'</;<.:</}{[@7cunn"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 82,
+     "score": 9338,
+     "name": "B86IPy7nu(J:Kd)[>vi#/Cc",
+     "clan": "Flying_hq",
+     "lineup": [
+      "B86IPy7nu(J:Kd)[>vi#/Cc@Flying_hq"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 81,
+     "score": 9403,
+     "name": "耀变体Efm0ROI0Jq",
+     "clan": "紫微垣",
+     "lineup": [
+      "耀变体Efm0ROI0Jq@紫微垣"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 80,
+     "score": 9545,
+     "name": "叶池YZX8QxvAHhJaiIHCdVCN",
+     "clan": "Hollyleaf",
+     "lineup": [
+      "叶池YZX8QxvAHhJaiIHCdVCN@Hollyleaf"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 79,
+     "score": 9758,
+     "name": "雨落狂流之暗 \"ilnexssszkzkxiog",
+     "clan": "黑月之潮",
+     "lineup": [
+      "雨落狂流之暗 \"ilnexssszkzkxiog @黑月之潮"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 78,
+     "score": 9952,
+     "name": "gVAPGsx",
+     "clan": "Stellar",
+     "lineup": [
+      "gVAPGsx@Stellar"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 77,
+     "score": 10042,
+     "name": "胡登 \\ELyTXbAHuhfn\\",
+     "clan": "时落之雨",
+     "lineup": [
+      "胡登 \\ELyTXbAHuhfn\\@时落之雨"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 76,
+     "score": 10188,
+     "name": "荧屏上的梦想 &sHE=,#B",
+     "clan": "dream_on_screen",
+     "lineup": [
+      "荧屏上的梦想 &sHE=,#B@dream_on_screen"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 75,
+     "score": 10395,
+     "name": "天羽 #c2 #pVy2Lvir6",
+     "clan": "mwh_",
+     "lineup": [
+      "天羽 #c2 #pVy2Lvir6@mwh_"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 74,
+     "score": 10577,
+     "name": "不渍是子不不是渍渍子子柚柚柚是不不油渍子",
+     "clan": "柚子不是油渍",
+     "lineup": [
+      "不渍是子不不是渍渍子子柚柚柚是不不油渍子@柚子不是油渍"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 73,
+     "score": 10619,
+     "name": "tya_love_zrh #pWYnxJQ08cVvCCEY",
+     "clan": "tyakasha",
+     "lineup": [
+      "tya_love_zrh #pWYnxJQ08cVvCCEY@tyakasha"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 72,
+     "score": 10735,
+     "name": "末影 `p0B&P~jr.",
+     "clan": "天基屠龙炮",
+     "lineup": [
+      "末影 `p0B&P~jr.@天基屠龙炮"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 71,
+     "score": 10736,
+     "name": "8VlmLTkBaa",
+     "clan": "_s_z_y_",
+     "lineup": [
+      "8VlmLTkBaa@_s_z_y_"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 70,
+     "score": 10802,
+     "name": "Smash!!395257383829th",
+     "clan": "acceed",
+     "lineup": [
+      "Smash!!395257383829th@acceed"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 69,
+     "score": 10819,
+     "name": "土豆网络 AFHOUPPWEWRD",
+     "clan": "云淡风轻",
+     "lineup": [
+      "土豆网络 AFHOUPPWEWRD@云淡风轻"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 68,
+     "score": 10855,
+     "name": "Fantastic #MIIzt1y9Y",
+     "clan": "tya",
+     "lineup": [
+      "Fantastic #MIIzt1y9Y@tya"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 67,
+     "score": 10945,
+     "name": "仗剑25992KKQQK7JA天下",
+     "clan": "启诲",
+     "lineup": [
+      "仗剑25992KKQQK7JA天下@启诲"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 66,
+     "score": 10983,
+     "name": "🐋:但等等——用户可能是在考我， #NG973DI77K5j",
+     "clan": "！？区猴猴区？！",
+     "lineup": [
+      "🐋:但等等——用户可能是在考我， #NG973DI77K5j@！？区猴猴区？！"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 65,
+     "score": 11038,
+     "name": "“静”.寂静浪潮 ;z'~RioB",
+     "clan": "余華",
+     "lineup": [
+      "“静”.寂静浪潮 ;z'~RioB@余華"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 64,
+     "score": 11077,
+     "name": "涵虚之王 b]]abSRc",
+     "clan": "OldComputerBigDeal_",
+     "lineup": [
+      "涵虚之王 b]]abSRc@OldComputerBigDeal_"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 63,
+     "score": 11134,
+     "name": "7JXFnrrb1X",
+     "clan": "huangboning",
+     "lineup": [
+      "7JXFnrrb1X@huangboning"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 62,
+     "score": 11148,
+     "name": "Monk hTvIHcNSkR",
+     "clan": "RainWorld_XIV",
+     "lineup": [
+      "Monk hTvIHcNSkR@RainWorld_XIV"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 61,
+     "score": 11157,
+     "name": "希望 CZMh{xi}cJK<",
+     "clan": "流浪冒险者",
+     "lineup": [
+      "希望 CZMh{xi}cJK<@流浪冒险者"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 60,
+     "score": 11161,
+     "name": "♤A cxbhUwU8aXN",
+     "clan": "GAME ON",
+     "lineup": [
+      "♤A cxbhUwU8aXN@GAME ON"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 59,
+     "score": 11180,
+     "name": "eTwC7KpIOq",
+     "clan": "凌",
+     "lineup": [
+      "eTwC7KpIOq@凌"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 58,
+     "score": 11250,
+     "name": "三月七 FCpOxgHtA1",
+     "clan": "碰数",
+     "lineup": [
+      "三月七 FCpOxgHtA1@碰数"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 57,
+     "score": 11368,
+     "name": "60D白色舞蹈袜 #Ve4hFDVax",
+     "clan": "CO₃²⁻",
+     "lineup": [
+      "60D白色舞蹈袜 #Ve4hFDVax@CO₃²⁻"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 56,
+     "score": 11519,
+     "name": "土樨矿工 Q[4qWA3zt",
+     "clan": "四象樨",
+     "lineup": [
+      "土樨矿工 Q[4qWA3zt@四象樨"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 55,
+     "score": 11694,
+     "name": "混沌 pxsaHIpJvMvcwtB",
+     "clan": "Mithril",
+     "lineup": [
+      "混沌 pxsaHIpJvMvcwtB@Mithril"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 54,
+     "score": 11697,
+     "name": "樱之宫莓香 CXWHJQKU",
+     "clan": "琪拉拉",
+     "lineup": [
+      "樱之宫莓香 CXWHJQKU@琪拉拉"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 53,
+     "score": 11791,
+     "name": "敬拜：获得5层真言 rxWRtPkf5rw",
+     "clan": "test1123",
+     "lineup": [
+      "敬拜：获得5层真言 rxWRtPkf5rw@test1123"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 52,
+     "score": 11847,
+     "name": "陌IDTKDRv1ak",
+     "clan": "807139",
+     "lineup": [
+      "陌IDTKDRv1ak@807139"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 51,
+     "score": 11897,
+     "name": "SJW-LBtnU0b7",
+     "clan": "yodel",
+     "lineup": [
+      "SJW-LBtnU0b7@yodel"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 50,
+     "score": 11961,
+     "name": "🕊🐦🛫🛩🐦🦟🦉🛫🦅🦇🦇💙",
+     "clan": "四象霄",
+     "lineup": [
+      "🕊🐦🛫🛩🐦🦟🦉🛫🦅🦇🦇💙@四象霄"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 49,
+     "score": 12013,
+     "name": "1DPS7n9B",
+     "clan": "仲夏夜梦",
+     "lineup": [
+      "1DPS7n9B@仲夏夜梦"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 48,
+     "score": 12057,
+     "name": "Bishop ARFXGATH",
+     "clan": "Miracle",
+     "lineup": [
+      "Bishop ARFXGATH@Miracle"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 47,
+     "score": 12091,
+     "name": "伊斯塔尔 -oySZFmz",
+     "clan": "中土世界",
+     "lineup": [
+      "伊斯塔尔 -oySZFmz@中土世界"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 46,
+     "score": 12112,
+     "name": "czr 0DNbNirflBSQ8gTadTuM",
+     "clan": "czr2012",
+     "lineup": [
+      "czr 0DNbNirflBSQ8gTadTuM@czr2012"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 45,
+     "score": 12488,
+     "name": "咲恋 ZPSFFQXQ",
+     "clan": "公主连结",
+     "lineup": [
+      "咲恋 ZPSFFQXQ@公主连结"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 44,
+     "score": 12620,
+     "name": "不像图片的人类 yU167cYd1VBd",
+     "clan": "Al³⁺",
+     "lineup": [
+      "不像图片的人类 yU167cYd1VBd@Al³⁺"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 43,
+     "score": 12621,
+     "name": "宓妃 Jh1UyMd",
+     "clan": "魔",
+     "lineup": [
+      "宓妃 Jh1UyMd@魔"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 42,
+     "score": 12766,
+     "name": "White810537390293",
+     "clan": "酸橙",
+     "lineup": [
+      "White810537390293@酸橙"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 41,
+     "score": 12778,
+     "name": "6UTWKuLus",
+     "clan": "shadowT",
+     "lineup": [
+      "6UTWKuLus@shadowT"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 40,
+     "score": 12788,
+     "name": "断运 51#YRGDe9",
+     "clan": "仙蛊屋",
+     "lineup": [
+      "断运 51#YRGDe9@仙蛊屋"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 39,
+     "score": 12797,
+     "name": "INTUITION wGxkDE0UZhp1",
+     "clan": "橙红耀阳",
+     "lineup": [
+      "INTUITION wGxkDE0UZhp1@橙红耀阳"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 38,
+     "score": 12919,
+     "name": "jimd98FV9rfDgQN",
+     "clan": "XJ联队",
+     "lineup": [
+      "jimd98FV9rfDgQN@XJ联队"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 37,
+     "score": 13059,
+     "name": "8239546184566岁，是学生",
+     "clan": "coat",
+     "lineup": [
+      "8239546184566岁，是学生@coat"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 36,
+     "score": 13069,
+     "name": "Subliminity #TlyiLcU",
+     "clan": "Unbound",
+     "lineup": [
+      "Subliminity #TlyiLcU@Unbound"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 35,
+     "score": 13082,
+     "name": "涵虚 O1oTbsgdd",
+     "clan": "fAIgFUL",
+     "lineup": [
+      "涵虚 O1oTbsgdd@fAIgFUL"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 34,
+     "score": 13129,
+     "name": "ΣAAYQYbYN",
+     "clan": "ssg",
+     "lineup": [
+      "ΣAAYQYbYN@ssg"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 33,
+     "score": 13228,
+     "name": "冬村 #0109973154037",
+     "clan": "fx",
+     "lineup": [
+      "冬村 #0109973154037@fx"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 32,
+     "score": 13278,
+     "name": "candle 蜍緞補",
+     "clan": "名字竞技场",
+     "lineup": [
+      "candle 蜍緞補@名字竞技场"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 31,
+     "score": 13279,
+     "name": "虚境-粗詻躂辄",
+     "clan": "涵虚",
+     "lineup": [
+      "虚境-粗詻躂辄@涵虚"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 30,
+     "score": 13280,
+     "name": "溯桤蛥赢，加一昏",
+     "clan": "爱",
+     "lineup": [
+      "溯桤蛥赢，加一昏@爱"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 29,
+     "score": 13377,
+     "name": "milkΙлЯωΦПΞΣъЭ",
+     "clan": "lzk",
+     "lineup": [
+      "milkΙлЯωΦПΞΣъЭ@lzk"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 28,
+     "score": 13555,
+     "name": "高濑梨绪 ZDYUKXXRMAOM",
+     "clan": "Asunder",
+     "lineup": [
+      "高濑梨绪 ZDYUKXXRMAOM@Asunder"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 27,
+     "score": 13607,
+     "name": "正铭 #AANBTJMUYXE",
+     "clan": "星球结晶",
+     "lineup": [
+      "正铭 #AANBTJMUYXE@星球结晶"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 26,
+     "score": 13696,
+     "name": "进口牢货.不可磨灭的回忆之殇 8}i%Yh&<",
+     "clan": "幻景殇",
+     "lineup": [
+      "进口牢货.不可磨灭的回忆之殇 8}i%Yh&<@幻景殇"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 25,
+     "score": 13697,
+     "name": "Sakuzyo qxB6CYdhyj",
+     "clan": "RbCl",
+     "lineup": [
+      "Sakuzyo qxB6CYdhyj@RbCl"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 24,
+     "score": 13704,
+     "name": "先选几张吃掉 #🃆🃞🃈🃗🃒🃇🃗",
+     "clan": "柯1梦铃",
+     "lineup": [
+      "先选几张吃掉 #🃆🃞🃈🃗🃒🃇🃗@柯1梦铃"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 23,
+     "score": 13758,
+     "name": "使魔 #WZJCGHXAW",
+     "clan": "巡洋舰",
+     "lineup": [
+      "使魔 #WZJCGHXAW@巡洋舰"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 22,
+     "score": 13843,
+     "name": "江南小子 #LLVKEPMU",
+     "clan": "暗黑突击",
+     "lineup": [
+      "江南小子 #LLVKEPMU@暗黑突击"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 20,
+     "score": 13964,
+     "name": "桴浮05fuxRlD",
+     "clan": "abruce",
+     "lineup": [
+      "桴浮05fuxRlD@abruce"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 21,
+     "score": 13964,
+     "name": "席尔娜 nkkP4td",
+     "clan": "无惨",
+     "lineup": [
+      "席尔娜 nkkP4td@无惨"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 19,
+     "score": 14044,
+     "name": "Kotori L2P5Gdfyn",
+     "clan": "candle",
+     "lineup": [
+      "Kotori L2P5Gdfyn@candle"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 18,
+     "score": 14055,
+     "name": "十六夜咲夜 imIuZYJk",
+     "clan": "Squall",
+     "lineup": [
+      "十六夜咲夜 imIuZYJk@Squall"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 17,
+     "score": 14187,
+     "name": "Meranti FBPITYXTBPQG",
+     "clan": "nan",
+     "lineup": [
+      "Meranti FBPITYXTBPQG@nan"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 16,
+     "score": 14191,
+     "name": "睦 laqkDvDuCZ",
+     "clan": "🥒",
+     "lineup": [
+      "睦 laqkDvDuCZ@🥒"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 15,
+     "score": 14274,
+     "name": "2W5(p'|*",
+     "clan": "Hell",
+     "lineup": [
+      "2W5(p'|*@Hell"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 14,
+     "score": 14437,
+     "name": "1mAc]_`gb",
+     "clan": "master",
+     "lineup": [
+      "1mAc]_`gb@master"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 13,
+     "score": 14543,
+     "name": "丽屋栀铃 🄳🄼🅈🅉🅀🅀🅇🅀🄸🄹",
+     "clan": "四象柯",
+     "lineup": [
+      "丽屋栀铃 🄳🄼🅈🅉🅀🅀🅇🅀🄸🄹@四象柯"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 12,
+     "score": 14558,
+     "name": "Imperio #IZIYGpKZ",
+     "clan": "Shabby_fish",
+     "lineup": [
+      "Imperio #IZIYGpKZ@Shabby_fish"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 11,
+     "score": 14592,
+     "name": "<λγ>-arrc7pg1",
+     "clan": "ReturnVoid",
+     "lineup": [
+      "<λγ>-arrc7pg1@ReturnVoid"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 10,
+     "score": 14624,
+     "name": "Momo #L9GHU8F",
+     "clan": "Arcadia",
+     "lineup": [
+      "Momo #L9GHU8F@Arcadia"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 9,
+     "score": 15100,
+     "name": "7aKO XkQ",
+     "clan": "Nexus_Mirabilis",
+     "lineup": [
+      "7aKO XkQ@Nexus_Mirabilis"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 8,
+     "score": 15268,
+     "name": "杀 amUrtLhpqzFq",
+     "clan": "Afterglow",
+     "lineup": [
+      "杀 amUrtLhpqzFq@Afterglow"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 7,
+     "score": 15373,
+     "name": "一人行者 Da22adc4bC2B",
+     "clan": "LuoTianyi",
+     "lineup": [
+      "一人行者 Da22adc4bC2B@LuoTianyi"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 6,
+     "score": 15479,
+     "name": "鑺掕悂 R9feo6cEJ4Aj",
+     "clan": "芒萁",
+     "lineup": [
+      "鑺掕悂 R9feo6cEJ4Aj@芒萁"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 5,
+     "score": 15820,
+     "name": "0000006NTVJWbvH",
+     "clan": "aaa",
+     "lineup": [
+      "0000006NTVJWbvH@aaa"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 4,
+     "score": 15962,
+     "name": "虚空托腮 IVHEWTNEA",
+     "clan": "TigerStar",
+     "lineup": [
+      "虚空托腮 IVHEWTNEA@TigerStar"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 3,
+     "score": 16066,
+     "name": "\\HandsInTheFire\\-899252857203",
+     "clan": "\\XIV\\-14",
+     "lineup": [
+      "\\HandsInTheFire\\-899252857203@\\XIV\\-14"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 2,
+     "score": 16085,
+     "name": "喘际瞬爆",
+     "clan": "昀澤",
+     "lineup": [
+      "喘际瞬爆@昀澤"
+     ],
+     "teamSize": 1
+    },
+    {
+     "rank": 1,
+     "score": 16734,
+     "name": "Ⅹ q5H2HO5",
+     "clan": "新纪元",
+     "lineup": [
+      "Ⅹ q5H2HO5@新纪元"
+     ],
+     "teamSize": 1
+    }
+   ]
+  },
+  "2A": {
+   "teamSize": 2,
+   "queue": [
+    {
+     "rank": 86,
+     "score": 2059,
+     "name": "荧屏上的梦想 4mz/j;U3@dream_on_screen+荧屏上的梦想 CHQM=j}~",
+     "clan": "dream_on_screen",
+     "lineup": [
+      "荧屏上的梦想 4mz/j;U3@dream_on_screen+荧屏上的梦想 CHQM=j}~@dream_on_screen"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 85,
+     "score": 6602,
+     "name": ".vOUjEc7Nh6iUdA;KKO6iy9Bv.@lzk+get_lostьΟОоЯοаЪΖκКРАчпσКяМο",
+     "clan": "lzk",
+     "lineup": [
+      ".vOUjEc7Nh6iUdA;KKO6iy9Bv.@lzk+get_lostьΟОоЯοаЪΖκКРАчпσКяМο@lzk"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 84,
+     "score": 6728,
+     "name": "狮焰XmevEpWmpS9Azsp4c2Jr@Hollyleaf+火星ExMebIO8z3m7uWhsSlux",
+     "clan": "Hollyleaf",
+     "lineup": [
+      "狮焰XmevEpWmpS9Azsp4c2Jr@Hollyleaf+火星ExMebIO8z3m7uWhsSlux@Hollyleaf"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 83,
+     "score": 7368,
+     "name": "k(pegFhOfLXw`3dfn;\\GB#i@Flying_hq+ryMffVD9JcHZoaN3`_U`Wj^",
+     "clan": "Flying_hq",
+     "lineup": [
+      "k(pegFhOfLXw`3dfn;\\GB#i@Flying_hq+ryMffVD9JcHZoaN3`_U`Wj^@Flying_hq"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 82,
+     "score": 8083,
+     "name": "LC04vHfU64@yodel+QwQ AZij4DT1",
+     "clan": "yodel",
+     "lineup": [
+      "LC04vHfU64@yodel+QwQ AZij4DT1@yodel"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 81,
+     "score": 8222,
+     "name": "岫烟H9p7iajC6E@长尾山雀+宝琴dxu0BOG2XU",
+     "clan": "长尾山雀",
+     "lineup": [
+      "岫烟H9p7iajC6E@长尾山雀+宝琴dxu0BOG2XU@长尾山雀"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 80,
+     "score": 8613,
+     "name": "烬 #ユくわノメめアミもうゲュ@swirl+贯赃乳良歧征沙团畸紊堰梭陆钠值遵柴荒喵",
+     "clan": "swirl",
+     "lineup": [
+      "烬 #ユくわノメめアミもうゲュ@swirl+贯赃乳良歧征沙团畸紊堰梭陆钠值遵柴荒喵@swirl"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 79,
+     "score": 8843,
+     "name": "连结WwYizoCqBhilVP@紫微垣+7%Oo:!U",
+     "clan": "紫微垣",
+     "lineup": [
+      "连结WwYizoCqBhilVP@紫微垣+7%Oo:!U@紫微垣"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 78,
+     "score": 9143,
+     "name": "哈莫雷特m6bi9z3ZWg9y@WDGod+Hatsune\"xq##YE4HDtY",
+     "clan": "WDGod",
+     "lineup": [
+      "哈莫雷特m6bi9z3ZWg9y@WDGod+Hatsune\"xq##YE4HDtY@WDGod"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 77,
+     "score": 9268,
+     "name": "sto_pbb_orz_>.}/'__{.;_<>}_[@7cunn+sto_pbb_orz_/`},.'`/`>/;';},",
+     "clan": "7cunn",
+     "lineup": [
+      "sto_pbb_orz_>.}/'__{.;_<>}_[@7cunn+sto_pbb_orz_/`},.'`/`>/;';},@7cunn"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 76,
+     "score": 9368,
+     "name": "龟鸵府芬模@顺其自然+龟髓乡涌舷",
+     "clan": "顺其自然",
+     "lineup": [
+      "龟鸵府芬模@顺其自然+龟髓乡涌舷@顺其自然"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 75,
+     "score": 9440,
+     "name": "paradox #9iECdNKnqn4Qrn1u@Paradox+paradox #absM2DeTh4vqrN7B",
+     "clan": "Paradox",
+     "lineup": [
+      "paradox #9iECdNKnqn4Qrn1u@Paradox+paradox #absM2DeTh4vqrN7B@Paradox"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 74,
+     "score": 9624,
+     "name": "长矛 zw3bOq]Rtu@天基屠龙炮+剑刃 3*osN#re<U",
+     "clan": "天基屠龙炮",
+     "lineup": [
+      "长矛 zw3bOq]Rtu@天基屠龙炮+剑刃 3*osN#re<U@天基屠龙炮"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 73,
+     "score": 9688,
+     "name": "PHKBUUPNHGMI@云淡风轻+ALOUORRWEBCG",
+     "clan": "云淡风轻",
+     "lineup": [
+      "PHKBUUPNHGMI@云淡风轻+ALOUORRWEBCG@云淡风轻"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 72,
+     "score": 9794,
+     "name": "bAFYGX8xSI@huangboning+LCBK35Ckfi",
+     "clan": "huangboning",
+     "lineup": [
+      "bAFYGX8xSI@huangboning+LCBK35Ckfi@huangboning"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 71,
+     "score": 10279,
+     "name": "004TO9kah@仲夏夜梦+oCDFIl",
+     "clan": "仲夏夜梦",
+     "lineup": [
+      "004TO9kah@仲夏夜梦+oCDFIl@仲夏夜梦"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 70,
+     "score": 10381,
+     "name": "druzewang1bbK7f5jCmvdAnq3cPHp@X_m_X+jzp1025 TFZsebhCFYj11fAFX",
+     "clan": "X_m_X",
+     "lineup": [
+      "druzewang1bbK7f5jCmvdAnq3cPHp@X_m_X+jzp1025 TFZsebhCFYj11fAFX@X_m_X"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 69,
+     "score": 10780,
+     "name": "Phigros \\RiDOA69\\@时落之雨+Phigros /3LxfDn8/",
+     "clan": "时落之雨",
+     "lineup": [
+      "Phigros \\RiDOA69\\@时落之雨+Phigros /3LxfDn8/@时落之雨"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 68,
+     "score": 10900,
+     "name": "TYA #oVY4wVjuJ@tya+Fulminis #eU4LAD5Bu",
+     "clan": "tya",
+     "lineup": [
+      "TYA #oVY4wVjuJ@tya+Fulminis #eU4LAD5Bu@tya"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 67,
+     "score": 11026,
+     "name": "睡觉掀开被子全都是🐒🐛🐵🙉🐍🐛🐒🐵🙊🙈🐊🙈🙊🐛@！？区猴猴区？！+我上睡觉掀开被子全是🐒🐛🙉🐒🐵🙊🙉🙉🐵🐒🙊🙉🙉🐉",
+     "clan": "！？区猴猴区？！",
+     "lineup": [
+      "睡觉掀开被子全都是🐒🐛🐵🙉🐍🐛🐒🐵🙊🙈🐊🙈🙊🐛@！？区猴猴区？！+我上睡觉掀开被子全是🐒🐛🙉🐒🐵🙊🙉🙉🐵🐒🙊🙉🙉🐉@！？区猴猴区？！"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 66,
+     "score": 11032,
+     "name": "福灵剂 xRhTRh!P@OldComputerBigDeal_+福灵剂 fO;pFdfj",
+     "clan": "OldComputerBigDeal_",
+     "lineup": [
+      "福灵剂 xRhTRh!P@OldComputerBigDeal_+福灵剂 fO;pFdfj@OldComputerBigDeal_"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 65,
+     "score": 11183,
+     "name": "CRSMPZN@Stellar+&TVLz4",
+     "clan": "Stellar",
+     "lineup": [
+      "CRSMPZN@Stellar+&TVLz4@Stellar"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 64,
+     "score": 11402,
+     "name": "次耀 #CJKEXVPEVP@星球结晶+辰核战煌 4JGpXq8",
+     "clan": "星球结晶",
+     "lineup": [
+      "次耀 #CJKEXVPEVP@星球结晶+辰核战煌 4JGpXq8@星球结晶"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 63,
+     "score": 11479,
+     "name": "BH63ZeV@cyclone+)qBd4PX",
+     "clan": "cyclone",
+     "lineup": [
+      "BH63ZeV@cyclone+)qBd4PX@cyclone"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 62,
+     "score": 11819,
+     "name": "RIN-YVZ9YKT@琪拉拉+幻影 #QJWVHLYRR",
+     "clan": "琪拉拉",
+     "lineup": [
+      "RIN-YVZ9YKT@琪拉拉+幻影 #QJWVHLYRR@琪拉拉"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 61,
+     "score": 11915,
+     "name": "肃正协议 #YFBXXSXEC@巡洋舰+丧尸 #MPNQMMPGA",
+     "clan": "巡洋舰",
+     "lineup": [
+      "肃正协议 #YFBXXSXEC@巡洋舰+丧尸 #MPNQMMPGA@巡洋舰"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 60,
+     "score": 11953,
+     "name": "雨落狂流之暗 \"kedhhyarxiwshaht @黑月之潮+江有汜 \"azklewgvcbslxjjy",
+     "clan": "黑月之潮",
+     "lineup": [
+      "雨落狂流之暗 \"kedhhyarxiwshaht @黑月之潮+江有汜 \"azklewgvcbslxjjy @黑月之潮"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 59,
+     "score": 11956,
+     "name": "bdcQm1fNo3@_s_z_y_+On8T1dF7el",
+     "clan": "_s_z_y_",
+     "lineup": [
+      "bdcQm1fNo3@_s_z_y_+On8T1dF7el@_s_z_y_"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 58,
+     "score": 12041,
+     "name": "螟蛉 LYLOZGNZ@test1123+b-诅咒爱的成功幻术获胜丝瓜",
+     "clan": "test1123",
+     "lineup": [
+      "螟蛉 LYLOZGNZ@test1123+b-诅咒爱的成功幻术获胜丝瓜@test1123"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 57,
+     "score": 12275,
+     "name": "\\Closer\\-843902297176@\\XIV\\-14+\\Ring\\-VESNBDQWCVPA",
+     "clan": "\\XIV\\-14",
+     "lineup": [
+      "\\Closer\\-843902297176@\\XIV\\-14+\\Ring\\-VESNBDQWCVPA@\\XIV\\-14"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 56,
+     "score": 12329,
+     "name": "Youmu rmoWuxWckEja@lfemx+Marisa zqBvLKcgnMmA",
+     "clan": "lfemx",
+     "lineup": [
+      "Youmu rmoWuxWckEja@lfemx+Marisa zqBvLKcgnMmA@lfemx"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 55,
+     "score": 12357,
+     "name": "「OS」 #H1 #YoRmfG4zW9@mwh_+「OS」 #c1 #dRqXaMutLXNq",
+     "clan": "mwh_",
+     "lineup": [
+      "「OS」 #H1 #YoRmfG4zW9@mwh_+「OS」 #c1 #dRqXaMutLXNq@mwh_"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 54,
+     "score": 12509,
+     "name": "佩可莉姆 #IZTXWUDOR@公主连结+惠理子 YYNFGRVGRHMA",
+     "clan": "公主连结",
+     "lineup": [
+      "佩可莉姆 #IZTXWUDOR@公主连结+惠理子 YYNFGRVGRHMA@公主连结"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 53,
+     "score": 12628,
+     "name": "魔多 -lbDX6wX@中土世界+伊斯塔尔 -P48tiYP",
+     "clan": "中土世界",
+     "lineup": [
+      "魔多 -lbDX6wX@中土世界+伊斯塔尔 -P48tiYP@中土世界"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 52,
+     "score": 12698,
+     "name": "氯化钠 8UJMGcZ@fx+冬村 #8086941904532",
+     "clan": "fx",
+     "lineup": [
+      "氯化钠 8UJMGcZ@fx+冬村 #8086941904532@fx"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 51,
+     "score": 12734,
+     "name": "翼装绘想家.曬鷑艍@四象霄+泣魔箼㳥炄",
+     "clan": "四象霄",
+     "lineup": [
+      "翼装绘想家.曬鷑艍@四象霄+泣魔箼㳥炄@四象霄"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 50,
+     "score": 13263,
+     "name": "金铠蝎 #RTNPKODS@暗黑突击+阿慈谷日富美 #UFDCAOLIR",
+     "clan": "暗黑突击",
+     "lineup": [
+      "金铠蝎 #RTNPKODS@暗黑突击+阿慈谷日富美 #UFDCAOLIR@暗黑突击"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 49,
+     "score": 13305,
+     "name": "of0x2cau@GAME ON+♡10 WAk7sRksSKY",
+     "clan": "GAME ON",
+     "lineup": [
+      "of0x2cau@GAME ON+♡10 WAk7sRksSKY@GAME ON"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 48,
+     "score": 13422,
+     "name": "Castle PBEGRAHD@Miracle+Sunset GJCNWVGI",
+     "clan": "Miracle",
+     "lineup": [
+      "Castle PBEGRAHD@Miracle+Sunset GJCNWVGI@Miracle"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 47,
+     "score": 13423,
+     "name": "BETWEEN #kWJUP901f@CO₃²⁻+60D白色舞蹈袜 #J5jLcHjOi",
+     "clan": "CO₃²⁻",
+     "lineup": [
+      "BETWEEN #kWJUP901f@CO₃²⁻+60D白色舞蹈袜 #J5jLcHjOi@CO₃²⁻"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 46,
+     "score": 13512,
+     "name": "babylonstage051220096834@coat+元凶699069747171章",
+     "clan": "coat",
+     "lineup": [
+      "babylonstage051220096834@coat+元凶699069747171章@coat"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 45,
+     "score": 13564,
+     "name": "愿望 *HWR3]2,a}%=@流浪冒险者+TCO g]Ov>0_I^oG^",
+     "clan": "流浪冒险者",
+     "lineup": [
+      "愿望 *HWR3]2,a}%=@流浪冒险者+TCO g]Ov>0_I^oG^@流浪冒险者"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 44,
+     "score": 13587,
+     "name": "SIvRZ_pY@master+\\dqmPpij",
+     "clan": "master",
+     "lineup": [
+      "SIvRZ_pY@master+\\dqmPpij@master"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 43,
+     "score": 13627,
+     "name": "XIV 9lcdAvS9MRKVQPL@Mithril+jLi8waqR7xXWZRz41YsY",
+     "clan": "Mithril",
+     "lineup": [
+      "XIV 9lcdAvS9MRKVQPL@Mithril+jLi8waqR7xXWZRz41YsY@Mithril"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 42,
+     "score": 13668,
+     "name": "兵器 #RasuJYXBN@余華+BXRU想啥",
+     "clan": "余華",
+     "lineup": [
+      "兵器 #RasuJYXBN@余華+BXRU想啥@余華"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 41,
+     "score": 13676,
+     "name": "Meltel abRC3P3Go7@RbCl+Bascor cW1JWDuv7f",
+     "clan": "RbCl",
+     "lineup": [
+      "Meltel abRC3P3Go7@RbCl+Bascor cW1JWDuv7f@RbCl"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 40,
+     "score": 13679,
+     "name": "Decima #rccxhhj@Unbound+Paranoia #9HlJSG3",
+     "clan": "Unbound",
+     "lineup": [
+      "Decima #rccxhhj@Unbound+Paranoia #9HlJSG3@Unbound"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 39,
+     "score": 13695,
+     "name": "归去来兮 hYeZFfZ@魔+伊甸 en5QiIQ?shadow",
+     "clan": "魔",
+     "lineup": [
+      "归去来兮 hYeZFfZ@魔+伊甸 en5QiIQ?shadow@魔"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 38,
+     "score": 13720,
+     "name": "Mint233471923140@酸橙+风329131287922",
+     "clan": "酸橙",
+     "lineup": [
+      "Mint233471923140@酸橙+风329131287922@酸橙"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 37,
+     "score": 13814,
+     "name": "琪拉拉 KLDKUPSSGAPQN@无惨+花语堂夜 #OHKFKDOOI",
+     "clan": "无惨",
+     "lineup": [
+      "琪拉拉 KLDKUPSSGAPQN@无惨+花语堂夜 #OHKFKDOOI@无惨"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 36,
+     "score": 13882,
+     "name": "Kaze LTz6gXhtRP@碰数+琴生不等式 JsTeun5qCm",
+     "clan": "碰数",
+     "lineup": [
+      "Kaze LTz6gXhtRP@碰数+琴生不等式 JsTeun5qCm@碰数"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 35,
+     "score": 13908,
+     "name": "浆洿鎝苼龠@四象柯+滢滢子之王 ^GMOGUJRq&",
+     "clan": "四象柯",
+     "lineup": [
+      "浆洿鎝苼龠@四象柯+滢滢子之王 ^GMOGUJRq&@四象柯"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 34,
+     "score": 13936,
+     "name": "syVS:et@Hell+'Yz|AS}",
+     "clan": "Hell",
+     "lineup": [
+      "syVS:et@Hell+'Yz|AS}@Hell"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 33,
+     "score": 14020,
+     "name": "My_Generation lrSP5W8@芒萁+开学咦 3UDJ3SUwVmAs",
+     "clan": "芒萁",
+     "lineup": [
+      "My_Generation lrSP5W8@芒萁+开学咦 3UDJ3SUwVmAs@芒萁"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 32,
+     "score": 14056,
+     "name": "Pray kxtsMobhMzey@橙红耀阳+Seben CCyDvA3QjbHf",
+     "clan": "橙红耀阳",
+     "lineup": [
+      "Pray kxtsMobhMzey@橙红耀阳+Seben CCyDvA3QjbHf@橙红耀阳"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 31,
+     "score": 14113,
+     "name": "Rewrite 7CQd5C23F@candle+权计WN13vmJnn",
+     "clan": "candle",
+     "lineup": [
+      "Rewrite 7CQd5C23F@candle+权计WN13vmJnn@candle"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 30,
+     "score": 14154,
+     "name": "ΣaDvmAlgz@ssg+ΦAOwxwKTN",
+     "clan": "ssg",
+     "lineup": [
+      "ΣaDvmAlgz@ssg+ΦAOwxwKTN@ssg"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 29,
+     "score": 14356,
+     "name": "智障 yfJNlLHgtu14@Afterglow+夏 Qk93GzZIb1mS",
+     "clan": "Afterglow",
+     "lineup": [
+      "智障 yfJNlLHgtu14@Afterglow+夏 Qk93GzZIb1mS@Afterglow"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 28,
+     "score": 14368,
+     "name": "Orbital #FdIt7oZLt@tyakasha+Orbital #uToMNkhhZ",
+     "clan": "tyakasha",
+     "lineup": [
+      "Orbital #FdIt7oZLt@tyakasha+Orbital #uToMNkhhZ@tyakasha"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 27,
+     "score": 14405,
+     "name": "渊HG bwigVwI@807139+♯ WJl5tXdd5X",
+     "clan": "807139",
+     "lineup": [
+      "渊HG bwigVwI@807139+♯ WJl5tXdd5X@807139"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 26,
+     "score": 14456,
+     "name": "豹运长久9zsfQiGTI@柚子不是油渍+是是子子子柚子渍油油子子是是子渍是是不是",
+     "clan": "柚子不是油渍",
+     "lineup": [
+      "豹运长久9zsfQiGTI@柚子不是油渍+是是子子子柚子渍油油子子是是子渍是是不是@柚子不是油渍"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 25,
+     "score": 14518,
+     "name": "5r1HySLUF2@凌+SF4eCkNgVh",
+     "clan": "凌",
+     "lineup": [
+      "5r1HySLUF2@凌+SF4eCkNgVh@凌"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 24,
+     "score": 14592,
+     "name": "Cosmo #CLjFsRj@Arcadia+Wispy #6uttTRg",
+     "clan": "Arcadia",
+     "lineup": [
+      "Cosmo #CLjFsRj@Arcadia+Wispy #6uttTRg@Arcadia"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 23,
+     "score": 14622,
+     "name": "defg #Y3iWmPCTexvy3Ac@czr2012+megalovania J26j27tlLmWEDBrd7SDc",
+     "clan": "czr2012",
+     "lineup": [
+      "defg #Y3iWmPCTexvy3Ac@czr2012+megalovania J26j27tlLmWEDBrd7SDc@czr2012"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 22,
+     "score": 14670,
+     "name": "Italian_Love #5Agn8kVYl@Shabby_fish+錦帆 #hF0kQwdQp",
+     "clan": "Shabby_fish",
+     "lineup": [
+      "Italian_Love #5Agn8kVYl@Shabby_fish+錦帆 #hF0kQwdQp@Shabby_fish"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 21,
+     "score": 14675,
+     "name": "ラクガキスト QRI2EB1V526I@Asunder+Ai_C WSYQ71YMZTOP",
+     "clan": "Asunder",
+     "lineup": [
+      "ラクガキスト QRI2EB1V526I@Asunder+Ai_C WSYQ71YMZTOP@Asunder"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 20,
+     "score": 14773,
+     "name": "喘际瞬爆 7Wm~ye7yKh@shadowT+苦命鸳鸯 wGZ0prBv8G",
+     "clan": "shadowT",
+     "lineup": [
+      "喘际瞬爆 7Wm~ye7yKh@shadowT+苦命鸳鸯 wGZ0prBv8G@shadowT"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 19,
+     "score": 14828,
+     "name": "🥒 腖濌躻@名字竞技场+Hell 迚昫餅",
+     "clan": "名字竞技场",
+     "lineup": [
+      "🥒 腖濌躻@名字竞技场+Hell 迚昫餅@名字竞技场"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 18,
+     "score": 14836,
+     "name": "Torn_Notebook sKb1fmSpcsAD@Al³⁺+tsun352 4H50Vpb1DBVZ",
+     "clan": "Al³⁺",
+     "lineup": [
+      "Torn_Notebook sKb1fmSpcsAD@Al³⁺+tsun352 4H50Vpb1DBVZ@Al³⁺"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 17,
+     "score": 14954,
+     "name": "*7%CNx1@Nexus_Mirabilis+_\"[0T`K",
+     "clan": "Nexus_Mirabilis",
+     "lineup": [
+      "*7%CNx1@Nexus_Mirabilis+_\"[0T`K@Nexus_Mirabilis"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 16,
+     "score": 14985,
+     "name": "行空 29#tTfIBV@仙蛊屋+力量 2#pfiD1t",
+     "clan": "仙蛊屋",
+     "lineup": [
+      "行空 29#tTfIBV@仙蛊屋+力量 2#pfiD1t@仙蛊屋"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 15,
+     "score": 15018,
+     "name": "⊻≂⋣∟∖≩⊂⋄@爱+另类救赎 #024kM1yW",
+     "clan": "爱",
+     "lineup": [
+      "⊻≂⋣∟∖≩⊂⋄@爱+另类救赎 #024kM1yW@爱"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 14,
+     "score": 15037,
+     "name": "潮汐IRWNAZFJL@涵虚+浮光#奪烤鼌旊",
+     "clan": "涵虚",
+     "lineup": [
+      "潮汐IRWNAZFJL@涵虚+浮光#奪烤鼌旊@涵虚"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 13,
+     "score": 15094,
+     "name": "0000001k0cMp9JI@aaa+0000001yKgta1pB",
+     "clan": "aaa",
+     "lineup": [
+      "0000001k0cMp9JI@aaa+0000001yKgta1pB@aaa"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 12,
+     "score": 15140,
+     "name": "OMWSSiXK@acceed+Smash!!81912454170th",
+     "clan": "acceed",
+     "lineup": [
+      "OMWSSiXK@acceed+Smash!!81912454170th@acceed"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 11,
+     "score": 15588,
+     "name": "撞墙传丢斜长下地反断变奏外拨@昀澤+百剑䁊䚟㬇",
+     "clan": "昀澤",
+     "lineup": [
+      "撞墙传丢斜长下地反断变奏外拨@昀澤+百剑䁊䚟㬇@昀澤"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 10,
+     "score": 15628,
+     "name": "新纪元 魔托倒小砍疫昀惑@fAIgFUL+涵虚 01ApIh2Kn",
+     "clan": "fAIgFUL",
+     "lineup": [
+      "新纪元 魔托倒小砍疫昀惑@fAIgFUL+涵虚 01ApIh2Kn@fAIgFUL"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 9,
+     "score": 15638,
+     "name": "长夜月 TKFVPUFML@TigerStar+嗷呜不行了呕唔嗷呕呕呜呜呃呃呜唔呃嗷哦哦哦",
+     "clan": "TigerStar",
+     "lineup": [
+      "长夜月 TKFVPUFML@TigerStar+嗷呜不行了呕唔嗷呕呕呜呜呃呃呜唔呃嗷哦哦哦@TigerStar"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 8,
+     "score": 15893,
+     "name": "平行線 #DyeDWKthAL@🥒+郡上かなで #JxvFXZmAuf",
+     "clan": "🥒",
+     "lineup": [
+      "平行線 #DyeDWKthAL@🥒+郡上かなで #JxvFXZmAuf@🥒"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 7,
+     "score": 16146,
+     "name": "都江堰00217109183087@abruce+黍离00314983424865",
+     "clan": "abruce",
+     "lineup": [
+      "都江堰00217109183087@abruce+黍离00314983424865@abruce"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 6,
+     "score": 16149,
+     "name": "<ιο>-2ywpb8nl@ReturnVoid+<νε>-2acla6g0",
+     "clan": "ReturnVoid",
+     "lineup": [
+      "<ιο>-2ywpb8nl@ReturnVoid+<νε>-2acla6g0@ReturnVoid"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 5,
+     "score": 16216,
+     "name": "世末积雨云 MEENDWBQU@LuoTianyi+大氿歌 FESNBZBOJ",
+     "clan": "LuoTianyi",
+     "lineup": [
+      "世末积雨云 MEENDWBQU@LuoTianyi+大氿歌 FESNBZBOJ@LuoTianyi"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 4,
+     "score": 16237,
+     "name": "Parma KKMJDZDJPYBW@nan+Saomai BFFVJMEIFRCK",
+     "clan": "nan",
+     "lineup": [
+      "Parma KKMJDZDJPYBW@nan+Saomai BFFVJMEIFRCK@nan"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 3,
+     "score": 16305,
+     "name": "沓颊 LCI2QNZ5@Squall+黎明叙事 677097391180",
+     "clan": "Squall",
+     "lineup": [
+      "沓颊 LCI2QNZ5@Squall+黎明叙事 677097391180@Squall"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 2,
+     "score": 16777,
+     "name": "一对笑面虎 my7CAxNHHz@XJ联队+2LRLYnOw5pmmhXG",
+     "clan": "XJ联队",
+     "lineup": [
+      "一对笑面虎 my7CAxNHHz@XJ联队+2LRLYnOw5pmmhXG@XJ联队"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 1,
+     "score": 18048,
+     "name": "离子逻辑形态 *694017845283@新纪元+“乌鸦爵士”波里斯 -D5W5NLSFZU-",
+     "clan": "新纪元",
+     "lineup": [
+      "离子逻辑形态 *694017845283@新纪元+“乌鸦爵士”波里斯 -D5W5NLSFZU-@新纪元"
+     ],
+     "teamSize": 2
+    }
+   ]
+  },
+  "2B": {
+   "teamSize": 2,
+   "queue": [
+    {
+     "rank": 75,
+     "score": 865,
+     "name": "r7jb3ppYYKC@ManusVindictae+JhSNCq4gWll",
+     "clan": "ManusVindictae",
+     "lineup": [
+      "r7jb3ppYYKC@ManusVindictae+JhSNCq4gWll@ManusVindictae"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 74,
+     "score": 1036,
+     "name": "Tomorin Kzkt$V3'%/WL@WDGod+Ej3Wyh9U7sLl2jt8Zm3m",
+     "clan": "WDGod",
+     "lineup": [
+      "Tomorin Kzkt$V3'%/WL@WDGod+Ej3Wyh9U7sLl2jt8Zm3m@WDGod"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 73,
+     "score": 8454,
+     "name": "Fulminis #LCHXLTxMj@tya+Tesseract #4U91FOk6L",
+     "clan": "tya",
+     "lineup": [
+      "Fulminis #LCHXLTxMj@tya+Tesseract #4U91FOk6L@tya"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 72,
+     "score": 9017,
+     "name": "e4OtR7m6wK6oWbQg9z41sK.@Flying_hq+&Pco!d86IxoCOS_$.$%p[sa",
+     "clan": "Flying_hq",
+     "lineup": [
+      "e4OtR7m6wK6oWbQg9z41sK.@Flying_hq+&Pco!d86IxoCOS_$.$%p[sa@Flying_hq"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 71,
+     "score": 9453,
+     "name": "paradox #AFOJ3uv4inU6hH2q@Paradox+paradox #qNK2hzezYaEKWukk",
+     "clan": "Paradox",
+     "lineup": [
+      "paradox #AFOJ3uv4inU6hH2q@Paradox+paradox #qNK2hzezYaEKWukk@Paradox"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 70,
+     "score": 9489,
+     "name": "巨噬细胞 S}^`h[#r@OldComputerBigDeal_+赛运猎豹 )$CTx~_)",
+     "clan": "OldComputerBigDeal_",
+     "lineup": [
+      "巨噬细胞 S}^`h[#r@OldComputerBigDeal_+赛运猎豹 )$CTx~_)@OldComputerBigDeal_"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 69,
+     "score": 9590,
+     "name": "wpf-0lW@Stellar+ibf31a3j",
+     "clan": "Stellar",
+     "lineup": [
+      "wpf-0lW@Stellar+ibf31a3j@Stellar"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 68,
+     "score": 9646,
+     "name": "newpbb_yqevgodjotcf@7cunn+sto_pbb_orz_`.;`/}',,-.</]<-",
+     "clan": "7cunn",
+     "lineup": [
+      "newpbb_yqevgodjotcf@7cunn+sto_pbb_orz_`.;`/}',,-.</]<-@7cunn"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 67,
+     "score": 10190,
+     "name": "qwer_TY(草莓)  #tBOG8RVyTVIqbM6S1RVH@X_m_X+构造的小麦Q3ey4PjGmVTkqSV8PZnc",
+     "clan": "X_m_X",
+     "lineup": [
+      "qwer_TY(草莓)  #tBOG8RVyTVIqbM6S1RVH@X_m_X+构造的小麦Q3ey4PjGmVTkqSV8PZnc@X_m_X"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 66,
+     "score": 10205,
+     "name": "Mi7KVKvwl8@huangboning+lHChF0NOmk",
+     "clan": "huangboning",
+     "lineup": [
+      "Mi7KVKvwl8@huangboning+lHChF0NOmk@huangboning"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 65,
+     "score": 10392,
+     "name": "♧10 IuW8oGCBuds@GAME ON+♤9 puYLgNS8LU6",
+     "clan": "GAME ON",
+     "lineup": [
+      "♧10 IuW8oGCBuds@GAME ON+♤9 puYLgNS8LU6@GAME ON"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 64,
+     "score": 10619,
+     "name": "贝塔猫 \\Bk0NThae9tyV\\@时落之雨+Phigros \\PgmA0xm\\",
+     "clan": "时落之雨",
+     "lineup": [
+      "贝塔猫 \\Bk0NThae9tyV\\@时落之雨+Phigros \\PgmA0xm\\@时落之雨"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 63,
+     "score": 10744,
+     "name": "「溱」 #c4 #H1Xjg7jfRk@mwh_+「幺五」 #c1 #Z1vBr4cmhr",
+     "clan": "mwh_",
+     "lineup": [
+      "「溱」 #c4 #H1Xjg7jfRk@mwh_+「幺五」 #c1 #Z1vBr4cmhr@mwh_"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 62,
+     "score": 10785,
+     "name": "雨落狂流之暗 \"ychekczwnuvogdtk @黑月之潮+日月山河 \"jqidfmckkotoigbk",
+     "clan": "黑月之潮",
+     "lineup": [
+      "雨落狂流之暗 \"ychekczwnuvogdtk @黑月之潮+日月山河 \"jqidfmckkotoigbk @黑月之潮"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 61,
+     "score": 10901,
+     "name": "3:\\Azxg@紫微垣+25WoN[p",
+     "clan": "紫微垣",
+     "lineup": [
+      "3:\\Azxg@紫微垣+25WoN[p@紫微垣"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 60,
+     "score": 11292,
+     "name": "子渍不是子不油柚不是渍是渍柚子子子是是油@柚子不是油渍+渍不子柚子柚柚子柚柚不油是油不渍柚油不子",
+     "clan": "柚子不是油渍",
+     "lineup": [
+      "子渍不是子不油柚不是渍是渍柚子子子是是油@柚子不是油渍+渍不子柚子柚柚子柚柚不油是油不渍柚油不子@柚子不是油渍"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 59,
+     "score": 11574,
+     "name": "次耀 #BVUNUHQSCL@星球结晶+辰核战煌 e26qudW",
+     "clan": "星球结晶",
+     "lineup": [
+      "次耀 #BVUNUHQSCL@星球结晶+辰核战煌 e26qudW@星球结晶"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 58,
+     "score": 11756,
+     "name": "长矛 )}3r0!&OHt@天基屠龙炮+剑刃 fU~Cx|^X?4",
+     "clan": "天基屠龙炮",
+     "lineup": [
+      "长矛 )}3r0!&OHt@天基屠龙炮+剑刃 fU~Cx|^X?4@天基屠龙炮"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 57,
+     "score": 11874,
+     "name": "Z4DrFRj9QZ@_s_z_y_+u2XrebHk4m",
+     "clan": "_s_z_y_",
+     "lineup": [
+      "Z4DrFRj9QZ@_s_z_y_+u2XrebHk4m@_s_z_y_"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 56,
+     "score": 11921,
+     "name": "霍比特人 -CzpCt4Z@中土世界+伊斯塔尔 -q2piO06",
+     "clan": "中土世界",
+     "lineup": [
+      "霍比特人 -CzpCt4Z@中土世界+伊斯塔尔 -q2piO06@中土世界"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 55,
+     "score": 11995,
+     "name": "Growth ZVLNUBWR@Miracle+Avenge LVWIDFKV",
+     "clan": "Miracle",
+     "lineup": [
+      "Growth ZVLNUBWR@Miracle+Avenge LVWIDFKV@Miracle"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 53,
+     "score": 12006,
+     "name": "Rinick KoCGLQcbwL@碰数+Rinick l4w5ZFnajm",
+     "clan": "碰数",
+     "lineup": [
+      "Rinick KoCGLQcbwL@碰数+Rinick l4w5ZFnajm@碰数"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 54,
+     "score": 12006,
+     "name": "dustins#kJID2zaBfx7zl1IVQ7Yd@czr2012+reddustdustdust B6so7NW8FG0yERvEhexk",
+     "clan": "czr2012",
+     "lineup": [
+      "dustins#kJID2zaBfx7zl1IVQ7Yd@czr2012+reddustdustdust B6so7NW8FG0yERvEhexk@czr2012"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 52,
+     "score": 12038,
+     "name": "玉簟 SIIQVIDT@test1123+莼鲈 UAYFZILR",
+     "clan": "test1123",
+     "lineup": [
+      "玉簟 SIIQVIDT@test1123+莼鲈 UAYFZILR@test1123"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 51,
+     "score": 12165,
+     "name": "\\EmptyLove\\-486117114979@\\XIV\\-14+\\Drown\\-173171380087",
+     "clan": "\\XIV\\-14",
+     "lineup": [
+      "\\EmptyLove\\-486117114979@\\XIV\\-14+\\Drown\\-173171380087@\\XIV\\-14"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 50,
+     "score": 12191,
+     "name": "进阶 #LtsD0udZS@余華+远山Q_{)*H4`yUpR",
+     "clan": "余華",
+     "lineup": [
+      "进阶 #LtsD0udZS@余華+远山Q_{)*H4`yUpR@余華"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 49,
+     "score": 12223,
+     "name": "Sakuzyo fdMy46cnFz@RbCl+Sennoza i7kkPtoDTQ",
+     "clan": "RbCl",
+     "lineup": [
+      "Sakuzyo fdMy46cnFz@RbCl+Sennoza i7kkPtoDTQ@RbCl"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 48,
+     "score": 12277,
+     "name": "颀樎翼 qXp$Fs@四象霄+暗光星曦 1xN3P{4GW",
+     "clan": "四象霄",
+     "lineup": [
+      "颀樎翼 qXp$Fs@四象霄+暗光星曦 1xN3P{4GW@四象霄"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 47,
+     "score": 12370,
+     "name": "ALICE-6GSEDK42@琪拉拉+幻影 #RXUJXEEIA",
+     "clan": "琪拉拉",
+     "lineup": [
+      "ALICE-6GSEDK42@琪拉拉+幻影 #RXUJXEEIA@琪拉拉"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 46,
+     "score": 12410,
+     "name": "Al₂Mg₆(OH)₁₆CO₃·4H₂O mkTU967eFLEI@Al³⁺+tsun352 8HAPx0NBKzhH",
+     "clan": "Al³⁺",
+     "lineup": [
+      "Al₂Mg₆(OH)₁₆CO₃·4H₂O mkTU967eFLEI@Al³⁺+tsun352 8HAPx0NBKzhH@Al³⁺"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 45,
+     "score": 12430,
+     "name": "这里可以吃小路大草猪道草路城师草城猪小@！？区猴猴区？！+这里可以吃宝路路红城小堡红白小小大师猪",
+     "clan": "！？区猴猴区？！",
+     "lineup": [
+      "这里可以吃小路大草猪道草路城师草城猪小@！？区猴猴区？！+这里可以吃宝路路红城小堡红白小小大师猪@！？区猴猴区？！"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 44,
+     "score": 12549,
+     "name": "AjAjVkyz@acceed+mGQIfQSw",
+     "clan": "acceed",
+     "lineup": [
+      "AjAjVkyz@acceed+mGQIfQSw@acceed"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 43,
+     "score": 12600,
+     "name": "容器 jhM6n7ZrDdF4tmy@Mithril+混沌 5oOQiQigtYcUiIa",
+     "clan": "Mithril",
+     "lineup": [
+      "容器 jhM6n7ZrDdF4tmy@Mithril+混沌 5oOQiQigtYcUiIa@Mithril"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 42,
+     "score": 12758,
+     "name": "Hinata_Chinatsu 5SLFWYPGE57H@Asunder+Synthesis. XVLZJ69OUVUJ",
+     "clan": "Asunder",
+     "lineup": [
+      "Hinata_Chinatsu 5SLFWYPGE57H@Asunder+Synthesis. XVLZJ69OUVUJ@Asunder"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 41,
+     "score": 13078,
+     "name": "泠珞 [VmRt[ntb@807139+? HA]fqh[1ZX",
+     "clan": "807139",
+     "lineup": [
+      "泠珞 [VmRt[ntb@807139+? HA]fqh[1ZX@807139"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 40,
+     "score": 13163,
+     "name": "可可萝 #EZBAOSOOV@公主连结+望 #UHKWRXQAR",
+     "clan": "公主连结",
+     "lineup": [
+      "可可萝 #EZBAOSOOV@公主连结+望 #UHKWRXQAR@公主连结"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 39,
+     "score": 13216,
+     "name": "Smoggy #qWsLd6m@Arcadia+Momomomo #BVvE0H9",
+     "clan": "Arcadia",
+     "lineup": [
+      "Smoggy #qWsLd6m@Arcadia+Momomomo #BVvE0H9@Arcadia"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 38,
+     "score": 13226,
+     "name": "dvuBoMQFRP@凌+bOIkMCWu5z",
+     "clan": "凌",
+     "lineup": [
+      "dvuBoMQFRP@凌+bOIkMCWu5z@凌"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 37,
+     "score": 13301,
+     "name": "1JfHpp_NE@master+1S_T~vTmg",
+     "clan": "master",
+     "lineup": [
+      "1JfHpp_NE@master+1S_T~vTmg@master"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 36,
+     "score": 13353,
+     "name": "翁天东 p,q}wjOy%a@shadowT+Battery fxPjSD5EQ",
+     "clan": "shadowT",
+     "lineup": [
+      "翁天东 p,q}wjOy%a@shadowT+Battery fxPjSD5EQ@shadowT"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 35,
+     "score": 13360,
+     "name": "破界者 #HBQTQZEBW@巡洋舰+C.QDOBFNZJA",
+     "clan": "巡洋舰",
+     "lineup": [
+      "破界者 #HBQTQZEBW@巡洋舰+C.QDOBFNZJA@巡洋舰"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 34,
+     "score": 13492,
+     "name": "克朗 #AIXZPCRA@暗黑突击+故障机器人 #CGZCTYTDU",
+     "clan": "暗黑突击",
+     "lineup": [
+      "克朗 #AIXZPCRA@暗黑突击+故障机器人 #CGZCTYTDU@暗黑突击"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 33,
+     "score": 13550,
+     "name": "ilem ?MJxj&<^@LuoTianyi+前尘如梦 UYGMHRNX",
+     "clan": "LuoTianyi",
+     "lineup": [
+      "ilem ?MJxj&<^@LuoTianyi+前尘如梦 UYGMHRNX@LuoTianyi"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 32,
+     "score": 13552,
+     "name": "βQCCTmHU@ssg+ΠMqyunNQp",
+     "clan": "ssg",
+     "lineup": [
+      "βQCCTmHU@ssg+ΠMqyunNQp@ssg"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 31,
+     "score": 13617,
+     "name": "Morta #2smdUfL@Unbound+IABTXMISBUXR 1414638085640233",
+     "clan": "Unbound",
+     "lineup": [
+      "Morta #2smdUfL@Unbound+IABTXMISBUXR 1414638085640233@Unbound"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 30,
+     "score": 13921,
+     "name": "新纪元 O19wi1tWd@fAIgFUL+新纪元 OEODfJJzf",
+     "clan": "fAIgFUL",
+     "lineup": [
+      "新纪元 O19wi1tWd@fAIgFUL+新纪元 OEODfJJzf@fAIgFUL"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 29,
+     "score": 13985,
+     "name": "民间食谱 #0u18Bu0Us@CO₃²⁻+TF卡 #e9YjWgkpd",
+     "clan": "CO₃²⁻",
+     "lineup": [
+      "民间食谱 #0u18Bu0Us@CO₃²⁻+TF卡 #e9YjWgkpd@CO₃²⁻"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 28,
+     "score": 14074,
+     "name": "仇决clFJZCMHS@candle+Sorrowless 2nafI0zFE",
+     "clan": "candle",
+     "lineup": [
+      "仇决clFJZCMHS@candle+Sorrowless 2nafI0zFE@candle"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 27,
+     "score": 14123,
+     "name": "Red OT<{f2=v}67w@流浪冒险者+Tirn y_[yNJ#jq\"9r",
+     "clan": "流浪冒险者",
+     "lineup": [
+      "Red OT<{f2=v}67w@流浪冒险者+Tirn y_[yNJ#jq\"9r@流浪冒险者"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 26,
+     "score": 14142,
+     "name": "Hell 乍侨蠦@名字竞技场+Arcadia 雦蠲魊",
+     "clan": "名字竞技场",
+     "lineup": [
+      "Hell 乍侨蠦@名字竞技场+Arcadia 雦蠲魊@名字竞技场"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 25,
+     "score": 14155,
+     "name": "新0001967957849231@酸橙+木919565340625",
+     "clan": "酸橙",
+     "lineup": [
+      "新0001967957849231@酸橙+木919565340625@酸橙"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 24,
+     "score": 14185,
+     "name": "虚空辉光舰FpNQjf4keMaT0TB@橙红耀阳+赋生Pb0kwKJgndqVaLk",
+     "clan": "橙红耀阳",
+     "lineup": [
+      "虚空辉光舰FpNQjf4keMaT0TB@橙红耀阳+赋生Pb0kwKJgndqVaLk@橙红耀阳"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 23,
+     "score": 14521,
+     "name": "powergrip2957754903885@coat+powergrip9714454741459",
+     "clan": "coat",
+     "lineup": [
+      "powergrip2957754903885@coat+powergrip9714454741459@coat"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 22,
+     "score": 14769,
+     "name": ",-otKdl@Nexus_Mirabilis+Cantilena_Caerulea #0s5UgpSV",
+     "clan": "Nexus_Mirabilis",
+     "lineup": [
+      ",-otKdl@Nexus_Mirabilis+Cantilena_Caerulea #0s5UgpSV@Nexus_Mirabilis"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 21,
+     "score": 14824,
+     "name": "人气 40#ehwW9t@仙蛊屋+气遁 73#kwhRu6",
+     "clan": "仙蛊屋",
+     "lineup": [
+      "人气 40#ehwW9t@仙蛊屋+气遁 73#kwhRu6@仙蛊屋"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 20,
+     "score": 14842,
+     "name": "三田一重 TxtrdTN4l8nT@fx+牙四 xX4hHzW",
+     "clan": "fx",
+     "lineup": [
+      "三田一重 TxtrdTN4l8nT@fx+牙四 xX4hHzW@fx"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 19,
+     "score": 14942,
+     "name": "=8AAh72hQ1DWwaZ@XJ联队+看起来感觉很不行/yun AS8OYBcwjp",
+     "clan": "XJ联队",
+     "lineup": [
+      "=8AAh72hQ1DWwaZ@XJ联队+看起来感觉很不行/yun AS8OYBcwjp@XJ联队"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 18,
+     "score": 14970,
+     "name": "班轮历来举例城区@昀澤+𝞳𝞳𝞶𝞠𝞘𝞺𝞟",
+     "clan": "昀澤",
+     "lineup": [
+      "班轮历来举例城区@昀澤+𝞳𝞳𝞶𝞠𝞘𝞺𝞟@昀澤"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 17,
+     "score": 15072,
+     "name": "00000055eV3sDLL@aaa+0000006dolh406w",
+     "clan": "aaa",
+     "lineup": [
+      "00000055eV3sDLL@aaa+0000006dolh406w@aaa"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 16,
+     "score": 15205,
+     "name": "大庆00227877356168@abruce+百合00191487580493",
+     "clan": "abruce",
+     "lineup": [
+      "大庆00227877356168@abruce+百合00191487580493@abruce"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 15,
+     "score": 15254,
+     "name": "呜别挠了呕呜嗷呜唔哦嗷嗷呜嗷哦哦哦呜呜唔@TigerStar+雾山惟助 BAAOVADZ",
+     "clan": "TigerStar",
+     "lineup": [
+      "呜别挠了呕呜嗷呜唔哦嗷嗷呜嗷哦哦哦呜呜唔@TigerStar+雾山惟助 BAAOVADZ@TigerStar"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 14,
+     "score": 15428,
+     "name": "H6PeQOTNUlx@tyakasha+Orbital #sfPTzSpZz",
+     "clan": "tyakasha",
+     "lineup": [
+      "H6PeQOTNUlx@tyakasha+Orbital #sfPTzSpZz@tyakasha"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 13,
+     "score": 15469,
+     "name": "Saeki_sayaka #ihzmDmwsho@🥒+緋色のDance #hUxfUgcfAp",
+     "clan": "🥒",
+     "lineup": [
+      "Saeki_sayaka #ihzmDmwsho@🥒+緋色のDance #hUxfUgcfAp@🥒"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 12,
+     "score": 15550,
+     "name": "保保先生 #006ZB1Rv@爱+老鸨 #04suHOlX",
+     "clan": "爱",
+     "lineup": [
+      "保保先生 #006ZB1Rv@爱+老鸨 #04suHOlX@爱"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 11,
+     "score": 15560,
+     "name": "镜湖TVWAFPFHB@涵虚+田柤钿坥畑租鉏组佃怚钿组",
+     "clan": "涵虚",
+     "lineup": [
+      "镜湖TVWAFPFHB@涵虚+田柤钿坥畑租鉏组佃怚钿组@涵虚"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 10,
+     "score": 15603,
+     "name": "银铃歌者.流花燕 \\!}G2F0Z/@四象柯+玷裙染.无眠 w|W(Z71S",
+     "clan": "四象柯",
+     "lineup": [
+      "银铃歌者.流花燕 \\!}G2F0Z/@四象柯+玷裙染.无眠 w|W(Z71S@四象柯"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 9,
+     "score": 15627,
+     "name": "冥河 WyO8MUZPPtKH@Afterglow+光 jKLA6V5mirfs",
+     "clan": "Afterglow",
+     "lineup": [
+      "冥河 WyO8MUZPPtKH@Afterglow+光 jKLA6V5mirfs@Afterglow"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 8,
+     "score": 15961,
+     "name": "<ζε>-fhepgq2n@ReturnVoid+<δγ>-2y8tkiju",
+     "clan": "ReturnVoid",
+     "lineup": [
+      "<ζε>-fhepgq2n@ReturnVoid+<δγ>-2y8tkiju@ReturnVoid"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 7,
+     "score": 16028,
+     "name": "1^GNC.%F@Hell+1f67~3l}",
+     "clan": "Hell",
+     "lineup": [
+      "1^GNC.%F@Hell+1f67~3l}@Hell"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 6,
+     "score": 16114,
+     "name": "Gotta_Say_It #L2rcZjcnp@Shabby_fish+我上GPT找找灵感 #mxPqt7Vaa",
+     "clan": "Shabby_fish",
+     "lineup": [
+      "Gotta_Say_It #L2rcZjcnp@Shabby_fish+我上GPT找找灵感 #mxPqt7Vaa@Shabby_fish"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 5,
+     "score": 16201,
+     "name": "deepmess.com/namerena/#n=7BeAjGrglZRF@芒萁+回归 0ncLZzu0uAwN",
+     "clan": "芒萁",
+     "lineup": [
+      "deepmess.com/namerena/#n=7BeAjGrglZRF@芒萁+回归 0ncLZzu0uAwN@芒萁"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 4,
+     "score": 16305,
+     "name": "好汉握一握手 *841439258469@新纪元+Massive_New_Krew #790974914295",
+     "clan": "新纪元",
+     "lineup": [
+      "好汉握一握手 *841439258469@新纪元+Massive_New_Krew #790974914295@新纪元"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 3,
+     "score": 16441,
+     "name": "樱萝晓莲 92rvPXx@无惨+花语堂夜 #MVZUPVJEV",
+     "clan": "无惨",
+     "lineup": [
+      "樱萝晓莲 92rvPXx@无惨+花语堂夜 #MVZUPVJEV@无惨"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 2,
+     "score": 16563,
+     "name": "Soudelor VGDAEAHOJNQY@nan+Tip UQKEOUDJYFXG",
+     "clan": "nan",
+     "lineup": [
+      "Soudelor VGDAEAHOJNQY@nan+Tip UQKEOUDJYFXG@nan"
+     ],
+     "teamSize": 2
+    },
+    {
+     "rank": 1,
+     "score": 16712,
+     "name": "红美铃 oTMGSEM@Squall+米斯蒂娅·萝蕾拉 XCF46FUW",
+     "clan": "Squall",
+     "lineup": [
+      "红美铃 oTMGSEM@Squall+米斯蒂娅·萝蕾拉 XCF46FUW@Squall"
+     ],
+     "teamSize": 2
+    }
+   ]
+  },
+  "3A": {
+   "teamSize": 3,
+   "queue": [
+    {
+     "rank": 34,
+     "score": 10415,
+     "name": "HtWNZZJyRP@_s_z_y_+1htMEZ8gmH@_s_z_y_+bWLB8ZTSJp",
+     "clan": "_s_z_y_",
+     "lineup": [
+      "HtWNZZJyRP@_s_z_y_+1htMEZ8gmH@_s_z_y_+bWLB8ZTSJp@_s_z_y_"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 33,
+     "score": 10784,
+     "name": "解 XInkKcn17wlM@Afterglow+Njd9OirMLTpL@Afterglow+敬请无极转身 dgWmQomU3cUN",
+     "clan": "Afterglow",
+     "lineup": [
+      "解 XInkKcn17wlM@Afterglow+Njd9OirMLTpL@Afterglow+敬请无极转身 dgWmQomU3cUN@Afterglow"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 32,
+     "score": 10884,
+     "name": "paradox #aV0B5qeWS8PC91Id@Paradox+paradox #nSD4fe3IB8YjqPUC@Paradox+paradox #KrYUs4Ochyz8qqwa",
+     "clan": "Paradox",
+     "lineup": [
+      "paradox #aV0B5qeWS8PC91Id@Paradox+paradox #nSD4fe3IB8YjqPUC@Paradox+paradox #KrYUs4Ochyz8qqwa@Paradox"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 31,
+     "score": 10974,
+     "name": "封魔宣夜 8uW56ll@无惨+绛雷瞬 t8ZhNZ2@无惨+樱井光 efvkDhQ",
+     "clan": "无惨",
+     "lineup": [
+      "封魔宣夜 8uW56ll@无惨+绛雷瞬 t8ZhNZ2@无惨+樱井光 efvkDhQ@无惨"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 30,
+     "score": 11038,
+     "name": "三头区 #NYmDCMu3g@！？区猴猴区？！+三头区 #CELXEbJEi@！？区猴猴区？！+三头区 #hzgyqtz7j",
+     "clan": "！？区猴猴区？！",
+     "lineup": [
+      "三头区 #NYmDCMu3g@！？区猴猴区？！+三头区 #CELXEbJEi@！？区猴猴区？！+三头区 #hzgyqtz7j@！？区猴猴区？！"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 29,
+     "score": 11110,
+     "name": "ΦBAYfSrek@ssg+ΦXOyXSIgL@ssg+ΦMUrLvVFz",
+     "clan": "ssg",
+     "lineup": [
+      "ΦBAYfSrek@ssg+ΦXOyXSIgL@ssg+ΦMUrLvVFz@ssg"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 28,
+     "score": 11693,
+     "name": "纺希 #TZPVODFUA@公主连结+厄里斯 #SGEDTZNCP@公主连结+兰法 YSXYOWQGAGLK",
+     "clan": "公主连结",
+     "lineup": [
+      "纺希 #TZPVODFUA@公主连结+厄里斯 #SGEDTZNCP@公主连结+兰法 YSXYOWQGAGLK@公主连结"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 27,
+     "score": 11700,
+     "name": "血遁 86#NqSYeM@仙蛊屋+挽澜 0#lbmWrL@仙蛊屋+力气 30#zxQ4y6",
+     "clan": "仙蛊屋",
+     "lineup": [
+      "血遁 86#NqSYeM@仙蛊屋+挽澜 0#lbmWrL@仙蛊屋+力气 30#zxQ4y6@仙蛊屋"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 26,
+     "score": 11936,
+     "name": "ЧЕυôÂЯыуÐЖ@807139+泠珞9fTyp9pNY5@807139+星尘E]nfvcpLk7",
+     "clan": "807139",
+     "lineup": [
+      "ЧЕυôÂЯыуÐЖ@807139+泠珞9fTyp9pNY5@807139+星尘E]nfvcpLk7@807139"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 25,
+     "score": 12499,
+     "name": "虚空咦 aubHluOMPElA@芒萁+《宋正攘疾》@芒萁+AlCl3 使用幻术，召唤出 7893271908538 个 幻影",
+     "clan": "芒萁",
+     "lineup": [
+      "虚空咦 aubHluOMPElA@芒萁+《宋正攘疾》@芒萁+AlCl3 使用幻术，召唤出 7893271908538 个 幻影@芒萁"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 24,
+     "score": 12772,
+     "name": "cnr #c0vcczLvTc4Dw2lkKWuo@czr2012+hkb do7bQhxSRGPFeFk37odL@czr2012+horror 2eqBwdQVcY53CGlpum34",
+     "clan": "czr2012",
+     "lineup": [
+      "cnr #c0vcczLvTc4Dw2lkKWuo@czr2012+hkb do7bQhxSRGPFeFk37odL@czr2012+horror 2eqBwdQVcY53CGlpum34@czr2012"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 23,
+     "score": 12793,
+     "name": "星垂-埄偆犱綨@涵虚+潮汐-糖藷愠颏@涵虚+风驰-xtxxgwcb",
+     "clan": "涵虚",
+     "lineup": [
+      "星垂-埄偆犱綨@涵虚+潮汐-糖藷愠颏@涵虚+风驰-xtxxgwcb@涵虚"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 22,
+     "score": 12837,
+     "name": "去油污柚子皮 k9KdiM0hMr50@柚子不是油渍+子子油渍柚不子油不是子柚渍不不渍柚油柚子@柚子不是油渍+豹运长久kzHI2hflH",
+     "clan": "柚子不是油渍",
+     "lineup": [
+      "去油污柚子皮 k9KdiM0hMr50@柚子不是油渍+子子油渍柚不子油不是子柚渍不不渍柚油柚子@柚子不是油渍+豹运长久kzHI2hflH@柚子不是油渍"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 21,
+     "score": 13050,
+     "name": "需要 #V7jsvegog@余華+敬世界 #7331751321330@余華+审判日.审判之日 &7[Hi3'g",
+     "clan": "余華",
+     "lineup": [
+      "需要 #V7jsvegog@余華+敬世界 #7331751321330@余華+审判日.审判之日 &7[Hi3'g@余華"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 20,
+     "score": 13386,
+     "name": "QUOTA GFLUDMAO@巡洋舰+SS.BIIAHZCCM@巡洋舰+使魔 #XNLTEWVTX",
+     "clan": "巡洋舰",
+     "lineup": [
+      "QUOTA GFLUDMAO@巡洋舰+SS.BIIAHZCCM@巡洋舰+使魔 #XNLTEWVTX@巡洋舰"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 19,
+     "score": 13477,
+     "name": "滢滢子 _hKOH3C@四象柯+涂愿捄褎僰@四象柯+诺滢宵 u5k:$(_S",
+     "clan": "四象柯",
+     "lineup": [
+      "滢滢子 _hKOH3C@四象柯+涂愿捄褎僰@四象柯+诺滢宵 u5k:$(_S@四象柯"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 18,
+     "score": 13541,
+     "name": "cyan565874091585@酸橙+Sky142753555024@酸橙+Tan965596700284",
+     "clan": "酸橙",
+     "lineup": [
+      "cyan565874091585@酸橙+Sky142753555024@酸橙+Tan965596700284@酸橙"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 17,
+     "score": 13571,
+     "name": "饭岛结音 ZWIVSJJH@琪拉拉+MARI-CXMGDOJO@琪拉拉+丧尸 #HCWUKWTHK",
+     "clan": "琪拉拉",
+     "lineup": [
+      "饭岛结音 ZWIVSJJH@琪拉拉+MARI-CXMGDOJO@琪拉拉+丧尸 #HCWUKWTHK@琪拉拉"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 16,
+     "score": 13731,
+     "name": "承认弱小的存在并不足以令理想瓦解 5GC0W441UPI8@Unbound+洺枞 #7LXS5NG@Unbound+Nona #pjFp7Jw",
+     "clan": "Unbound",
+     "lineup": [
+      "承认弱小的存在并不足以令理想瓦解 5GC0W441UPI8@Unbound+洺枞 #7LXS5NG@Unbound+Nona #pjFp7Jw@Unbound"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 15,
+     "score": 13856,
+     "name": "薇斯纳 #TPYMEWSRS@暗黑突击+热浪鸭 #XEGYXGTJ@暗黑突击+姬川友纪 #SVCVIVJV",
+     "clan": "暗黑突击",
+     "lineup": [
+      "薇斯纳 #TPYMEWSRS@暗黑突击+热浪鸭 #XEGYXGTJ@暗黑突击+姬川友纪 #SVCVIVJV@暗黑突击"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 14,
+     "score": 13904,
+     "name": "opWS>O76kKbeyzp@XJ联队+YDdu22=GZbcQt=2@XJ联队+gaDUGvcLjf3adAl",
+     "clan": "XJ联队",
+     "lineup": [
+      "opWS>O76kKbeyzp@XJ联队+YDdu22=GZbcQt=2@XJ联队+gaDUGvcLjf3adAl@XJ联队"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 13,
+     "score": 13994,
+     "name": "苦命鸳鸯 9Y2eEFXJxP@shadowT+alka 0J[Y'4E@shadowT+Csp2025加油 lVw2CEMTv",
+     "clan": "shadowT",
+     "lineup": [
+      "苦命鸳鸯 9Y2eEFXJxP@shadowT+alka 0J[Y'4E@shadowT+Csp2025加油 lVw2CEMTv@shadowT"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 12,
+     "score": 14599,
+     "name": "涵虚 09Ru0cLob@fAIgFUL+涵虚 O5ChSJp3o@fAIgFUL+涵虚 OYujKkID6",
+     "clan": "fAIgFUL",
+     "lineup": [
+      "涵虚 09Ru0cLob@fAIgFUL+涵虚 O5ChSJp3o@fAIgFUL+涵虚 OYujKkID6@fAIgFUL"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 11,
+     "score": 14818,
+     "name": "<γρ>-xthyizh5@ReturnVoid+<ηψ>-bjdrswie@ReturnVoid+<γω>-91zuonbf",
+     "clan": "ReturnVoid",
+     "lineup": [
+      "<γρ>-xthyizh5@ReturnVoid+<ηψ>-bjdrswie@ReturnVoid+<γω>-91zuonbf@ReturnVoid"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 10,
+     "score": 14983,
+     "name": "Rin 2gF5ocwLV@candle+叱吓4lhBFgUZi@candle+Misterioso fuejhMwds",
+     "clan": "candle",
+     "lineup": [
+      "Rin 2gF5ocwLV@candle+叱吓4lhBFgUZi@candle+Misterioso fuejhMwds@candle"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 9,
+     "score": 15370,
+     "name": "Hn8DRI1X2FO@tyakasha+OvX #SIdMdKVVd@tyakasha+夜に駆ける #1MRnjakGU",
+     "clan": "tyakasha",
+     "lineup": [
+      "Hn8DRI1X2FO@tyakasha+OvX #SIdMdKVVd@tyakasha+夜に駆ける #1MRnjakGU@tyakasha"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 8,
+     "score": 15411,
+     "name": "Olaf TGTIORUQSVMK@nan+Ingrid WNQSICVWDQBU@nan+Abby EWZCTSEXNMHL",
+     "clan": "nan",
+     "lineup": [
+      "Olaf TGTIORUQSVMK@nan+Ingrid WNQSICVWDQBU@nan+Abby EWZCTSEXNMHL@nan"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 7,
+     "score": 15560,
+     "name": "Away #gerUwS5Qy@Shabby_fish+Light_Years_Away #Bp7rvcEbX@Shabby_fish+同禮 #t4u2soYDC",
+     "clan": "Shabby_fish",
+     "lineup": [
+      "Away #gerUwS5Qy@Shabby_fish+Light_Years_Away #Bp7rvcEbX@Shabby_fish+同禮 #t4u2soYDC@Shabby_fish"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 6,
+     "score": 15783,
+     "name": "土豆不等式 QPBPMQNW@Squall+十六夜咲夜 IAuHNcJx@Squall+赤蛮奇 MO77A6CH",
+     "clan": "Squall",
+     "lineup": [
+      "土豆不等式 QPBPMQNW@Squall+十六夜咲夜 IAuHNcJx@Squall+赤蛮奇 MO77A6CH@Squall"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 5,
+     "score": 16801,
+     "name": "孝惩冻柄@昀澤+受伤小刀汇集开悟预谋祭品@昀澤+恐怖增幅狂暴寄生渎神飞镖预谋双发傲慢堆栈",
+     "clan": "昀澤",
+     "lineup": [
+      "孝惩冻柄@昀澤+受伤小刀汇集开悟预谋祭品@昀澤+恐怖增幅狂暴寄生渎神飞镖预谋双发傲慢堆栈@昀澤"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 4,
+     "score": 16817,
+     "name": "澪田唯吹 $0cx0UHtT@爱+睡得正香，脚抽筋了 #00HNv3SH@爱+酥皮浓汤 #02eev5fa",
+     "clan": "爱",
+     "lineup": [
+      "澪田唯吹 $0cx0UHtT@爱+睡得正香，脚抽筋了 #00HNv3SH@爱+酥皮浓汤 #02eev5fa@爱"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 3,
+     "score": 17430,
+     "name": "TAG #230182204122@新纪元+ミラ ~U0fCaxDCBT~@新纪元+菲卡维亚哨兵 -i17fBMrCvO-",
+     "clan": "新纪元",
+     "lineup": [
+      "TAG #230182204122@新纪元+ミラ ~U0fCaxDCBT~@新纪元+菲卡维亚哨兵 -i17fBMrCvO-@新纪元"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 2,
+     "score": 17576,
+     "name": "1m[pkwtxk@master+1qyYtrVbK@master+S_B]Mb\\y",
+     "clan": "master",
+     "lineup": [
+      "1m[pkwtxk@master+1qyYtrVbK@master+S_B]Mb\\y@master"
+     ],
+     "teamSize": 3
+    },
+    {
+     "rank": 1,
+     "score": 18392,
+     "name": "詠み人知らず #rIlnjdMByP@🥒+Straight_into_the_lights #VpdbCrcFJV@🥒+星が揺れる #JWPcfWcAXX",
+     "clan": "🥒",
+     "lineup": [
+      "詠み人知らず #rIlnjdMByP@🥒+Straight_into_the_lights #VpdbCrcFJV@🥒+星が揺れる #JWPcfWcAXX@🥒"
+     ],
+     "teamSize": 3
+    }
+   ]
+  }
+ }
+}

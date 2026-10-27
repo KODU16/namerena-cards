@@ -1,0 +1,746 @@
+/* tslint:disable */
+/* eslint-disable */
+/**
+ * 分批/同步胜率选项；eval_rq 默认胜率口径，thread 缺失或为 0/1 均使用当前线程。
+ */
+export interface WinRateOptions {
+    eval_rq?: number;
+    thread?: number;
+}
+
+/**
+ * 旧页面兼容对局选项；capture_replay 只控制完整回放是否保存帧，默认保存。
+ */
+export interface FightOptions {
+    eval_rq?: number;
+    include_icons?: boolean;
+    capture_replay?: boolean;
+}
+
+/**
+ * 规范战斗会话与完整回放共用选项；缺失字段使用 core 默认值。
+ * max_rounds 为正数回合预算，不是可见帧数；include_icons 会在快照中附图标 data URL。
+ */
+export interface BattleOptions {
+    eval_rq?: number;
+    include_icons?: boolean;
+    max_rounds?: number;
+    /**
+     * 玩家受控队伍编号；传了就会在轮到该队伍本体/分身时暂停等指令。
+     */
+    controlled_team?: number;
+}
+
+// 规范 core DTO 形状。没有单独的 Rust 绑定 schema。
+export type BattleStatus = "running" | "finished" | "truncated";
+export type BattleStopReason = "winner" | "max_rounds" | "no_progress";
+export type BattleMinionKind = "clone" | "summon" | "shadow" | "zombie";
+export type BattleUpdateType = "win" | "none" | "next_line";
+export type BattleTone = "normal" | "damage" | "recover" | "knockout" | "status_exit";
+export type BattleReplayTextPartKind = "text" | "highlight" | "player" | "data";
+export type BattleReplayOptions = BattleOptions;
+
+export interface BattleReplay {
+    status: BattleStatus;
+    stop_reason: BattleStopReason;
+    rounds_advanced: number;
+    frames_emitted: number;
+    finished: boolean;
+    truncated: boolean;
+    initial_states: Array<BattlePlayerState>;
+    frames: Array<BattleReplayFrame>;
+    final_states: Array<BattlePlayerState>;
+    winner_ids: Array<number>;
+    winner_team_indices: Array<number>;
+    state_granularity: "round";
+}
+
+export interface BattlePlayerState {
+    id: number;
+    team_index: number;
+    input_team_index: number | null;
+    owner_id: number | null;
+    source_id: number | null;
+    id_name: string;
+    id_key_name: string;
+    icon_key: string;
+    display_name: string;
+    display_index: number;
+    base_name: string;
+    player_type: string;
+    minion_kind: BattleMinionKind | null;
+    icon_png_base64: string | null;
+    hp: number;
+    max_hp: number;
+    /** 剩余吸收护盾，合计常规蓄盾与 ShieldValue；不含铁壁，死亡时为 0。 */
+    shield: number;
+    /** 当前护盾技能熟练度，随吞噬等技能变化更新；不是实际盾值的硬上限。 */
+    max_shield: number;
+    magic_point: number;
+    move_point: number;
+    attack: number;
+    defense: number;
+    speed: number;
+    agility: number;
+    magic: number;
+    resistance: number;
+    wisdom: number;
+    point: number;
+    all_sum: number;
+    name_factor: number;
+    at_boost: number;
+    attract: number;
+    frozen: boolean;
+    alive: boolean;
+    active: boolean;
+    status_labels: Array<string>;
+}
+
+export interface BattleReplayFrame {
+    frame_index: number;
+    round_index: number;
+    finished: boolean;
+    winner_ids: Array<number>;
+    updates: Array<BattleUpdate>;
+    rows: Array<BattleReplayRow>;
+    states: Array<BattlePlayerState>;
+    total_delay: number;
+}
+
+export interface BattleUpdate {
+    update_type: BattleUpdateType;
+    tone: BattleTone;
+    message_template: string;
+    message_rendered: string;
+    caster_id: number | null;
+    target_id: number | null;
+    target_ids: Array<number>;
+    param: number | null;
+    score: number;
+    delay0: number;
+    delay1: number;
+    hp_delta: number | null;
+    is_win: boolean;
+    is_next_line: boolean;
+}
+
+export interface BattleReplayRow {
+    indent: boolean;
+    clips: Array<BattleReplayClip>;
+}
+
+export interface BattleReplayClip {
+    delay: number;
+    color: string;
+    tone: BattleTone;
+    parts: Array<BattleReplayTextPart>;
+    caster_ids: Array<number>;
+    target_ids: Array<number>;
+    sidebar_states: Array<BattlePlayerState>;
+    sidebar_previous_states: Array<BattlePlayerState>;
+    winner: boolean;
+}
+
+export interface BattleReplayTextPart {
+    kind: BattleReplayTextPartKind;
+    text: string;
+    player_id: number | null;
+    show_hp: boolean;
+    hp_before: number;
+    hp_after: number;
+    death_effect: boolean;
+    emoji: string | null;
+}
+
+export interface BattleResult {
+    status: BattleStatus;
+    stop_reason: BattleStopReason;
+    finished: boolean;
+    truncated: boolean;
+    rounds_advanced: number;
+    frames_emitted: number;
+    winner_ids: Array<number>;
+    winner_team_indices: Array<number>;
+    final_states: Array<BattlePlayerState>;
+}
+
+
+
+export interface CliBatchRateResult {
+    label: string;
+    avg_win_rate: number;
+    aggregate_win_rate: number;
+    wins: number;
+    total: number;
+    valid_matchups: number;
+    skipped_matchups: number;
+    init_nanos: number;
+    fight_nanos: number;
+}
+
+export interface CliGroupWinRateResult {
+    opponent: string;
+    result: CliWinRateResult;
+}
+
+export interface CliIconInfo {
+    border_style: number;
+    shapes: number[];
+    bg_color_idx: number;
+    bg_color: [number, number, number];
+    fg_color_indices: number[];
+    fg_colors: [number, number, number][];
+    colors_consumed: number;
+}
+
+export interface CliNamerPfResult {
+    group: string[];
+    modes: string[];
+    scores: number[];
+    total_score: number;
+}
+
+export interface CliPairRateEntry {
+    name: string;
+    rate: number;
+}
+
+export interface CliPairRateResult {
+    label: string;
+    final_score: number;
+    head: number;
+    selected: number;
+    top_pairs: CliPairRateEntry[];
+    aggregate_win_rate: number;
+    wins: number;
+    total: number;
+    valid_matchups: number;
+    skipped_matchups: number;
+    init_nanos: number;
+    fight_nanos: number;
+}
+
+export interface CliScoreResult {
+    score: number;
+    wins: number;
+    total: number;
+    errors: number;
+    init_nanos: number;
+    fight_nanos: number;
+}
+
+export interface CliWinRateResult {
+    wins: number;
+    total: number;
+    win_rate: number;
+    init_nanos: number;
+    fight_nanos: number;
+}
+
+export interface FightReplay {
+    players: PlayerMeta[];
+    frames: RoundFrame[];
+    winner_ids: number[];
+    final_states: PlayerState[];
+}
+
+export interface FightSummary {
+    finished: boolean;
+    players: PlayerMeta[];
+    winner_ids: number[];
+    final_states: PlayerState[];
+}
+
+export interface GroupWinRateResult {
+    opponent: string;
+    result: WinRateResult;
+}
+
+export interface PlayerMeta {
+    id: number;
+    team_index: number;
+    id_name: string;
+    icon_key: string;
+    display_name: string;
+    icon_png_base64?: string;
+}
+
+export interface PlayerState {
+    id: number;
+    team_index: number;
+    id_name: string;
+    icon_key: string;
+    display_name: string;
+    display_index: number;
+    icon_png_base64?: string;
+    owner_id?: number;
+    minion_kind?: MinionKindView;
+    hp: number;
+    max_hp: number;
+    /**
+     * 剩余吸收护盾，合计常规蓄盾与 ShieldValue；不含铁壁，死亡时为 0。
+     */
+    shield: number;
+    /**
+     * 当前护盾技能熟练度，随吞噬等技能变化更新；不是实际盾值的硬上限。
+     */
+    max_shield: number;
+    magic_point: number;
+    move_point: number;
+    attack: number;
+    defense: number;
+    speed: number;
+    agility: number;
+    magic: number;
+    resistance: number;
+    wisdom: number;
+    point: number;
+    all_sum: number;
+    name_factor: number;
+    at_boost: number;
+    attract: number;
+    frozen: boolean;
+    alive: boolean;
+    status_labels?: string[];
+}
+
+export interface ReplayClip {
+    delay: number;
+    color: string;
+    tone: MessageTone;
+    parts?: ReplayTextPart[];
+    caster_ids?: number[];
+    target_ids?: number[];
+    sidebar_states?: PlayerState[];
+    sidebar_previous_states?: PlayerState[];
+    winner: boolean;
+}
+
+export interface ReplayRow {
+    indent: boolean;
+    clips: ReplayClip[];
+}
+
+export interface ReplayTextPart {
+    kind: ReplayTextPartKind;
+    text: string;
+    player_id?: number;
+    show_hp: boolean;
+    hp_before: number;
+    hp_after: number;
+    death_effect: boolean;
+    emoji: string | undefined;
+}
+
+export interface RoundFrame {
+    finished: boolean;
+    winner_ids: number[];
+    updates: UpdateView[];
+    rows?: ReplayRow[];
+    states: PlayerState[];
+    /**
+     * 帧内所有可见 update 的原始等待总和（毫秒），按混淆版 md5.js 的 delay 规则计算，未按角色数量缩放。
+     */
+    total_delay: number;
+}
+
+export interface RuntimeActionBoundaryView {
+    round: number;
+    actor: number;
+    target: number;
+    amount: number;
+}
+
+export interface RuntimeNormalizedOutcomeView {
+    winner_team: number | undefined;
+    round: number;
+    total_score: number;
+    rng_i: number;
+    rng_j: number;
+    entity_ids: number[];
+    teams: number[];
+    hp: number[];
+    magic_point: number[];
+    defense: number[];
+    resistance: number[];
+    alive: boolean[];
+    round_order: number[];
+    flat_alive: number[];
+    team_alive: number[][];
+    alive_group_count: number;
+    actions: RuntimeActionBoundaryView[];
+    frames: RuntimeUpdateFrameView[];
+}
+
+export interface RuntimeNormalizedRunView {
+    rounds: RuntimeNormalizedOutcomeView[];
+    winner_team: number | undefined;
+    guard_exhausted: boolean;
+    total_score: number;
+}
+
+export interface RuntimeUpdateFrameView {
+    message: string;
+    caster: number;
+    target: number;
+    targets: number[];
+    param?: number;
+    score: number;
+    delay0: number;
+    delay1: number;
+    update_type: UpdateTypeView;
+}
+
+export interface UpdateView {
+    score: number;
+    delay0: number;
+    delay1: number;
+    caster_id: number;
+    target_id: number;
+    target_ids: number[];
+    update_type: UpdateTypeView;
+    message_template: string;
+    message_rendered: string;
+    param?: number;
+    hp_delta?: number;
+    status_change_tokens: string[];
+    /**
+     * 消息色调，由 WASM 根据模板内容判定，JS 无需再通过关键词反推。
+     */
+    tone: MessageTone;
+}
+
+export interface WinRateProgress {
+    done: boolean;
+    rounds_done: number;
+    total_rounds: number;
+    wins: number;
+    percent: number;
+}
+
+export interface WinRateResult {
+    done: boolean;
+    rounds_done: number;
+    total_rounds: number;
+    wins: number;
+    percent: number;
+    timing?: WinRateTiming;
+}
+
+export interface WinRateTiming {
+    init_nanos: number;
+    fight_nanos: number;
+}
+
+export type MessageTone = "normal" | "damage" | "recover" | "knockout" | "status_exit";
+
+export type MinionKindView = "clone" | "summon" | "shadow" | "zombie";
+
+export type ReplayTextPartKind = "text" | "highlight" | "player" | "data";
+
+export type UpdateTypeView = "win" | "none" | "next_line";
+
+export type WinnerIds = number[];
+
+
+/**
+ * 持有 core 运行时的 wasm-bindgen 对局对象，按需同步取帧。
+ *
+ * JS 宿主在 finally 中调用生成的 free()；释放前返回的普通 DTO 可继续读取。
+ * Runtime 失败不等同于正常终止，is_done 为 false 时也应检查 is_failed。
+ */
+export class BattleSession {
+    free(): void;
+    [Symbol.dispose](): void;
+    /**
+     * 返回当前边界的规范玩家快照数组。
+     */
+    current_states(): BattlePlayerState[];
+    frames_emitted(): number;
+    /**
+     * 返回创建时的规范玩家快照数组。
+     */
+    initial_states(): BattlePlayerState[];
+    /**
+     * 只表示正常结束或截断；失败应另查 is_failed，不属于正常结果。
+     */
+    is_done(): boolean;
+    is_failed(): boolean;
+    is_finished(): boolean;
+    is_truncated(): boolean;
+    /**
+     * 解析空行分队的 raw 和可选 options；max_rounds 为正数回合预算。
+     * 未提供选项时使用 core 默认值；错误抛出 `{code, message}`，不是 Error 实例。
+     */
+    constructor(raw_input: string, options?: BattleOptions | null);
+    /**
+     * 同步推进至下一可见帧；正常结束或截断后返回 JS null，可重复调用。
+     * Runtime 失败会保留 sticky error 并重复抛错，应停止推进并释放会话。
+     */
+    next_frame(): BattleReplayFrame | null;
+    /**
+     * 读取正常 terminal 结果，运行中或失败时返回 JS null。
+     */
+    result(): BattleResult | null;
+    rounds_advanced(): number;
+    status(): BattleStatus;
+    stop_reason(): BattleStopReason | null;
+}
+
+/**
+ * 持有规范会话的兼容包装；capture_replay 仅控制批量收集是否保存帧，不阻止计算。
+ */
+export class FightSession {
+    free(): void;
+    [Symbol.dispose](): void;
+    is_done(): boolean;
+    is_finished(): boolean;
+    constructor(raw_input: string, options?: FightOptions | null);
+    players(): PlayerMeta[];
+    run_to_end(limit?: number | null): FightReplay;
+    state(): PlayerState[];
+    step(): RoundFrame;
+    winner_ids(): WinnerIds;
+}
+
+/**
+ * 保存准备阵容与累计统计的分批胜率对象，不自行创建 Worker 或异步调度。
+ *
+ * 宿主在 step 之间让出事件循环，并在结束或失败后 free；total_rounds=0 时立即完成。
+ * 只有 thread=0/1 可用，其他值返回 UNSUPPORTED_OPTION。
+ */
+export class WinRateSession {
+    free(): void;
+    [Symbol.dispose](): void;
+    eval_rq(): number;
+    is_finished(): boolean;
+    constructor(raw_input: string, total_rounds: number, options?: WinRateOptions | null);
+    progress(): WinRateProgress;
+    /**
+     * 复制当前累计结果，不要求已完成；宿主应检查 done，percent 的分母是 rounds_done。
+     */
+    result(): WinRateResult;
+    /**
+     * 同步执行至多 batch_size 次剩余试验；省略为 100，0 按 1 处理，完成后不再新增试验。
+     */
+    step(batch_size?: number | null): WinRateProgress;
+}
+
+export function batch_rate(target_groups: string[], player_groups: string[], total_rounds: number, player_labels?: string[] | null, keep_rq?: boolean | null, thread?: number | null): CliBatchRateResult[];
+
+/**
+ * 以正且有限的 target_factors 加权目标组；权重数组必须与目标组等长。
+ */
+export function batch_rate_factored(target_groups: string[], target_factors: Float64Array, player_groups: string[], total_rounds: number, player_labels?: string[] | null, keep_rq?: boolean | null, thread?: number | null): CliBatchRateResult[];
+
+/**
+ * 同步收集规范回放为普通 JS 对象，并不是 JSON 字符串。
+ *
+ * max_rounds 为正数回合预算；正常截断仍返回结果，Runtime 失败抛出带 code 的值。
+ * 完整帧和快照保存在内存中，长对局可用 BattleSession 按需取帧。
+ */
+export function battle_replay(raw_input: string, options?: BattleOptions | null): BattleReplay;
+
+/**
+ * 与 battle_replay 相同的回放，但允许卡牌前端为某个实体按顺序强制技能。
+ *
+ * forced_skills 是技能 id 队列：每次轮到 actor_id 行动时消费一个；
+ * 队列耗尽后恢复 Runtime 原本的概率选择。
+ */
+export function battle_replay_forced(raw_input: string, actions: Uint32Array, options?: BattleOptions | null): BattleReplay;
+
+export function core_version(): string;
+
+export function default_custom_runtime_normalized_run(raw_input: string, max_rounds: number): RuntimeNormalizedRunView;
+
+export function default_eval_rq(): number;
+
+/**
+ * 同步收集旧页面格式回放；options.capture_replay=false 时仍推进，但不保存 frames。
+ * 需要明确截断原因与规范 DTO 时使用 battle_replay 或 BattleSession。
+ */
+export function fight(raw_input: string, options?: FightOptions | null): FightReplay;
+
+/**
+ * 同步运行旧页面兼容对局并返回最终摘要；整个调用完成前不让出事件循环。
+ */
+export function fight_summary(raw_input: string, options?: FightOptions | null): FightSummary;
+
+export function forced_hits(): number;
+
+export function forced_taken(): number;
+
+/**
+ * 按 against 顺序同步比较 target 与每个对手，每项文本表示一个多行队伍。
+ * 任一对局失败则整次调用抛错，不返回已完成的数组前缀。
+ */
+export function group_win_rate(target: string, against: string[], total_rounds: number, options?: WinRateOptions | null): GroupWinRateResult[];
+
+export function group_win_rate_summary(target: string, against: string[], total_rounds: number, eval_rq?: number | null, thread?: number | null): CliGroupWinRateResult[];
+
+/**
+ * 返回图标形状和颜色索引的普通 JS 对象，不含 PNG 像素数据。
+ */
+export function icon_info(name: string): CliIconInfo;
+
+/**
+ * 返回按行排列的 16×16 RGBA 像素，共 1024 字节，可用于 ImageData。
+ */
+export function name_to_icon_rgba(name: string): Uint8Array;
+
+/**
+ * 返回带 `data:image/png;base64,` 前缀的图标文本，可直接作为图片 URL。
+ */
+export function name_to_png_base64(name: string): string;
+
+/**
+ * 返回独立的 PNG 文件字节，JS 侧为字节数组；不含 Base64/data URL 前缀。
+ */
+export function name_to_png_bytes(name: string): Uint8Array;
+
+/**
+ * 按行解析名字组合并计算选定模式；keep_rq 为真使用普通构建口径。
+ */
+export function namer_pf(raw_input: string, total_rounds: number, modes?: string[] | null, keep_rq?: boolean | null, thread?: number | null): CliNamerPfResult[];
+
+export function pair_rate(target_groups: string[], players: string[], teammates: string[], head: number, total_rounds: number, keep_rq?: boolean | null, thread?: number | null): CliPairRateResult[];
+
+/**
+ * 对带靶子权重的搭档组合评分；head 控制最终汇总的头部搭档数量。
+ */
+export function pair_rate_factored(target_groups: string[], target_factors: Float64Array, players: string[], teammates: string[], head: number, total_rounds: number, keep_rq?: boolean | null, thread?: number | null): CliPairRateResult[];
+
+/**
+ * 逐行解析名字组为多行队伍文本数组；double_plus 为真使用 ++，否则使用 +。
+ */
+export function parse_group_lines(content: string, double_plus?: boolean | null): string[];
+
+/**
+ * 以 mode 指定单项评分，省略时用 normal；返回分数、胜场/总场、失败统计和耗时。
+ */
+export function score(raw_input: string, total_rounds: number, mode?: string | null, eval_rq?: number | null, thread?: number | null): CliScoreResult;
+
+/**
+ * 比较两个多行队伍并返回 CLI 胜率摘要；所有计算同步完成后才返回。
+ */
+export function team_win_rate_summary(team1: string, team2: string, total_rounds: number, eval_rq?: number | null, thread?: number | null): CliWinRateResult;
+
+/**
+ * 将单名转换为 DIY 文本；old/minions 省略时为 false，冲突选项由 core 校验。
+ */
+export function to_diy(name: string, old?: boolean | null, minions?: boolean | null): string;
+
+/**
+ * 按输入顺序返回 DIY 文本数组；任一名字失败则抛错，不返回部分结果。
+ */
+export function to_diy_batch(names: string[], old?: boolean | null, minions?: boolean | null): string[];
+
+export function version(): string;
+
+export function wasm_start(): void;
+
+export function win_rate_eval_rq(): number;
+
+/**
+ * 以 core CLI 口径计算第一组的计数、百分比胜率与纳秒耗时；省略 eval_rq 使用胜率默认值。
+ */
+export function win_rate_summary(raw_input: string, total_rounds: number, eval_rq?: number | null, thread?: number | null): CliWinRateResult;
+
+/**
+ * 同步执行全部试验，返回第一组的百分比胜率；输入按空行分队。
+ * total_rounds=0 返回已完成的零试验结果；thread 只接受 0/1，大批任务优先分步执行。
+ */
+export function win_rate_sync(raw_input: string, total_rounds: number, options?: WinRateOptions | null): WinRateResult;
+
+export type InitInput = RequestInfo | URL | Response | BufferSource | WebAssembly.Module;
+
+export interface InitOutput {
+    readonly memory: WebAssembly.Memory;
+    readonly __wbg_battlesession_free: (a: number, b: number) => void;
+    readonly __wbg_fightsession_free: (a: number, b: number) => void;
+    readonly __wbg_winratesession_free: (a: number, b: number) => void;
+    readonly batch_rate: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number) => void;
+    readonly batch_rate_factored: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number) => void;
+    readonly battle_replay: (a: number, b: number, c: number, d: number) => void;
+    readonly battle_replay_forced: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly battlesession_current_states: (a: number, b: number) => void;
+    readonly battlesession_frames_emitted: (a: number) => number;
+    readonly battlesession_initial_states: (a: number, b: number) => void;
+    readonly battlesession_is_done: (a: number) => number;
+    readonly battlesession_is_failed: (a: number) => number;
+    readonly battlesession_is_finished: (a: number) => number;
+    readonly battlesession_is_truncated: (a: number) => number;
+    readonly battlesession_new: (a: number, b: number, c: number, d: number) => void;
+    readonly battlesession_next_frame: (a: number, b: number) => void;
+    readonly battlesession_result: (a: number, b: number) => void;
+    readonly battlesession_rounds_advanced: (a: number) => number;
+    readonly battlesession_status: (a: number, b: number) => void;
+    readonly battlesession_stop_reason: (a: number, b: number) => void;
+    readonly core_version: (a: number) => void;
+    readonly default_custom_runtime_normalized_run: (a: number, b: number, c: number, d: number) => void;
+    readonly default_eval_rq: () => number;
+    readonly fight: (a: number, b: number, c: number, d: number) => void;
+    readonly fight_summary: (a: number, b: number, c: number, d: number) => void;
+    readonly fightsession_is_done: (a: number) => number;
+    readonly fightsession_is_finished: (a: number) => number;
+    readonly fightsession_new: (a: number, b: number, c: number, d: number) => void;
+    readonly fightsession_players: (a: number, b: number) => void;
+    readonly fightsession_run_to_end: (a: number, b: number, c: number) => void;
+    readonly fightsession_state: (a: number, b: number) => void;
+    readonly fightsession_step: (a: number, b: number) => void;
+    readonly fightsession_winner_ids: (a: number, b: number) => void;
+    readonly forced_hits: () => number;
+    readonly forced_taken: () => number;
+    readonly group_win_rate: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly group_win_rate_summary: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
+    readonly icon_info: (a: number, b: number, c: number) => void;
+    readonly name_to_icon_rgba: (a: number, b: number, c: number) => void;
+    readonly name_to_png_base64: (a: number, b: number, c: number) => void;
+    readonly name_to_png_bytes: (a: number, b: number, c: number) => void;
+    readonly namer_pf: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number) => void;
+    readonly pair_rate: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number) => void;
+    readonly pair_rate_factored: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number, j: number, k: number, l: number, m: number) => void;
+    readonly parse_group_lines: (a: number, b: number, c: number, d: number) => void;
+    readonly score: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
+    readonly team_win_rate_summary: (a: number, b: number, c: number, d: number, e: number, f: number, g: number, h: number, i: number) => void;
+    readonly to_diy: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly to_diy_batch: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly version: (a: number) => void;
+    readonly wasm_start: () => void;
+    readonly win_rate_eval_rq: () => number;
+    readonly win_rate_summary: (a: number, b: number, c: number, d: number, e: number, f: number, g: number) => void;
+    readonly win_rate_sync: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly winratesession_eval_rq: (a: number) => number;
+    readonly winratesession_is_finished: (a: number) => number;
+    readonly winratesession_new: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly winratesession_progress: (a: number, b: number) => void;
+    readonly winratesession_result: (a: number, b: number) => void;
+    readonly winratesession_step: (a: number, b: number, c: number) => void;
+    readonly __wbindgen_export: (a: number, b: number) => number;
+    readonly __wbindgen_export2: (a: number, b: number, c: number, d: number) => number;
+    readonly __wbindgen_export3: (a: number, b: number, c: number) => void;
+    readonly __wbindgen_add_to_stack_pointer: (a: number) => number;
+    readonly __wbindgen_start: () => void;
+}
+
+export type SyncInitInput = BufferSource | WebAssembly.Module;
+
+/**
+ * Instantiates the given `module`, which can either be bytes or
+ * a precompiled `WebAssembly.Module`.
+ *
+ * @param {{ module: SyncInitInput }} module - Passing `SyncInitInput` directly is deprecated.
+ *
+ * @returns {InitOutput}
+ */
+export function initSync(module: { module: SyncInitInput } | SyncInitInput): InitOutput;
+
+/**
+ * If `module_or_path` is {RequestInfo} or {URL}, makes a request and
+ * for everything else, calls `WebAssembly.instantiate` directly.
+ *
+ * @param {{ module_or_path: InitInput | Promise<InitInput> }} module_or_path - Passing `InitInput` directly is deprecated.
+ *
+ * @returns {Promise<InitOutput>}
+ */
+export default function __wbg_init (module_or_path?: { module_or_path: InitInput | Promise<InitInput> } | InitInput | Promise<InitInput>): Promise<InitOutput>;
