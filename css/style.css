@@ -845,3 +845,6 @@ body, .app { background: #ffffff; }
   animation: berserkIn .7s ease-out both;
 }
 @keyframes berserkIn { from { opacity: 0; } to { opacity: 1; } }
+/* 狂暴牌：红色调 */
+.hcard--berserk { border-color: #e08a86; background: linear-gradient(180deg, #fff6f5, #ffe9e7); }
+.hcard--berserk .hcard__cost { background: #c0392b; color: #fff; }

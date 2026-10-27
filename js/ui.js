@@ -336,6 +336,17 @@ export function unitPanel(u, { side }) {
 }
 
 export function handCardEl(card, { onPlay, disabled, locked = false }) {
+  if (card.id === 'berserk') {
+    return el('button', { class: 'hcard hcard--berserk', type: 'button', disabled: disabled || undefined, onclick: () => onPlay(card) },
+      el('div', { class: 'hcard__glyph' }, emojiImg('sklberserk', 'emoji emoji--xl')),
+      el('div', { class: 'hcard__body' },
+        el('b', {}, '狂暴攻击'),
+        el('span', { class: 'hcard__lv' }, '引擎接管 · 自动打出'),
+        el('small', {}, '狂暴中无法选择技能，随机挥出一击。'),
+      ),
+      el('span', { class: 'hcard__cost is-free' }, '狂'),
+    );
+  }
   if (card.id === 'normal') {
     return el('button', { class: 'hcard hcard--normal', type: 'button', disabled: disabled || undefined, onclick: () => onPlay(card) },
       el('div', { class: 'hcard__glyph' }, emojiImg('normal', 'emoji emoji--xl')),

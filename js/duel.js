@@ -464,6 +464,31 @@ export class DuelView {
 
   askCard(decision, state) {
     const mp = Math.max(0, state.magic_point || 0);
+    // 狂暴（含被附体）：四张牌全部是「狂暴攻击」，自动随机打出一张，结果交给引擎
+    const berserk = (state.status_labels || []).some((l) => l.includes('狂暴'));
+    if (berserk) {
+      this.renderEnergy(mp);
+      const cards = [0, 1, 2, 3].map((i) => handCardEl({ id: 'berserk', lv: 0 }, { onPlay: () => {} }));
+      cards.forEach((node, i) => {
+        node.classList.add('is-dealt');
+        node.style.animationDelay = (i * 70) + 'ms';
+      });
+      this.handEl.replaceChildren(...cards);
+      this.markWaiting(state.id);
+      this.logEl.append(el('div', { class: 'log__you' }, '→ 狂暴：随机挥出一次狂暴攻击'));
+      this.logEl.scrollTop = this.logEl.scrollHeight;
+      const delay = 700 + Math.floor(this.rng() * 500);
+      setTimeout(() => {
+        const pick = Math.floor(this.rng() * 4);
+        const node = this.handEl.children[pick];
+        if (node) this.playCardEffect(node, { id: 'sklberserk' });
+        this.clearWaiting();
+        this.duel.queue(decision.unit.id, NORMAL_ID, 0);
+        this.handEl.replaceChildren();
+        this.step();
+      }, delay);
+      return;
+    }
     const hand = drawHand(skillsOf(state, this.duel.champion), this.rng, 3);
     this.renderEnergy(mp);
     const cards = [
