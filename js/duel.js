@@ -515,6 +515,10 @@ export class DuelView {
     });
     this.handEl.replaceChildren(...cards);
     this.markWaiting(state.id);
+    if (!hand.length) {
+      // 蓄力把唯一可抽的技能排除掉了：本回合只剩普通攻击，明确提示一下
+      this.logEl.append(el('div', { class: 'log__you' }, '→ 蓄力中：没有可用的技能卡，本回合只能普通攻击'));
+    }
     this.interactive = true;
     this.logEl.append(el('div', { class: 'log__you' }, `→ ${state.display_name || '你的单位'} 行动：从手牌里选一张`));
     this.logEl.scrollTop = this.logEl.scrollHeight;
