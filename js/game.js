@@ -1,4 +1,4 @@
-﻿// 局内状态、爬塔流程与存档。
+// 局内状态、爬塔流程与存档。
 import { makeCard, iconFor } from './engine.js';
 import { SKILLS, SKILL_IDS } from './skills.js';
 
@@ -236,9 +236,16 @@ export function ownedTacticObjects(state) {
     .map((t) => scaleTactic(t, state.tacticPower?.[t.id] || 1));
 }
 
+// 每场战斗开打时都重新掷一个种子，避免同一关重试时对手出招顺序完全一样
+export function rollBattleSeed(run) {
+  run.battleSeed = (Math.random() * 0xffffffff) >>> 0;
+  return run.battleSeed;
+}
+
 export function battleSeed(run) {
+  if (run && Number.isFinite(run.battleSeed)) return run.battleSeed >>> 0;
   let h = 2166136261;
-  const s = `${run.seed}-${run.index}-${run.championId}`;
+  const s = `${run?.seed ?? 0}-${run?.index ?? 0}-${(run?.teamIds || []).join('|')}`;
   for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
   return h >>> 0;
 }

@@ -245,6 +245,10 @@ async function fight() {
   if (!team.length || !opp) return toast('队伍还没满');
   const tactics = G.tacticsByIds(state, run.tacticIds);
   const mult = runMultiplier(run.index);
+  // 每场都换种子：同一关重试、同一队伍再打，对手的行动序列也不会固定
+  G.rollBattleSeed(run);
+  G.persist(state);
+  logEvent('fight.seed', { seed: G.battleSeed(run), index: run.index, lane: run.lane });
   const lines = team.map((c) => buildLine(applyRunBuff(applyTactics(c, tactics), mult)));
   const oppLines = (opp.cards || []).map((c) => buildLine(c));
   const input = [...lines, '', ...oppLines, `seed:${G.battleSeed(run)}@!`].join('\n');
