@@ -865,3 +865,5 @@ body, .app { background: #ffffff; }
 }
 .tip b { display: block; font-size: 12.5px; margin-bottom: 2px; color: #9fdcff; }
 .tip span { display: block; color: #cfe4f2; }
+/* 首页标题用随机 Say 时允许换行、字号略小 */
+.home__title--say { font-size: clamp(22px, 3.2vw, 36px); line-height: 1.3; }

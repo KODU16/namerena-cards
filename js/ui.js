@@ -1,4 +1,4 @@
-// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, skillMeta } from './skills.js';
 import { emojiImg } from './emoji.js';
 // 抽牌概率：被动不进牌堆，权重随熟练度线性增长（原先在 combat.js，那里已废弃）
@@ -144,7 +144,7 @@ export function renderHome(root, state, h) {
     el('section', { class: 'home' },
       el('div', { class: 'home__hero' },
         el('div', { class: 'home__kicker' }, 'NAMERENA · CARD DUEL'),
-        el('h1', { class: 'home__title' }, '名字，就是你的牌组'),
+        el('h1', { class: 'home__title', id: 'home-title' }, '名字，就是你的牌组'),
         el('div', { class: 'home__actions' },
           el('button', { class: 'primary big', type: 'button', onclick: h.onNewRun }, hasRun ? '重新开始爬塔' : '开始爬塔'),
           hasRun ? el('button', { class: 'secondary big', type: 'button', onclick: h.onContinue }, `继续（第 ${state.run.index + 1} 战）`) : null,

@@ -1,4 +1,4 @@
-﻿// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
+// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
 import { loadEngine, makeCard, hydrateCard, buildLine, applyTactics, applyRunBuff, runMultiplier, engineWasm, iconFor } from './engine.js';
 import { Duel, DuelView } from './duel.js';
 import * as G from './game.js';
@@ -93,6 +93,34 @@ function help() {
 
 // ————————————————————— 首页 / 开局
 
+// 首页标题：抽一句 tswn 的「随机 Say」（接口 no-store、允许跨域）
+const SAY_URL = 'https://shenjack.top:10007/api/say/random';
+
+function cleanSay(raw) {
+  return String(raw || '')
+    .replace(/\\[表情:\\d+\\]/g, '')
+    .replace(/\\[face:\\d+\\]/gi, '')
+    .replace(/\\[CQ:face,id=\\d+\\]/gi, '')
+    .replace(/\\[图片\\]/g, '[图]')
+    .trim();
+}
+
+async function loadSayTitle() {
+  try {
+    const res = await fetch(SAY_URL, { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    if (!data || data.ok === false) return;
+    let text = cleanSay(data.say);
+    if (!text) return;
+    if (text.length > 34) text = text.slice(0, 34) + '…';
+    const node = document.getElementById('home-title');
+    if (!node) return;
+    node.textContent = text;
+    node.classList.toggle('home__title--say', text.length > 14);
+  } catch { /* 抽不到就保留默认标题 */ }
+}
+
 function home() {
   duelView = null;
   nav('home', () => UI.renderHome(root, state, {
@@ -101,6 +129,8 @@ function home() {
     onContinue: () => prep(),
     onForge: forgeScreen,
   }));
+  // 每次回到首页都换一句随机 Say
+  loadSayTitle();
 }
 
 function safeCard(name, clan) {
@@ -332,6 +362,7 @@ async function boot() {
     state.ladder = null;
     state.ladderSource = 'live';
     home();
+    loadSayTitle();
   } catch (e) {
     console.error(e);
     root.replaceChildren(el('div', { class: 'boot-error' },
