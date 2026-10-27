@@ -117,7 +117,7 @@ function newRunSetup() {
     onHome: () => { draft = null; home(); },
     onChangeLane: (lane) => { draft.lane = lane; newRunSetup(); },
     onChangeClan: (clan) => {
-      draft.clan = clan.slice(0, 18);
+      draft.clan = String(clan || '').trim().slice(0, 18);
       draft.card = safeCard(draft.name, draft.clan || '无名');
       newRunSetup();
     },
@@ -133,7 +133,7 @@ function newRunSetup() {
       await G.startRun(state, {
         seed: Date.now() >>> 0,
         lane: draft.lane || '1A',
-        clan: draft.clan || '青',
+        clan: draft.clan || '无名',
         ladder: state.ladder,
         starters: draft.card ? [draft.card] : [],
       });
