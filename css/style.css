@@ -102,6 +102,7 @@ button.big { font-size: 16px; padding: 9px 22px; }
 
 /* ——— 表情图标（Twemoji 17.0.2，与论坛一致） */
 .emoji {
+  --cell: 1.15em;
   display: inline-block;
   width: 1.15em;
   height: 1.15em;
@@ -817,10 +818,11 @@ body, .app { background: #ffffff; }
 .unit-row .statuses { flex: none; }
 /* 雪碧图：一张 10x8 的图代替 74 个 img 请求 */
 .emoji-sprite {
-  --cell: 1.15em;
   background-image: url('../assets/emoji-sprite.png');
   background-repeat: no-repeat;
   background-size: calc(var(--cell) * 10) calc(var(--cell) * 8);
   background-position: calc(var(--col, 0) * var(--cell) * -1) calc(var(--row, 0) * var(--cell) * -1);
+  width: var(--cell);
+  height: var(--cell);
   image-rendering: -webkit-optimize-contrast;
 }
