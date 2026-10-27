@@ -1,9 +1,9 @@
-﻿# 名字竞技场 · 卡牌对决
+﻿# 名竞尖塔 · 卡牌对决
 
 > 在线试玩：https://kodu16.github.io/namerena-cards/
 > 源码：https://github.com/KODU16/namerena-cards
 
-把「名字竞技场」（namerena）的角色构建结果做成卡牌，再打一场回合制卡牌对决。
+把「名字竞技场」（namerena）的角色构建结果做成卡牌，一路往上打到该组第 1 名。
 
 - **名字即卡牌**：卡面上的八围、技能、熟练度、头像全部由 [`tswn-core`](https://github.com/shenjackyuanjie/tswn-core) 的官方 WASM 现算，同名同阵营永远得到同一张卡。
 - **纯静态**：没有后端、没有构建步骤，`index.html` + ES Module + 1.5 MB wasm，直接丢 GitHub Pages 就能跑。
@@ -21,7 +21,7 @@
 
 ```powershell
 python -m http.server 8123 --bind 127.0.0.1
-# 名字竞技场 · 卡牌对决
+# 名竞尖塔 · 卡牌对决
 
 > 在线试玩：https://kodu16.github.io/namerena-cards/
 > 源码：https://github.com/KODU16/namerena-cards

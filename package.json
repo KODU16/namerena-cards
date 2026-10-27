@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "version": "0.1.0",
-  "description": "名字竞技场 · 卡牌对决：基于 tswn_core 构建结果的静态卡牌游戏",
+  "description": "名竞尖塔 · 卡牌对决：基于 tswn_core 构建结果的静态卡牌游戏",
   "scripts": {
     "serve": "python -m http.server 8080",
     "build:cards": "node tools/build-cards.mjs",

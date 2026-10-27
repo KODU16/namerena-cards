@@ -122,7 +122,7 @@ export function topbar(state, { screen, onHome, onHelp, onLog }) {
   return el('header', { class: 'topbar' },
     el('button', { class: 'brand', type: 'button', onclick: onHome, title: '回首页' },
       el('span', { class: 'brand__mark' }, '名'),
-      el('span', { class: 'brand__text' }, el('b', {}, '名字竞技场'), el('small', {}, '卡牌对决')),
+      el('span', { class: 'brand__text' }, el('b', {}, '名竞尖塔'), el('small', {}, '卡牌对决')),
     ),
     el('div', { class: 'topbar__meta' }, meta.map((m) => el('span', { class: 'pill' }, m))),
     el('div', { class: 'topbar__actions' },
