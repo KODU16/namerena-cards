@@ -1,4 +1,4 @@
-// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
+﻿// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
 import { loadEngine, makeCard, hydrateCard, buildLine, applyTactics, applyRunBuff, runMultiplier, engineWasm, iconFor } from './engine.js';
 import { Duel, DuelView } from './duel.js';
 import * as G from './game.js';
@@ -214,11 +214,24 @@ function prep() {
       G.persist(state);
       prep();
     },
+    onForgeHover: (id, ev) => {
+      if (!forgeSel) return;
+      const card = (state.run.skillCards || []).find((s) => s.uid === forgeSel);
+      const p = G.forgeChance(state, id, card);
+      const tone = p <= 0 ? 'red' : p < 0.33 ? 'red' : p <= 0.66 ? 'yellow' : 'green';
+      UI.showCursorTip(p > 0 ? '锻造成功率 ' + Math.round(p * 100) + '%' : '已到上限，不能再锻', ev.clientX, ev.clientY, tone);
+    },
+    onForgeLeave: () => UI.hideTip(),
     onPickChampion: (id) => {
       if (forgeSel) {
-        const ok = G.forgeSkill(state, forgeSel, id);
+        const res = G.forgeSkill(state, forgeSel, id);
         forgeSel = null;
-        toast(ok ? '锻造完成' : '锻造失败');
+        UI.hideTip();
+        toast(res.chance <= 0
+          ? '已达上限，不能再锻'
+          : res.ok
+            ? `锻造成功（${Math.round(res.chance * 100)}%）`
+            : `锻造失败（成功率 ${Math.round(res.chance * 100)}%）`);
         prep();
         return;
       }

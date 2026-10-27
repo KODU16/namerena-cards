@@ -264,7 +264,15 @@ export function renderPrep(root, state, h) {
           el('div', { class: 'muted' }, `点角色卡加入/移出队伍（需要 ${run.teamSize} 人）；选技能卡后点角色是锻造`),
         ),
         el('div', { class: 'roster-grid' }, state.collection.map((c) => el('div', { class: 'roster-item' },
-          cardEl(c, { size: 'grid', selected: (run.teamIds || []).includes(c.id), onClick: () => (h.forgeSelected ? h.onPickChampion(c.id) : h.onToggleTeam(c.id)) }),
+          (() => {
+            const node = cardEl(c, { size: 'grid', selected: (run.teamIds || []).includes(c.id), onClick: () => (h.forgeSelected ? h.onPickChampion(c.id) : h.onToggleTeam(c.id)) });
+            if (h.forgeSelected && h.onForgeHover) {
+              node.addEventListener('mouseenter', (ev) => h.onForgeHover(c.id, ev));
+              node.addEventListener('mousemove', (ev) => h.onForgeHover(c.id, ev));
+              node.addEventListener('mouseleave', () => h.onForgeLeave && h.onForgeLeave());
+            }
+            return node;
+          })(),
           el('div', { class: 'forged-list' }, (run.forged || []).filter((f) => f.charId === c.id).map((f) =>
             el('span', { class: 'forged-tag' }, skillMeta(f.skillId).name + ' +' + f.lv)))))),
         el('h3', { class: 'mt' }, `战术 · ${state.ownedTactics.length}`),
@@ -652,8 +660,20 @@ function ensureTip() {
   return tipNode;
 }
 
-function hideTip() {
+export function hideTip() {
   if (tipNode) tipNode.style.display = 'none';
+}
+
+// 鼠标位置的气泡提示（锻造成功率用），tone: red / yellow / green
+export function showCursorTip(text, x, y, tone = '') {
+  const tip = ensureTip();
+  tip.className = 'tip tip--cursor' + (tone ? ' tip--' + tone : '');
+  tip.textContent = text;
+  tip.style.display = 'block';
+  const w = tip.offsetWidth;
+  const h = tip.offsetHeight;
+  tip.style.left = Math.round(Math.min(window.innerWidth - w - 8, Math.max(8, x + 14))) + 'px';
+  tip.style.top = Math.round(Math.max(8, y - h - 12)) + 'px';
 }
 
 if (typeof document !== 'undefined') {

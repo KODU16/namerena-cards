@@ -1,4 +1,4 @@
-// 局内状态、爬塔流程与存档。
+﻿// 局内状态、爬塔流程与存档。
 import { makeCard, iconFor } from './engine.js';
 import { SKILLS, SKILL_IDS } from './skills.js';
 
@@ -297,31 +297,47 @@ export function applyReward(state, offer) {
 }
 
 // 锻造：把一张技能卡加到某个角色身上，加完消耗
+// 锻造成功率：技能数 a 越多、这个技能已锻次数 b 越多，越容易失败
+// p = 0.95 - 0.05a - 0.15b，夹在 [0.15, 0.95]；触到硬上限（10 技能 / 单项 3 锻）时为 0
+export function forgeChance(state, characterId, skillCard) {
+  const target = state.collection.find((c) => c.id === characterId);
+  if (!target || !skillCard) return 0;
+  const list = target.skillList || [];
+  const existing = list.find((s) => s.id === skillCard.id);
+  const a = list.length;
+  const b = existing ? (existing.forges || 1) : 0;
+  if (!existing && a >= 10) return 0;
+  if (existing && b >= 3) return 0;
+  const p = 0.95 - 0.05 * a - 0.15 * b;
+  return Math.max(0.15, Math.min(0.95, p));
+}
+
+// 锻造：消耗技能卡，按成功率判定；失败则卡片消失、不涨熟练度
 export function forgeSkill(state, uid, characterId) {
   const run = state.run;
-  if (!run) return false;
+  if (!run) return { ok: false, chance: 0 };
   const idx = (run.skillCards || []).findIndex((s) => s.uid === uid);
-  if (idx < 0) return false;
-  const target = state.collection.find((c) => c.id === characterId);
-  if (!target) return false;
+  if (idx < 0) return { ok: false, chance: 0 };
   const card = run.skillCards[idx];
+  const chance = forgeChance(state, characterId, card);
+  if (chance <= 0) return { ok: false, chance: 0 };
+  const target = state.collection.find((c) => c.id === characterId);
   target.skillList = target.skillList || [];
   const existing = target.skillList.find((s) => s.id === card.id);
-  if (existing) {
-    // 同一技能最多叠 3 次熟练度
-    if ((existing.forges || 1) >= 3) return false;
-    existing.lv += card.lv;
-    existing.forges = (existing.forges || 1) + 1;
-  } else {
-    // 一个角色最多 10 个技能
-    if (target.skillList.length >= 10) return false;
-    target.skillList.push({ id: card.id, lv: card.lv, cat: SKILLS[card.id]?.cat, forges: 1 });
+  const success = Math.random() < chance;
+  if (success) {
+    if (existing) {
+      existing.lv += card.lv;
+      existing.forges = (existing.forges || 1) + 1;
+    } else {
+      target.skillList.push({ id: card.id, lv: card.lv, cat: SKILLS[card.id]?.cat, forges: 1 });
+    }
+    run.forged = run.forged || [];
+    run.forged.push({ charId: target.id, skillId: card.id, lv: card.lv });
   }
-  run.forged = run.forged || [];
-  run.forged.push({ charId: target.id, skillId: card.id, lv: card.lv });
   run.skillCards.splice(idx, 1);
   persist(state);
-  return true;
+  return { ok: success, chance };
 }
 export function advanceRun(state, won) {
   const run = state.run;
