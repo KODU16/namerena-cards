@@ -1,4 +1,4 @@
-// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
+﻿// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
 import { loadEngine, makeCard, hydrateCard, buildLine, applyTactics, applyRunBuff, runMultiplier, engineWasm, iconFor } from './engine.js';
 import { Duel, DuelView } from './duel.js';
 import * as G from './game.js';
@@ -105,21 +105,42 @@ function cleanSay(raw) {
     .trim();
 }
 
+// 一分钟只抽一次：缓存最近一次 Say，过期才重新请求
+const SAY_TTL = 60 * 1000;
+let sayCache = { text: '', at: 0 };
+let sayFetching = false;
+
+function applySay(node, text) {
+  if (!node) return;
+  if (text.length > 34) text = text.slice(0, 34) + '…';
+  node.textContent = text;
+  node.classList.toggle('home__title--say', text.length > 14);
+}
+
 async function loadSayTitle() {
+  const node = document.getElementById('home-title');
+  if (!node) return;                      // 不在首页就不抽
+  if (sayCache.text && Date.now() - sayCache.at < SAY_TTL) {
+    applySay(node, sayCache.text);        // 一分钟内复用
+    return;
+  }
+  if (sayFetching) return;
+  sayFetching = true;
   try {
     const res = await fetch(SAY_URL, { cache: 'no-store' });
     if (!res.ok) return;
     const data = await res.json();
     if (!data || data.ok === false) return;
-    let text = cleanSay(data.say);
+    const text = cleanSay(data.say);
     if (!text) return;
-    if (text.length > 34) text = text.slice(0, 34) + '…';
-    const node = document.getElementById('home-title');
-    if (!node) return;
-    node.textContent = text;
-    node.classList.toggle('home__title--say', text.length > 14);
-  } catch { /* 抽不到就保留默认标题 */ }
+    sayCache = { text, at: Date.now() };
+    applySay(node, text);
+  } catch { /* 抽不到就保留当前标题 */ }
+  finally { sayFetching = false; }
 }
+
+// 首页停留期间每分钟自动换一句（每 10 秒检查一次是否过期）
+setInterval(() => { loadSayTitle(); }, 10 * 1000);
 
 function home() {
   duelView = null;
