@@ -848,3 +848,20 @@ body, .app { background: #ffffff; }
 /* 狂暴牌：红色调 */
 .hcard--berserk { border-color: #e08a86; background: linear-gradient(180deg, #fff6f5, #ffe9e7); }
 .hcard--berserk .hcard__cost { background: #c0392b; color: #fff; }
+/* 悬浮提示气泡 */
+.tip {
+  position: fixed;
+  z-index: 200;
+  display: none;
+  max-width: 260px;
+  padding: 7px 10px;
+  border-radius: 8px;
+  background: rgba(18, 34, 46, .95);
+  color: #eaf6ff;
+  font-size: 12px;
+  line-height: 1.45;
+  box-shadow: 0 8px 22px rgba(10, 30, 45, .28);
+  pointer-events: none;
+}
+.tip b { display: block; font-size: 12.5px; margin-bottom: 2px; color: #9fdcff; }
+.tip span { display: block; color: #cfe4f2; }

@@ -1,4 +1,4 @@
-﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, skillMeta } from './skills.js';
 import { emojiImg } from './emoji.js';
 // 抽牌概率：被动不进牌堆，权重随熟练度线性增长（原先在 combat.js，那里已废弃）
@@ -48,7 +48,11 @@ export function statLine(card) {
 export function skillTag(s, chance) {
   const meta = skillMeta(s.id);
   const pct = chance == null ? null : Math.round(chance * 100);
-  return el('span', { class: `skill-tag cat-`, title: `` + (pct == null ? '' : ` · 单抽概率 %`) },
+  return el('span', {
+    class: `skill-tag cat-${meta.cat || 'atk'}`,
+    'data-tip': `${meta.name} ${s.lv}`,
+    'data-tip-desc': meta.desc + (pct == null ? '' : `（单抽概率 ${pct}%）`),
+  },
     emojiImg(s.id, 'emoji emoji--xs'),
     ` ${meta.name} ${s.lv}`,
     pct == null ? null : el('em', { class: 'skill-tag__pct' }, ` ${pct}%`));
@@ -88,7 +92,11 @@ export function cardEl(card, { size = 'grid', selected = false, dim = false, onC
         )),
     ),
     el('div', { class: 'c-skills' },
-      skills.length ? skills.map((sk) => el('span', { class: `c-skill cat-${CAT[sk.cat]?.key || 'atk'}`, title: `${skillMeta(sk.id).name} ${sk.lv} — ${skillMeta(sk.id).desc}` },
+      skills.length ? skills.map((sk) => el('span', {
+        class: `c-skill cat-${CAT[sk.cat]?.key || 'atk'}`,
+        'data-tip': `${skillMeta(sk.id).name} ${sk.lv}`,
+        'data-tip-desc': skillMeta(sk.id).desc,
+      },
         emojiImg(sk.id, 'emoji emoji--xs'), el('b', {}, sk.lv))) : el('span', { class: 'c-skill c-skill--none' }, '无技能'),
     ),
     badge ? el('div', { class: 'c-badge' }, badge) : null,
@@ -163,7 +171,7 @@ export function renderHome(root, state, h) {
           el('ol', { class: 'steps' },
             el('li', {}, '从卡组里选 1 名角色出战，可再挂 2 张战术卡。'),
             el('li', {}, '每回合抽 3 张技能卡与一份能量：主动技点选，被动自动触发，能量不足的牌会变灰。'),
-            el('li', {}, '赢下 8 场。每胜一场三选一，角色和战术都会进卡组。'),
+            el('li', {}, '一路打到该组第 1 名。每胜一场三选一：技能卡、战术卡、角色卡。'),
           ),
         ),
       ),
@@ -558,8 +566,8 @@ export function renderReward(root, state, offers, h) {
     el('section', { class: 'reward' },
       el('div', { class: 'reward__head' },
         el('div', { class: 'home__kicker' }, `第 ${state.run.wins} 胜`),
-        el('h1', {}, '二选一'),
-        el('p', { class: 'muted' }, '技能卡进锻造，角色卡直接进卡组。'),
+        el('h1', {}, '三选一'),
+        el('p', { class: 'muted' }, '技能卡进锻造，战术卡直接生效，角色卡进卡组。'),
       ),
       el('div', { class: 'reward__grid' }, offers.map((o) =>
         o.kind === 'tactic'
@@ -629,4 +637,42 @@ export function renderForge(root, state, h) {
       ),
     ),
   );
+}
+
+// ————————————————————— 悬浮提示（技能名 + 说明）
+let tipNode = null;
+
+function ensureTip() {
+  if (!tipNode) {
+    tipNode = el('div', { class: 'tip' });
+    document.body.append(tipNode);
+  }
+  return tipNode;
+}
+
+function hideTip() {
+  if (tipNode) tipNode.style.display = 'none';
+}
+
+if (typeof document !== 'undefined') {
+  document.addEventListener('mouseover', (ev) => {
+    const host = ev.target instanceof Element ? ev.target.closest('[data-tip]') : null;
+    if (!host) return;
+    const tip = ensureTip();
+    tip.replaceChildren(
+      el('b', {}, host.dataset.tip),
+      host.dataset.tipDesc ? el('span', {}, host.dataset.tipDesc) : null,
+    );
+    tip.style.display = 'block';
+    const r = host.getBoundingClientRect();
+    const w = tip.offsetWidth;
+    const h = tip.offsetHeight;
+    tip.style.left = Math.round(Math.min(window.innerWidth - w - 8, Math.max(8, r.left + r.width / 2 - w / 2))) + 'px';
+    tip.style.top = Math.round(Math.max(8, r.top - h - 8)) + 'px';
+  });
+  document.addEventListener('mouseout', (ev) => {
+    const host = ev.target instanceof Element ? ev.target.closest('[data-tip]') : null;
+    if (host) hideTip();
+  });
+  document.addEventListener('scroll', hideTip, true);
 }
