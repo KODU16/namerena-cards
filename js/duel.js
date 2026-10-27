@@ -298,23 +298,19 @@ export class DuelView {
       this.roundEl.textContent = `第 ${frame.round_index + 1} 回合`;
       this.logEl.append(el('div', { class: 'log__round' }, `— 第 ${frame.round_index + 1} 回合 —`));
     }
-    // 一次行动 = 一行战报：多段（连击、雷击术等多段）合并成一行
-    const line = el('div', { class: 'log__line' });
-    const hpParts = [];
+    // 每一段（连击 / 雷击术的每一次打击）各自成行，并错开一点点逐条出现
     const rows = frame.rows || [];
-    let firstPlayer = true;
     rows.forEach((row, ri) => {
-      if (ri > 0) line.append(el('span', { class: 'log__sep' }, ' · '));
-      for (const clip of row.clips) {
+      const line = el('div', { class: 'log__line log__line--step' });
+      line.style.animationDelay = (ri * 90) + 'ms';
+      row.clips.forEach((clip, ci) => {
+        if (ci > 0) line.append(document.createTextNode('，'));
         for (const part of clip.parts) {
           if (!part.text) continue;
           if (part.kind === 'player') {
-            if (!firstPlayer) line.append(document.createTextNode('，'));
-            firstPlayer = false;
             const name = el('b', { class: 'log__player' }, part.text);
             if (clip.color) name.style.color = '#' + clip.color;
             line.append(name);
-            if (part.show_hp) hpParts.push(part);
           } else if (part.kind === 'highlight') {
             const hl = el('i', { class: 'log__hl' }, part.text);
             if (clip.color) hl.style.color = '#' + clip.color;
@@ -326,18 +322,16 @@ export class DuelView {
         else if (clip.tone === 'recover') line.classList.add('tone-recover');
         else if (clip.tone === 'knockout') line.classList.add('tone-knockout');
         else if (clip.tone === 'status_exit') line.classList.add('tone-status_exit');
-      }
-    });
-    const caster = (rows[0]?.clips || []).flatMap((cl) => cl.parts).find((pt) => pt.kind === 'player');
-    if (caster && caster.player_id != null) this.flash(caster.player_id, 'is-acting');
-    for (const row of rows) {
+      });
+      const caster = row.clips.flatMap((cl) => cl.parts).find((pt) => pt.kind === 'player');
+      if (caster && caster.player_id != null) this.flash(caster.player_id, 'is-acting');
       for (const cl of row.clips) {
         if (cl.tone === 'damage' || cl.tone === 'knockout') {
           for (const t of cl.target_ids || []) this.flash(t, 'is-hit');
         }
       }
-    }
-    this.logEl.append(line);    this.logEl.scrollTop = this.logEl.scrollHeight;
+      this.logEl.append(line);
+    });    this.logEl.scrollTop = this.logEl.scrollHeight;
     for (const state of frame.states || []) this.patchUnit(state);
   }
 

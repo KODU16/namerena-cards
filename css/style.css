@@ -831,3 +831,6 @@ body, .app { background: #ffffff; }
 /* 等待玩家出牌的单位：常亮高亮 */
 .unit-row.is-waiting { background: #eaf5ff; box-shadow: inset 0 0 0 2px #7cc6f2; }
 .unit-row.is-waiting .unit-row__name b { color: #0f5f8f; }
+/* 战报逐条出现（连击等多段行动） */
+.log__line--step { animation: logIn .18s ease-out both; }
+@keyframes logIn { from { opacity: 0; transform: translateY(-3px); } to { opacity: 1; transform: none; } }
