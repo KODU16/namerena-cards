@@ -372,6 +372,15 @@ export class DuelView {
     overlay.classList.remove('hidden');
   }
 
+  // 正在等玩家出牌的单位：常亮高亮，直到选完牌
+  markWaiting(uid) {
+    for (const [id, node] of this.units) node.classList.toggle('is-waiting', id === uid);
+  }
+
+  clearWaiting() {
+    for (const node of this.units.values()) node.classList.remove('is-waiting');
+  }
+
   playCardEffect(node, card) {
     // 直接把这张手牌搬到屏幕中间，而不是复制一张新的
     const rect = node.getBoundingClientRect();
@@ -466,6 +475,7 @@ export class DuelView {
       node.dataset.cardId = card.id;
     });
     this.handEl.replaceChildren(...cards);
+    this.markWaiting(state.id);
     this.interactive = true;
     this.logEl.append(el('div', { class: 'log__you' }, `→ ${state.display_name || '你的单位'} 行动：从手牌里选一张`));
     this.logEl.scrollTop = this.logEl.scrollHeight;
@@ -473,6 +483,7 @@ export class DuelView {
 
   choose(decision, card, mp) {
     if (!this.interactive) return;
+    this.clearWaiting();
     const id = card.id === 'normal' ? NORMAL_ID : ACTIVE_ID[card.id];
     if (id == null || (card.cost || 0) > mp) return;
     this.interactive = false;

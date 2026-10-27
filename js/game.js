@@ -47,11 +47,23 @@ export function loadSave(state) {
     state.tacticPower = s.tacticPower || {};
     state.customCards = (s.customCards || []).map((c) => hydrateSaved(c)).filter(Boolean);
     if (s.run && s.run.status === 'active') {
-      s.run.opponents = (s.run.opponents || []).map((c) => hydrateSaved(c)).filter(Boolean);
+      s.run.opponents = (s.run.opponents || []).map(hydrateOpponent).filter(Boolean);
       s.run.tacticIds = s.run.tacticIds || [];
       state.run = s.run;
     }
   } catch { /* 忽略损坏存档 */ }
+}
+
+// 对手是 { rank, score, cards[] } 的包装；旧存档里可能是裸卡，这里兼容两种
+function hydrateOpponent(o) {
+  if (!o) return null;
+  if (Array.isArray(o.cards)) {
+    const cards = o.cards.map(hydrateSaved).filter(Boolean);
+    if (!cards.length) return null;
+    return { ...o, cards, teamSize: cards.length };
+  }
+  const card = hydrateSaved(o);
+  return card ? { rank: null, score: 0, name: card.name, cards: [card], teamSize: 1 } : null;
 }
 
 function hydrateSaved(c) {

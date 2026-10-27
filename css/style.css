@@ -827,3 +827,7 @@ body, .app { background: #ffffff; }
   image-rendering: pixelated;
   image-rendering: -webkit-optimize-contrast;
 }
+
+/* 等待玩家出牌的单位：常亮高亮 */
+.unit-row.is-waiting { background: #eaf5ff; box-shadow: inset 0 0 0 2px #7cc6f2; }
+.unit-row.is-waiting .unit-row__name b { color: #0f5f8f; }
