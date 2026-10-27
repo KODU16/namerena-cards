@@ -1,4 +1,7 @@
-# 名字竞技场 · 卡牌对决
+﻿# 名字竞技场 · 卡牌对决
+
+> 在线试玩：https://kodu16.github.io/namerena-cards/
+> 源码：https://github.com/KODU16/namerena-cards
 
 把「名字竞技场」（namerena）的角色构建结果做成卡牌，再打一场回合制卡牌对决。
 
@@ -18,7 +21,10 @@
 
 ```powershell
 python -m http.server 8123 --bind 127.0.0.1
-# 打开 http://127.0.0.1:8123/
+# 名字竞技场 · 卡牌对决
+
+> 在线试玩：https://kodu16.github.io/namerena-cards/
+> 源码：https://github.com/KODU16/namerena-cards
 ```
 
 > 不要直接双击 `index.html`。浏览器对 `file://` 页面禁止加载 ES Module 和 `.wasm`，
