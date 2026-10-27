@@ -134,9 +134,9 @@ button.big { font-size: 16px; padding: 9px 22px; }
 .brand__mark {
   width: 34px; height: 34px; border-radius: 10px;
   display: grid; place-items: center;
-  background: #0d0f14;
-  border: 1px solid #2b8fc0;
-  box-shadow: 0 6px 14px -8px rgba(18, 119, 174, .9);
+  background: transparent;
+  border: 0;
+  box-shadow: none;
   overflow: hidden;
 }
 .brand__mark img { width: 26px; height: 26px; image-rendering: pixelated; display: block; }

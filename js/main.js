@@ -1,4 +1,4 @@
-﻿// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
+// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
 import { loadEngine, makeCard, hydrateCard, buildLine, applyTactics, applyRunBuff, runMultiplier, engineWasm, iconFor } from './engine.js';
 import { Duel, DuelView } from './duel.js';
 import * as G from './game.js';
@@ -98,10 +98,12 @@ const SAY_URL = 'https://shenjack.top:10007/api/say/random';
 
 function cleanSay(raw) {
   return String(raw || '')
-    .replace(/\\[表情:\\d+\\]/g, '')
-    .replace(/\\[face:\\d+\\]/gi, '')
-    .replace(/\\[CQ:face,id=\\d+\\]/gi, '')
-    .replace(/\\[图片\\]/g, '[图]')
+    // QQ 表情三种写法 + 全角括号，统一去掉
+    .replace(/[[［]表情[:：]\d+[\]］]/g, '')
+    .replace(/[[［]face[:：]\d+[\]］]/gi, '')
+    .replace(/[[［]CQ:face,id=\d+[\]］]/gi, '')
+    .replace(/[[［]图片[\]］]/g, '[图]')
+    .replace(/\s+/g, ' ')
     .trim();
 }
 
