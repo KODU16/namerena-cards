@@ -3,7 +3,7 @@
 `vendor/tswn_wasm_duel/` 里的 wasm 由下面这份源码编译而来：
 
 - 仓库：https://github.com/KODU16/tswn-core
-- 提交：66af690（engine: 卡牌前端的强制行动接口）
+- 提交：5517f98
 - 构建：
 
 ```powershell
