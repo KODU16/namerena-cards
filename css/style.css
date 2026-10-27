@@ -818,7 +818,7 @@ body, .app { background: #ffffff; }
 .unit-row .statuses { flex: none; }
 /* 雪碧图：一张 10x8 的图代替 74 个 img 请求 */
 .emoji-sprite {
-  background-image: url('../assets/emoji-sprite.png');
+  background-image: url('../assets/emoji-sprite.png?v=4');
   background-repeat: no-repeat;
   background-size: calc(var(--cell) * 10) calc(var(--cell) * 8);
   background-position: calc(var(--col, 0) * var(--cell) * -1) calc(var(--row, 0) * var(--cell) * -1);
