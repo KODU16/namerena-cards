@@ -463,6 +463,7 @@ export class DuelView {
   }
 
   askCard(decision, state) {
+    if (this.berserkTimer) { clearTimeout(this.berserkTimer); this.berserkTimer = null; }
     const mp = Math.max(0, state.magic_point || 0);
     // 狂暴（含被附体）：四张牌全部是「狂暴攻击」，自动随机打出一张，结果交给引擎
     const berserk = (state.status_labels || []).some((l) => l.includes('狂暴'));
@@ -478,11 +479,14 @@ export class DuelView {
       this.logEl.append(el('div', { class: 'log__you' }, '→ 狂暴：随机挥出一次狂暴攻击'));
       this.logEl.scrollTop = this.logEl.scrollHeight;
       const delay = 700 + Math.floor(this.rng() * 500);
+      this.interactive = false;
       setTimeout(() => {
+        if (this.done) return;
         const pick = Math.floor(this.rng() * 4);
         const node = this.handEl.children[pick];
         if (node) this.playCardEffect(node, { id: 'sklberserk' });
         this.clearWaiting();
+        this.berserkTimer = null;
         this.duel.queue(decision.unit.id, NORMAL_ID, 0);
         this.handEl.replaceChildren();
         this.step();
@@ -544,6 +548,10 @@ export class DuelView {
   }
 
   finish() {
+    this.done = true;
+    if (this.berserkTimer) { clearTimeout(this.berserkTimer); this.berserkTimer = null; }
+    this.clearWaiting();
+    this.root.querySelector('.battle')?.classList.remove('is-berserk');
     const rep = this.current;
     if (window.__ncLog) window.__ncLog.push({ t: new Date().toISOString(), kind: 'duel.finish', data: { winnerTeams: rep.winner_team_indices, winnerIds: rep.winner_ids, playerTeam: this.duel.playerTeam, frames: rep.frames.length } });
     const champ = (rep.final_states || []).find((s) => s.owner_id == null && s.team_index === this.duel.playerTeam);
