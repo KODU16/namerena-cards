@@ -115,12 +115,24 @@ export function randomName(rng) {
 export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '青', ladder = null, starters = null } = {}) {
   const r = mulberry32(seed);
   const teamSize = Number(lane[0]) || 1;
-  // 开局读一次实时天梯，本次爬塔的顺序就按这一份来
+  // 开局读一次实时天梯，本次爬塔的顺序就按这一份来；拿不到就用上次缓存，再退到仓库里的快照
   let liveEntries = null;
+  let source = 'snapshot';
   try {
     liveEntries = await fetchLaneEntries(lane);
+    if (liveEntries && liveEntries.length) {
+      cacheLaneEntries(lane, liveEntries);
+      source = 'live';
+    }
   } catch {
     liveEntries = null;
+  }
+  if (!liveEntries || !liveEntries.length) {
+    const cached = loadCachedLaneEntries(lane);
+    if (cached) {
+      liveEntries = cached.entries;
+      source = 'cache';
+    }
   }
   let laneData = ladder?.lanes?.[lane];
   if ((!liveEntries || !liveEntries.length) && !laneData) {
@@ -144,7 +156,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     tacticIds: [],
     skillCards: [],
     opponents: [],
-    ladderSource: liveEntries && liveEntries.length ? 'live' : (ladder?.source || 'snapshot'),
+    ladderSource: liveEntries && liveEntries.length ? source : (ladder?.source || 'snapshot'),
   };
   state.run.opponents = queue.map((entry) => {
     if (entry && entry.name && !entry.lineup) return opponentFromEntry(entry, teamSize);
@@ -451,6 +463,30 @@ export function dropForged(state) {
 }
 // —— 实时天梯 API：https://shenjack.top:10007/api/ladder/{lane}
 const LADDER_API = 'https://shenjack.top:10007/api/ladder';
+
+// —— 天梯缓存：每次成功抓到的对手列表存进 localStorage，下次抓不到就用它
+const LADDER_CACHE_PREFIX = 'namerena-cards/ladder/';
+
+export function cacheLaneEntries(lane, entries) {
+  try {
+    localStorage.setItem(
+      LADDER_CACHE_PREFIX + lane,
+      JSON.stringify({ at: Date.now(), entries }),
+    );
+  } catch { /* 配额满或隐私模式，忽略 */ }
+}
+
+export function loadCachedLaneEntries(lane) {
+  try {
+    const raw = localStorage.getItem(LADDER_CACHE_PREFIX + lane);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    if (!data || !Array.isArray(data.entries) || !data.entries.length) return null;
+    return { at: data.at || 0, entries: data.entries };
+  } catch {
+    return null;
+  }
+}
 
 export async function fetchLaneEntries(lane) {
   const res = await fetch(LADDER_API + '/' + String(lane).toLowerCase() + '?active=1&limit=500', { cache: 'no-store' });
