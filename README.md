@@ -2,6 +2,7 @@
 
 > 在线试玩：https://kodu16.github.io/namerena-cards/
 > 源码：https://github.com/KODU16/namerena-cards
+> 引擎源码（本地 fork）：https://github.com/KODU16/tswn-core
 
 把「名字竞技场」（namerena）的角色构建结果做成卡牌，一路往上打到该组第 1 名。
 
@@ -25,6 +26,7 @@ python -m http.server 8123 --bind 127.0.0.1
 
 > 在线试玩：https://kodu16.github.io/namerena-cards/
 > 源码：https://github.com/KODU16/namerena-cards
+> 引擎源码（本地 fork）：https://github.com/KODU16/tswn-core
 ```
 
 > 不要直接双击 `index.html`。浏览器对 `file://` 页面禁止加载 ES Module 和 `.wasm`，
