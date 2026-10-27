@@ -1,4 +1,4 @@
-﻿// 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
+// 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
 // 前端只负责「轮到玩家单位时，从手牌里选一张写进强制队列」。
 import { el, sleep, handCardEl } from './ui.js';
 import { emojiImg } from './emoji.js';
@@ -202,10 +202,12 @@ function panelHtml(state, side, icon, base) {
       el('div', { class: 'unit-row__name' },
         el('b', {}, fullNameOf(s)),
         kind ? el('span', { class: 'unit-row__tag' }, kind) : null)),
-    // 第二行：HP 红条（数字是最大 HP）
-    el('div', { class: 'unit-row__hp', title: '体力' },
-      el('i', { class: 'hp' }),
-      el('span', { class: 'hpnum' })),
+    // 第二行：护盾黄条 + HP 红条（同一根长度，护盾在正上方，左边平齐）
+    el('div', { class: 'unit-row__bars' },
+      el('div', { class: 'unit-row__shield', title: '护盾' }, el('i', {})),
+      el('div', { class: 'unit-row__hp', title: '体力' },
+        el('i', { class: 'hp' }),
+        el('span', { class: 'hpnum' }))),
     // 第三行：MP 蓝条
     el('div', { class: 'unit-row__mp', title: '魔力 MP：放技能会消耗，抽牌时就已定好' },
       el('i', { style: `width:${Math.max(0, Math.min(100, s.magic_point || 0))}%` }),
@@ -261,11 +263,20 @@ export class DuelView {
     const pct = Math.max(0, Math.min(100, (state.hp / state.max_hp) * 100));
     const hp = node.querySelector('.hp');
     if (hp) hp.style.width = `${pct}%`;
+    const shieldVal = Math.max(0, state.shield || 0);
+    const shieldWrap = node.querySelector('.unit-row__shield');
+    if (shieldWrap) shieldWrap.style.display = shieldVal > 0 ? 'block' : 'none';
+    const shieldFill = node.querySelector('.unit-row__shield i');
+    if (shieldFill) {
+      const maxHp = state.max_hp || 1;
+      shieldFill.style.width = shieldVal > 0 ? Math.min(100, (shieldVal / maxHp) * 100).toFixed(1) + '%' : '0%';
+    }
     const num = node.querySelector('.hpnum');
     if (num) {
-      const shield = state.shield || 0;
-      // 数字显示最大 HP（需求如此），当前血量看红条长度
-      num.textContent = String(state.max_hp) + (shield > 0 ? ` 盾${Math.round(shield)}` : '');
+      // 有盾时显示「血量最大HP/护盾值」，否则只显示最大 HP（当前血量看红条长度）
+      num.textContent = shieldVal > 0
+        ? '血量' + state.max_hp + '/护盾' + Math.round(shieldVal)
+        : String(state.max_hp);
     }
     const mpBar = node.querySelector('.unit-row__mp');
     if (mpBar) {
@@ -284,8 +295,8 @@ export class DuelView {
     this.maxHpSeen = Math.max(this.maxHpSeen || 1, state.max_hp || 1);
     for (const n of this.units.values()) {
       const mh = Number(n.dataset.maxhp) || 1;
-      const hpBar = n.querySelector('.unit-row__hp');
-      if (hpBar) hpBar.style.width = (12 + 88 * Math.min(1, mh / this.maxHpSeen)).toFixed(1) + '%';
+      const bars = n.querySelector('.unit-row__bars');
+      if (bars) bars.style.width = (12 + 88 * Math.min(1, mh / this.maxHpSeen)).toFixed(1) + '%';
       const mpBar = n.querySelector('.unit-row__mp');
       if (mpBar) {
         const mp = Number(n.querySelector('.unit-row__mp span')?.textContent?.replace(/[^0-9]/g, '') || 0);

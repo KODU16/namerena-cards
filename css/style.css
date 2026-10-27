@@ -869,3 +869,25 @@ body, .app { background: #ffffff; }
 .home__title--say { font-size: clamp(22px, 3.2vw, 36px); line-height: 1.3; }
 /* 顶栏里的链接按钮（天梯）保持按钮外观 */
 a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
+/* 护盾：贴在血条顶部，左边平齐，黄色；长度按 护盾/最大HP 映射到同一根条上 */
+/* 护盾条：与血条同宽、同起点，贴在血条正上方；本身不拉伸，只有填充变化 */
+.unit-row__bars { display: flex; flex-direction: column; gap: 2px; flex: none; }
+.unit-row__shield { position: relative; width: 100%; height: 5px; border-radius: 3px; background: #f4efdc; border: 1px solid #e2d49b; overflow: hidden; display: none; }
+.unit-row__shield i { position: absolute; left: 0; top: 0; bottom: 0; display: block; background: linear-gradient(180deg, #ffe082, #f2b705); transition: width .25s ease; }
+/* 血条文字：白字 + 阴影，保证压在红色填充上也清楚 */
+.unit-row__hp .hpnum { color: #fff; text-shadow: 0 1px 2px rgba(0, 0, 0, .5); font-size: 9px; letter-spacing: .02em; }
+.unit-row__hp { height: 12px; }
+.unit-row__shield { height: 6px; }
+/* 血条数字做成居中的小药丸，压在任何颜色上都清楚 */
+.unit-row__hp .hpnum {
+  inset: auto auto auto 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, .38);
+  white-space: nowrap;
+  font-size: 8.5px;
+  line-height: 1.35;
+}
