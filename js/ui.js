@@ -1,4 +1,4 @@
-﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, skillMeta } from './skills.js';
 import { emojiImg } from './emoji.js';
 // 抽牌概率：被动不进牌堆，权重随熟练度线性增长（原先在 combat.js，那里已废弃）
@@ -378,7 +378,7 @@ export function handCardEl(card, { onPlay, disabled, locked = false }) {
     el('div', { class: 'hcard__glyph' }, emojiImg(card.id, 'emoji emoji--xl')),
     el('div', { class: 'hcard__body' },
       el('b', {}, meta.name),
-      el('span', { class: 'hcard__lv' }, passive ? '被动 · 自动' : `技能等级 ${card.lv} · 消耗 ${card.cost} MP`),
+      el('span', { class: 'hcard__lv' }, passive ? '被动 · 自动' : `熟练度 ${card.lv} · 消耗 ${card.cost} MP`),
       el('small', {}, passive ? '条件满足时自动发动，不需要点击。' : meta.desc),
     ),
     el('div', { class: 'hcard__cat' }, passive ? '被动' : CAT[meta.cat]?.name || ''),

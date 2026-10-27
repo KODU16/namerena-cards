@@ -33,7 +33,7 @@ function skillsOf(unit, champion) {
 // MP 消耗在“抽到这张牌”的时候就掷好（tswn 原本是行动时现掷），范围 8~23
 export const rollMpCost = (rng) => 8 + (Math.floor(rng() * 256) & 15);
 
-function drawHand(skills, rng, count = 3, exclude = null) {
+export function drawHand(skills, rng, count = 3, exclude = null) {
   // 净化是敌人专属：玩家抽到时直接换成别的技能（熟练度不变）
   const pool = (skills || [])
     .filter((s) => ACTIVE_ID[s.id] != null && s.id !== 'skldisperse')

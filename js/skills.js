@@ -1,4 +1,4 @@
-// 技能元数据：名称/分类/一句话说明。数值实现见 combat.js。
+﻿// 技能元数据：名称/分类/一句话说明。数值实现见 combat.js。
 // 技能 id 与 tswn_core 的 ol overlay 完全一致（0..34）。
 
 export const CAT = {
@@ -21,7 +21,7 @@ export const SKILLS = {
   sklcritical: { name: '会心一击', cat: 'atk', glyph: '会', desc: '高倍率一击，暴击率更高。' },
   sklhalf: { name: '瘟疫', cat: 'ctrl', glyph: '疫', desc: '直接削减目标当前体力的一部分。' },
   sklexchange: { name: '生命之轮', cat: 'ctrl', glyph: '轮', desc: '与目标交换体力百分比（每场一次）。' },
-  sklberserk: { name: '狂暴术', cat: 'atk', glyph: '狂', desc: '攻击大幅上升，防御下降，持续 3 回合。' },
+  sklberserk: { name: '狂暴术', cat: 'atk', glyph: '狂', desc: '攻击目标；命中后使其陷入狂暴：之后每个行动只能打出 1.2 倍普通攻击，持续 1 回合（自身在蓄力时 +1）。' },
   sklcharm: { name: '魅惑', cat: 'ctrl', glyph: '魅', desc: '让目标转而攻击自己，持续 1 回合。' },
   sklhaste: { name: '加速术', cat: 'def', glyph: '速', desc: '速度上升，更容易抢到先手。' },
   sklslow: { name: '减速术', cat: 'ctrl', glyph: '缓', desc: '降低目标速度。' },

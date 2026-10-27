@@ -408,6 +408,6 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-window.__nc = { state, get duel() { return duelView?.duel; }, get view() { return duelView; }, G, engineWasm, buildLine, applyTactics };
+window.__nc = { state, get duel() { return duelView?.duel; }, get view() { return duelView; }, G, engineWasm, buildLine, applyTactics, drawHand: (s, r, n, e) => import('./duel.js').then((m) => m.drawHand(s, r, n, e)) };
 
 boot();
