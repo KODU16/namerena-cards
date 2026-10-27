@@ -165,6 +165,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     status: 'active',
     createdAt: Date.now(),
     teamIds: [],
+    downed: [],
     tacticIds: [],
     skillCards: [],
     opponents: [],

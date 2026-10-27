@@ -1,4 +1,4 @@
-﻿// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
+// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
 import { loadEngine, makeCard, hydrateCard, buildLine, applyTactics, applyRunBuff, runMultiplier, engineWasm, iconFor } from './engine.js';
 import { Duel, DuelView } from './duel.js';
 import * as G from './game.js';
@@ -206,6 +206,7 @@ function prep() {
     forgeSelected: forgeSel,
     onPickSkillCard: (uid) => { forgeSel = forgeSel === uid ? null : uid; prep(); },
     onToggleTeam: (id) => {
+      if ((state.run.downed || []).includes(id)) return toast('这名角色已经倒下，本局不能再出战');
       const ids = state.run.teamIds;
       const i = ids.indexOf(id);
       if (i >= 0) ids.splice(i, 1);
@@ -336,9 +337,13 @@ function afterBattle(won) {
   if (!won) {
     const dropped = G.dropForged(state);
     const run = state.run;
-    if (state.collection.length >= (run?.teamSize || 1)) {
+    // 这一场出战的人全部倒下，本局不能再上
+    run.downed = [...new Set([...(run.downed || []), ...(run.teamIds || [])])];
+    run.teamIds = [];
+    G.persist(state);
+    const usable = state.collection.filter((c) => !run.downed.includes(c.id));
+    if (usable.length >= (run.teamSize || 1)) {
       toast(dropped ? `战败：掉落 ${dropped} 项锻造，换人重试` : '战败：换人重试', 2600);
-      G.persist(state);
       return prep();
     }
     G.advanceRun(state, false);
