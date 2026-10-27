@@ -134,12 +134,12 @@ button.big { font-size: 16px; padding: 9px 22px; }
 .brand__mark {
   width: 34px; height: 34px; border-radius: 10px;
   display: grid; place-items: center;
-  background: linear-gradient(160deg, var(--sky-1), var(--sky-3));
-  color: #fff;
-  font-size: 18px;
+  background: #0d0f14;
   border: 1px solid #2b8fc0;
   box-shadow: 0 6px 14px -8px rgba(18, 119, 174, .9);
+  overflow: hidden;
 }
+.brand__mark img { width: 26px; height: 26px; image-rendering: pixelated; display: block; }
 .brand__text { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
 .brand__text b { font-size: 16px; letter-spacing: .1em; color: var(--ink); }
 .brand__text small { color: var(--muted); font-size: 10.5px; letter-spacing: .22em; }

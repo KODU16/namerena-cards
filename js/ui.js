@@ -1,4 +1,4 @@
-// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, skillMeta } from './skills.js';
 import { emojiImg } from './emoji.js';
 // 抽牌概率：被动不进牌堆，权重随熟练度线性增长（原先在 combat.js，那里已废弃）
@@ -121,7 +121,7 @@ export function topbar(state, { screen, onHome, onHelp, onLog }) {
   if (run && run.wins) meta.push(`${run.wins} 胜`);
   return el('header', { class: 'topbar' },
     el('button', { class: 'brand', type: 'button', onclick: onHome, title: '回首页' },
-      el('span', { class: 'brand__mark' }, '名'),
+      el('span', { class: 'brand__mark' }, el('img', { src: 'assets/favicon.png', alt: '', width: '26', height: '26' })),
       el('span', { class: 'brand__text' }, el('b', {}, '名竞尖塔'), el('small', {}, '卡牌对决')),
     ),
     el('div', { class: 'topbar__meta' }, meta.map((m) => el('span', { class: 'pill' }, m))),
