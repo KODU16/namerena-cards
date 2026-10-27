@@ -129,6 +129,8 @@ export function topbar(state, { screen, onHome, onHelp, onLog }) {
       el('span', { class: `engine-badge engine-badge--${state.ladderSource}`, title: state.ladder?.meta?.fetchedAt || '' },
         emojiImg('ladder', 'emoji emoji--xs'),
         state.ladderSource === 'live' ? '天梯 · 实时' : state.ladderSource === 'cache' ? '天梯 · 缓存' : '天梯 · 快照'),
+      el('a', { class: 'ghost', href: 'https://shenjack.top:10007/', target: '_blank', rel: 'noopener noreferrer', title: '打开名字竞技场天梯' },
+        emojiImg('ladder', 'emoji emoji--xs'), ' 天梯'),
       el('button', { class: 'ghost', type: 'button', onclick: onLog || (() => {}) }, '日志'),
       el('button', { class: 'ghost', type: 'button', onclick: onHelp }, emojiImg('help', 'emoji emoji--xs'), ' 玩法'),
     ),
