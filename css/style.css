@@ -102,7 +102,7 @@ button.big { font-size: 16px; padding: 9px 22px; }
 
 /* ——— 表情图标（Twemoji 17.0.2，与论坛一致） */
 .emoji {
-  --cell: 1.15em;
+  --cell: 16px;
   display: inline-block;
   width: 1.15em;
   height: 1.15em;
@@ -110,11 +110,11 @@ button.big { font-size: 16px; padding: 9px 22px; }
   object-fit: contain;
   flex: none;
 }
-.emoji--xs { --cell: 13px; width: 13px; height: 13px; vertical-align: -2px; }
-.emoji--sm { --cell: 15px; width: 15px; height: 15px; vertical-align: -2px; }
-.emoji--lg { --cell: 22px; width: 22px; height: 22px; }
-.emoji--xl { --cell: 26px; width: 26px; height: 26px; }
-.emoji--xxl { --cell: 34px; width: 34px; height: 34px; }
+.emoji--xs { --cell: 16px; width: 16px; height: 16px; vertical-align: -3px; }
+.emoji--sm { --cell: 16px; width: 16px; height: 16px; vertical-align: -3px; }
+.emoji--lg { --cell: 16px; width: 16px; height: 16px; }
+.emoji--xl { --cell: 16px; width: 16px; height: 16px; }
+.emoji--xxl { --cell: 16px; width: 16px; height: 16px; }
 
 /* ——— 顶栏 */
 .topbar {
@@ -818,11 +818,12 @@ body, .app { background: #ffffff; }
 .unit-row .statuses { flex: none; }
 /* 雪碧图：一张 10x8 的图代替 74 个 img 请求 */
 .emoji-sprite {
-  background-image: url('../assets/emoji-sprite.png?v=4');
+  background-image: url('../assets/emoji-sprite.png?v=5');
   background-repeat: no-repeat;
   background-size: calc(var(--cell) * 10) calc(var(--cell) * 8);
   background-position: calc(var(--col, 0) * var(--cell) * -1) calc(var(--row, 0) * var(--cell) * -1);
   width: var(--cell);
   height: var(--cell);
+  image-rendering: pixelated;
   image-rendering: -webkit-optimize-contrast;
 }
