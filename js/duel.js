@@ -33,9 +33,12 @@ function skillsOf(unit, champion) {
 // MP 消耗在“抽到这张牌”的时候就掷好（tswn 原本是行动时现掷），范围 8~23
 export const rollMpCost = (rng) => 8 + (Math.floor(rng() * 256) & 15);
 
-function drawHand(skills, rng, count = 3) {
+function drawHand(skills, rng, count = 3, exclude = null) {
   // 净化是敌人专属：玩家抽到时直接换成别的技能（熟练度不变）
-  const pool = (skills || []).filter((s) => ACTIVE_ID[s.id] != null && s.id !== 'skldisperse').map((s) => ({ ...s, weight: weightOf(s.lv) }));
+  const pool = (skills || [])
+    .filter((s) => ACTIVE_ID[s.id] != null && s.id !== 'skldisperse')
+    .filter((s) => !exclude || !exclude.has(s.id))
+    .map((s) => ({ ...s, weight: weightOf(s.lv) }));
   const out = [];
   while (out.length < count && pool.length) {
     const total = pool.reduce((a, b) => a + b.weight, 0);
@@ -493,7 +496,9 @@ export class DuelView {
       }, delay);
       return;
     }
-    const hand = drawHand(skillsOf(state, this.duel.champion), this.rng, 3);
+    // tswn 不允许连续蓄力：已经在蓄力状态时，牌堆里不再出现蓄力术
+    const charging = (state.status_labels || []).some((l) => String(l).startsWith('蓄力'));
+    const hand = drawHand(skillsOf(state, this.duel.champion), this.rng, 3, charging ? new Set(['sklcharge']) : null);
     this.renderEnergy(mp);
     const cards = [
       handCardEl({ id: 'normal', lv: 0 }, { onPlay: (c) => this.choose(decision, c, mp) }),
