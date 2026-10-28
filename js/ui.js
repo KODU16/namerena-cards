@@ -982,6 +982,33 @@ function colorFromIcon(src) {
   } catch { return ''; }
 }
 
+// 角色库里的完整角色行：仿战斗中单位行，全文字、不用图标
+// 角色库里的完整角色行：仿战斗中单位行，全文字、不用图标
+export function fullCharRow(card) {
+  const s = card.stats || {};
+  const hp = Math.max(1, Math.round(s.hp || 1));
+  const mp = Math.round(card.maxMp || 100);
+  const shield = Math.round(card.shield || 0);
+  const line = (label, v) => el('span', { class: 'fullrow__stat' }, label + ' ' + v);
+  const bar = (cls, label, pct) => el('div', { class: 'fullrow__bar ' + cls, title: label },
+    el('i', { style: 'width:' + Math.max(0, Math.min(100, pct)) + '%' }),
+    el('span', {}, label));
+  return el('div', { class: 'fullrow' },
+    el('div', { class: 'fullrow__head' },
+      card.icon ? el('img', { class: 'fullrow__icon', src: card.icon, alt: '' }) : null,
+      el('b', {}, (card.name || '') + '@' + (card.clan || '')),
+      card.weapon ? el('span', { class: 'fullrow__weapon' }, '⚔ ' + card.weapon) : null),
+    bar('fullrow__bar--hp', '血量 ' + hp, 100),
+    bar('fullrow__bar--mp', '魔力 ' + mp, mp),
+    shield > 0 ? bar('fullrow__bar--shield', '护盾 ' + shield, (shield / hp) * 100) : null,
+    el('div', { class: 'fullrow__stats' },
+      line('攻', s.atk ?? 0), line('防', s.def ?? 0), line('速', s.spd ?? 0), line('敏', s.agi ?? 0),
+      line('魔', s.mag ?? 0), line('抗', s.res ?? 0), line('智', s.wis ?? 0)),
+    el('div', { class: 'fullrow__skills' }, (card.skillList || []).length
+      ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: skillMeta(sk.id).desc }, skillMeta(sk.id).name + ' ' + sk.lv))
+      : el('span', { class: 'muted small' }, '无技能')));
+}
+
 // ————————————————————— 分数徽标
 
 export function renderScoreBadge(state, visible) {
@@ -1098,7 +1125,7 @@ export function inventorySheet(state, h = {}) {
         el('div', { class: 'inv__chars' }, (state.collection || []).map((card) => {
           const inTeam = (run.teamIds || []).includes(card.id);
           return el('div', { class: 'inv__char' },
-            cardEl(card, { size: 'grid' }),
+            fullCharRow(card),
             el('div', { class: 'inv__ops' },
               card.weapon ? el('span', { class: 'inv__weapon' }, '⚔ ' + card.weapon) : null,
               card.weaponInfo ? el('div', { class: 'inv__wd' },
