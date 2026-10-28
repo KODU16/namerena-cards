@@ -312,7 +312,8 @@ export function currentNode(state) {
 export function currentOpponent(state) {
   const node = currentNode(state);
   if (!node) return null;
-  if (node.kind === 'ladder') return node.payload;
+  // 层级终点与普通天梯节点共用对手结构，必须一起进入战斗。
+  if (node.kind === 'ladder' || node.kind === 'end') return node.payload;
   if (node.kind === 'elite') return { rank: null, score: 0, name: '精英试炼', cards: node.payload.cards, teamSize: node.payload.cards.length, elite: true };
   if (node.kind === 'filler') return { rank: null, score: 0, name: node.payload[0]?.name || '试炼对手', cards: node.payload, teamSize: node.payload.length };
   return null;
@@ -338,7 +339,8 @@ export function clearNode(state) {
   run.cleared.push(run.selectedId);
   run.selectedId = null;
   run.index += 1;
-  if (node && (node.kind === 'ladder' || node.kind === 'filler')) run.wins += 1;
+  // 所有战斗节点都计入胜场；事件和篝火不计入。
+  if (node && ['ladder', 'filler', 'elite', 'end'].includes(node.kind)) run.wins += 1;
   persist(state);
   return node;
 }

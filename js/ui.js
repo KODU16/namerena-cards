@@ -1,7 +1,7 @@
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
-import { potionById } from './game.js';
+import { potionById, currentOpponent } from './game.js';
 import { emojiImg } from './emoji.js';
 // 生成和绘制共用尺寸，保持节点半径和几何约束一致。
 import { MAP_LAYOUT, mapNodeRadius } from './map.js';
@@ -232,11 +232,8 @@ export function renderNewRun(root, state, h) {
 export function renderPrep(root, state, h) {
   const run = state.run;
   const node = run.graph?.byId?.get(run.selectedId || run.nodeId) || null;
-  const opp = node?.kind === 'ladder'
-    ? node.payload
-    : node?.kind === 'filler'
-      ? { rank: null, score: 0, name: node.payload[0]?.name || '试炼对手', cards: node.payload, teamSize: node.payload.length }
-      : { cards: [], rank: null, score: 0, teamSize: 0 };
+  // 备战展示与战斗入口共用对手解析，避免遗漏 Boss 或精英阵容。
+  const opp = currentOpponent(state) || { cards: [], rank: null, score: 0, teamSize: 0 };
   const team = (run.teamIds || []).map((id) => state.collection.find((c) => c.id === id)).filter(Boolean);
   const tactics = h.tacticsByIds(state, run.tacticIds);
   const full = team.length === run.teamSize;
@@ -244,7 +241,7 @@ export function renderPrep(root, state, h) {
     el('section', { class: 'prep' },
       el('div', { class: 'prep__head' },
         el('div', { class: 'stage' }, el('span', { class: 'stage__n' }, `第 ${run.layer || 1} 层`), el('span', { class: 'muted' }, `天梯 ${run.lane} · 队伍 ${run.teamSize} 人`)),
-        el('h2', {}, opp.rank ? `天梯对手 #${opp.rank}` : '试炼对手（@! 队名）'),
+        el('h2', {}, node?.kind === 'end' ? `层级 Boss · 天梯 #${opp.rank ?? '?'}` : opp.rank ? `天梯对手 #${opp.rank}` : opp.elite ? '精英试炼' : '试炼对手（@! 队名）'),
         el('div', { class: 'muted' }, `${opp.score ?? 0} 分 · 对方 ${opp.cards.length} 人`),
       ),
       el('div', { class: 'prep__board' },
@@ -635,7 +632,8 @@ export function renderEnd(root, state, h) {
   root.replaceChildren(
     el('section', { class: `end ${won ? 'end--win' : 'end--lose'}` },
       el('div', { class: 'end__badge' }, won ? '通关' : '止步'),
-      el('h1', {}, won ? '八战全胜' : `倒在第 ${run.index + 1} 战`),
+      // 通关标题对应十层天梯，避免沿用旧版八战流程的文案。
+      el('h1', {}, won ? '天梯登顶，游戏胜利' : `倒在第 ${run.index + 1} 战`),
       el('p', { class: 'muted' }, won ? '你的名字走到了天梯顶端。' : '名字的强度，有时只差一次重抽。'),
       el('div', { class: 'end__stats' },
         el('div', { class: 'fact' }, el('b', {}, `${run.wins}`), el('span', {}, '胜场')),

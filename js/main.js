@@ -290,7 +290,13 @@ async function fight() {
   const run = state.run;
   const opp = G.currentOpponent(state);
   const team = (run.teamIds || []).map((id) => state.collection.find((c) => c.id === id)).filter(Boolean);
-  if (!team.length || !opp) return toast('队伍还没满');
+  // 对手缺失属于节点数据异常，不能误报为玩家队伍不满。
+  if (!team.length) return toast('请选择出战角色');
+  if (!opp?.cards?.length) {
+    const node = G.currentNode(state);
+    logEvent('fight.blocked', { reason: 'missing_opponent', nodeId: node?.id, kind: node?.kind });
+    return toast('当前节点没有可用的对手，请返回地图重试');
+  }
   const tactics = G.tacticsByIds(state, run.tacticIds);
   const mult = runMultiplier(run.index);
   // 每场都换种子：同一关重试、同一队伍再打，对手的行动序列也不会固定
