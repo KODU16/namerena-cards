@@ -1,4 +1,4 @@
-name: Deploy cards to shenjack.top
+﻿name: Deploy cards to shenjack.top
 
 on:
   push:
@@ -104,6 +104,23 @@ jobs:
             --exclude '__pycache__/' --exclude '*.sqlite3*' \
             server/ "$USER@$HOST:$SERVER_DIR/"
 
+      # 依赖只在 requirements.txt 变化时更新（避免每次部署都跑 pip）
+      - name: Update backend dependencies
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          HOST: ${{ secrets.CARDS_DEPLOY_HOST }}
+          USER: ${{ secrets.CARDS_DEPLOY_USER }}
+          PORT: ${{ secrets.CARDS_DEPLOY_PORT }}
+          TARGET: ${{ secrets.CARDS_DEPLOY_PATH }}
+        run: |
+          if ! git diff --name-only HEAD^ HEAD 2>/dev/null | grep -q '^server/requirements\.txt$'; then
+            echo "::notice::requirements.txt 未变化，跳过 pip"
+            exit 0
+          fi
+          PORT="${PORT:-22}"
+          TARGET="${TARGET:-/srv/namerena-cards/dist}"
+          SERVER_DIR="$(dirname "$TARGET")/server"
+          ssh -i ~/.ssh/id_deploy -p "$PORT" "$USER@$HOST" "cd '$SERVER_DIR' && pip install --user -r requirements.txt"
       # 后端没变就不动进程；变了也优先 HUP 平滑重载（不断连接）
       - name: Reload backend
         if: steps.gate.outputs.enabled == 'true' && steps.diff.outputs.backend == 'true'
