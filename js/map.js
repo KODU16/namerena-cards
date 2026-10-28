@@ -76,7 +76,8 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
   }
   // 试炼节点：先给每层补 1 个，再把剩下的随机撒（每层最多 4 个）
   const fillersPool = Array.from({ length: fillerCount }, () => makeFiller(teamSize, rng));
-  const spaceLeft = (d) => MAX_PER_DEPTH - groups[d].length;
+  const capOf = (d) => (d === 1 ? 3 : MAX_PER_DEPTH);
+  const spaceLeft = (d) => capOf(d) - groups[d].length;
   for (let d = 1; d <= DEPTHS && fillersPool.length; d++) {
     if (spaceLeft(d) > 0) groups[d].push(mk('filler', fillersPool.pop(), null));
   }
@@ -131,22 +132,59 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     groups[d].splice(at, 0, node);
   }
   for (let d = 1; d <= DEPTHS; d++) groups[d].forEach((n, i) => { n.depth = d; n.order = i; });
+  // 同层位置：随机散布（保持左右顺序，避免连线交叉）
+  for (let d = 1; d <= DEPTHS; d++) {
+    const list = groups[d];
+    const n = list.length;
+    if (!n) continue;
+    const gap = 0.16;
+    let xs = Array.from({ length: n }, () => 0.05 + rng() * 0.9).sort((a, b) => a - b);
+    for (let i = 1; i < n; i++) if (xs[i] - xs[i - 1] < gap) xs[i] = xs[i - 1] + gap;
+    for (let i = n - 1; i >= 0; i--) if (xs[i] > 0.95) xs[i] = 0.95 - (n - 1 - i) * gap;
+    list.forEach((node, i) => {
+      node.px = Math.min(0.95, Math.max(0.05, xs[i]));
+      node.py = (rng() - 0.5) * 34;
+    });
+  }
+  start.px = 0.5; end.px = 0.5;
   start.depth = 0; start.order = 0;
   end.depth = DEPTHS + 1; end.order = 0;
 
-  // 连边：上一层按顺序切分下一层为「连续区间」，区间单调不减 → 线不会交叉
+  // 保证首尾两层各有 2~4 个节点
+  for (const d of [1, DEPTHS]) {
+    while (groups[d].length < 2) groups[d].push(mk('filler', makeFiller(teamSize, rng), null));
+  }
+  // 连边：每层按顺序把下一层切成连续区间，但每段长度随机（1~4）→ 出边数量不一、仍然不交叉
   for (let d = 0; d <= DEPTHS; d++) {
     const from = groups[d];
     const to = groups[d + 1];
     if (!from.length || !to.length) continue;
     const m = from.length;
     const n = to.length;
+    let cursor = 0;
     from.forEach((node, i) => {
-      const lo = Math.min(n - 1, Math.floor((i * n) / m));
-      let hi = Math.max(lo + 1, Math.floor(((i + 1) * n) / m));
-      hi = Math.min(n, Math.min(hi, lo + MAX_OUT));
-      node.next = to.slice(lo, hi).map((t) => t.id);
+      if (cursor >= n) {
+        // 目标已经分完：后来者共享最后一格，保证每个节点都有出边
+        node.next = [to[n - 1].id];
+        return;
+      }
+      const leftSources = m - i - 1;
+      const leftTargets = n - cursor;
+      const maxTake = Math.max(1, Math.min(MAX_OUT, leftTargets - leftSources));
+      const take = Math.max(1, Math.min(maxTake, 1 + Math.floor(rng() * Math.min(MAX_OUT, leftTargets))));
+      node.next = to.slice(cursor, cursor + take).map((t) => t.id);
+      cursor += take;
     });
+    // 剩下的目标补到最后一个有出边的节点
+    if (cursor < n) {
+      const holder = [...from].reverse().find((x) => x.next.length);
+      if (holder) {
+        for (let k = cursor; k < n; k++) {
+          if (holder.next.length >= MAX_OUT) break;
+          holder.next.push(to[k].id);
+        }
+      }
+    }
   }
   // 终点汇聚：最后一层全部连到终点
   for (const node of groups[DEPTHS]) {

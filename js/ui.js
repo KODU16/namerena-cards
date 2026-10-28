@@ -739,10 +739,10 @@ export function renderMap(root, state, h) {
   const H = (maxDepth + 1) * ROW + PAD;
   const pos = new Map();
   for (const [d, list] of byDepth) {
-    const gap = (W - 180) / Math.max(1, list.length);
     list.forEach((n, i) => {
-      const x = 90 + gap * (i + 0.5) + Math.max(-gap * 0.28, Math.min(gap * 0.28, n.jitter || 0));
-      const y = H - PAD - d * ROW;   // 玩家在下方，终点在上方
+      const px = typeof n.px === 'number' ? n.px : (i + 0.5) / Math.max(1, list.length);
+      const x = 60 + px * (W - 120);
+      const y = H - PAD - d * ROW + (n.py || 0);   // 玩家在下方，终点在上方
       pos.set(n.id, { x, y });
     });
   }
