@@ -1,4 +1,4 @@
-﻿// 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
+// 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
 // 前端只负责「轮到玩家单位时，从手牌里选一张写进强制队列」。
 import { el, sleep, handCardEl } from './ui.js';
 import { emojiImg } from './emoji.js';
@@ -500,12 +500,23 @@ export class DuelView {
 
   // 回合横幅：玩家回合蓝色、敌方回合黑色，1 秒后淡出
   turnBanner(side, round) {
+    const slot = document.getElementById('battle-turn');
     const node = document.createElement('div');
-    node.className = 'turn-banner turn-banner--' + side;
+    node.className = 'turn-banner turn-banner--inline turn-banner--' + side;
     node.innerHTML = '<div class="turn-banner__main">' + (side === 'player' ? '玩家回合' : '敌方回合')
       + '</div><div class="turn-banner__sub">第' + round + '回合</div>';
-    document.body.appendChild(node);
+    if (slot) { slot.replaceChildren(node); } else { document.body.appendChild(node); }
     setTimeout(() => node.remove(), 1000);
+  }
+
+  // 这一手打完还有没有后续（被击倒 / 击倒最后一个敌人时不要再报下一回合）
+  battleContinues() {
+    try {
+      const rep = this.duel.simulate();
+      return rep.paused_actor != null;
+    } catch {
+      return true;
+    }
   }
 
   roundOf(decision) {
@@ -586,16 +597,16 @@ export class DuelView {
       // 其余手牌向左收拢
       [...this.handEl.children].forEach((el2) => { if (el2 !== node) el2.classList.add('is-discarding'); });
       setTimeout(() => {
-        this.turnBanner('enemy', this.roundOf(decision));
         this.duel.queue(decision.unit.id, id, card.cost || 0, this.pendingPotion || 0);
         this.pendingPotion = 0;
+        if (this.battleContinues()) this.turnBanner('enemy', this.roundOf(decision));
         this.handEl.replaceChildren();
         this.step();
       }, 300);
     } else {
-      this.turnBanner('enemy', this.roundOf(decision));
       this.duel.queue(decision.unit.id, id, card.cost || 0, this.pendingPotion || 0);
       this.pendingPotion = 0;
+      if (this.battleContinues()) this.turnBanner('enemy', this.roundOf(decision));
       this.handEl.replaceChildren();
       this.step();
     }

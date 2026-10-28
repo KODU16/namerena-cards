@@ -423,7 +423,7 @@ button.big { font-size: 16px; padding: 9px 22px; }
   align-items: center;
 }
 .unit-wrap--player { order: 0; display: flex; flex-direction: column; align-items: stretch; }
-.arena__center { order: 1; display: flex; min-height: 150px; }
+.arena__center { order: 1; display: flex; flex-direction: column; gap: 8px; min-height: 150px; }
 .unit-wrap--enemy { order: 2; display: flex; flex-direction: column; align-items: stretch; }
 
 .unit {
@@ -989,3 +989,19 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
 .potion:hover { background: #eef6fb; }
 .potion-icon { display: inline-flex; }
 .potion__n { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+/* 回合横幅：放在中间结果栏正下方，不遮挡战报 */
+.turn-slot { min-height: 62px; display: flex; align-items: flex-start; justify-content: center; }
+.turn-banner--inline {
+  position: static;
+  transform: none;
+  animation: turnInline 1s ease-out forwards;
+  text-align: center;
+}
+.turn-banner--inline .turn-banner__main { font-size: 30px; }
+.turn-banner--inline .turn-banner__sub { font-size: 14px; margin-top: 2px; }
+@keyframes turnInline {
+  0% { opacity: 0; translate: 0 6px; }
+  16% { opacity: 1; translate: 0 0; }
+  72% { opacity: 1; }
+  100% { opacity: 0; translate: 0 -4px; }
+}

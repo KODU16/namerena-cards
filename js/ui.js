@@ -1,4 +1,4 @@
-﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, skillMeta } from './skills.js';
 import { potionById } from './game.js';
 import { emojiImg } from './emoji.js';
@@ -317,7 +317,7 @@ export function renderBattleShell(root, state, battle, h) {
     ),
     el('div', { class: 'arena' },
       el('div', { class: 'unit-wrap unit-wrap--enemy', id: 'unit-enemy' }),
-      el('div', { class: 'arena__center' }, log),
+      el('div', { class: 'arena__center' }, log, el('div', { class: 'turn-slot', id: 'battle-turn' })),
       el('div', { class: 'unit-wrap unit-wrap--player', id: 'unit-player' }),
     ),
     el('div', { class: 'handbar' },
@@ -857,6 +857,12 @@ export function potionIcon(p, size = 22) {
   return wrap;
 }
 
+// 药水说明：按实际实现（tswn 结算）精确描述
+function potionDesc(meta) {
+  if (meta.id === 'hp') return '生命药水：这一手不消耗行动，出牌时回复 25% 最大体力（不超过上限）';
+  return meta.name + '：这一手不消耗行动，出牌时' + meta.stat + ' +25%（至少 +8），结算完这一次行动后还原';
+}
+
 export function renderPotionDock(state, onUse) {
   let dock = document.getElementById('potion-dock');
   if (!dock) {
@@ -875,7 +881,7 @@ export function renderPotionDock(state, onUse) {
     const btn = el('button', {
       class: 'potion',
       type: 'button',
-      title: `${meta.name}：使用后本回合${meta.id === 'hp' ? '回复体力' : '提升' + meta.name.replace('药水', '')}，不消耗回合`,
+      title: potionDesc(meta),
       onclick: () => onUse && onUse(item.id),
     }, potionIcon(meta), el('span', { class: 'potion__n' }, '×' + item.n));
     dock.append(btn);

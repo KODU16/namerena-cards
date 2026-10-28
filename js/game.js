@@ -4,14 +4,14 @@ import { buildLayerGraph, LAYER_COUNT } from './map.js';
 import { SKILLS, SKILL_IDS, skillMeta } from './skills.js';
 
 export const POTIONS = [
-  { id: 'atk', name: '力量药水', field: 0, color: '#d94b3a' },
-  { id: 'def', name: '铁壁药水', field: 1, color: '#3b6fd9' },
-  { id: 'spd', name: '疾风药水', field: 2, color: '#2fa36b' },
-  { id: 'agi', name: '灵巧药水', field: 3, color: '#d9a13a' },
-  { id: 'mag', name: '魔力药水', field: 4, color: '#8a5cd9' },
-  { id: 'res', name: '抗性药水', field: 5, color: '#3aa8a3' },
-  { id: 'wis', name: '智慧药水', field: 6, color: '#d97b3a' },
-  { id: 'hp', name: '生命药水', field: 8, color: '#c0353a' },
+  { id: 'atk', name: '力量药水', field: 0, stat: '攻击', color: '#d94b3a' },
+  { id: 'def', name: '铁壁药水', field: 1, stat: '防御', color: '#3b6fd9' },
+  { id: 'spd', name: '疾风药水', field: 2, stat: '速度', color: '#2fa36b' },
+  { id: 'agi', name: '灵巧药水', field: 3, stat: '敏捷', color: '#d9a13a' },
+  { id: 'mag', name: '魔力药水', field: 4, stat: '魔力', color: '#8a5cd9' },
+  { id: 'res', name: '抗性药水', field: 5, stat: '抗性', color: '#3aa8a3' },
+  { id: 'wis', name: '智慧药水', field: 6, stat: '智慧', color: '#d97b3a' },
+  { id: 'hp', name: '生命药水', field: 8, stat: '体力', color: '#c0353a' },
 ];
 
 export function potionById(id) { return POTIONS.find((p) => p.id === id) || null; }
