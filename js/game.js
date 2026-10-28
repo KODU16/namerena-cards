@@ -537,7 +537,8 @@ export function makeCpu(rng) {
 
 // 测号：从「前缀+随机数字」开始，在 speed 个数字内找八围最高的名字
 export function cpuScan(prefix, startAt, cpu, clan) {
-  const pre = String(prefix || '').replace(/[^0-9A-Za-z]/g, '');
+  // 前缀可以是中文/字母/数字，只去掉空白
+  const pre = String(prefix || '').replace(/\s+/g, '');
   if (!pre) return null;
   let best = null;
   let bestSum = -1;

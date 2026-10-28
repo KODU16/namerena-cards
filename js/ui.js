@@ -293,7 +293,8 @@ export function renderPrep(root, state, h) {
           (() => {
             const downed = (run.downed || []).includes(c.id);
             const foreign = !!run.clan && c.clan !== run.clan;
-            const node = charRowEl(c, { dim: downed || foreign, selected: (run.teamIds || []).includes(c.id), onClick: () => (h.forgeSelected ? h.onPickChampion(c.id) : h.onToggleTeam(c.id)) });
+            const bonus = h.bonusOf ? h.bonusOf(c) : null;
+            const node = charRowEl(c, { bonus, dim: downed || foreign, selected: (run.teamIds || []).includes(c.id), onClick: () => (h.forgeSelected ? h.onPickChampion(c.id) : h.onToggleTeam(c.id)) });
             if (downed) node.title = (node.title || '') + '\n已倒下：本局不能再出战';
             if (foreign) node.title = (node.title || '') + '\n战队不同（@' + c.clan + '）：本局只能用 @' + run.clan + ' 的角色';
             if (h.forgeSelected && h.onForgeHover) {
@@ -1018,8 +1019,8 @@ export function gradeIcon(card) {
 }
 
 // 可交互的完整角色行（点击/置灰/选中）
-export function charRowEl(card, { onClick = null, dim = false, selected = false } = {}) {
-  const row = fullCharRow(card);
+export function charRowEl(card, { onClick = null, dim = false, selected = false, bonus = null } = {}) {
+  const row = fullCharRow(card, bonus);
   const node = onClick
     ? el('button', { class: 'fullrow-btn', type: 'button', onclick: onClick }, row)
     : el('div', { class: 'fullrow-btn' }, row);
@@ -1036,11 +1037,10 @@ export function fullCharRow(card) {
   const hp = Math.max(1, Math.round(s.hp || 1));
   const mp = Math.round(card.maxMp || 100);
   const shield = Math.round(card.shield || 0);
-  // 与本体构建对比，把战术/武器带来的加成用更小一号的蓝字标出来
-  let baseStats = null;
-  try { baseStats = makeCard(card.name, card.clan)?.stats || null; } catch { baseStats = null; }
+  // 战术/武器带来的加成用更小一号的蓝字标出（由调用方传入 bonusMap）
+  const bonusMap = arguments[1] || {};
   const line = (label, key, v) => {
-    const delta = baseStats && key ? Math.round((card.stats?.[key] ?? 0) - (baseStats[key] ?? 0)) : 0;
+    const delta = key ? Math.round(bonusMap[key] || 0) : 0;
     return el('span', { class: 'fullrow__stat' }, label + ' ' + v,
       delta ? el('i', { class: 'fullrow__plus' }, (delta > 0 ? '+' : '') + delta) : null);
   };

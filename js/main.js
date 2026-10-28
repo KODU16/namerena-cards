@@ -264,6 +264,20 @@ function newRunSetup() {
 function prep() {
   nav('prep', () => UI.renderPrep(root, state, {
     tacticsByIds: (s, ids) => G.tacticsByIds(s, ids),
+    bonusOf: (card) => {
+      const bonus = {};
+      const tactics = G.tacticsByIds(state, state.run.tacticIds);
+      for (const t of tactics) {
+        for (const eff of (t.effects || [])) {
+          if (eff.stat) bonus[eff.stat] = (bonus[eff.stat] || 0) + eff.value;
+        }
+      }
+      for (const d of (card.weaponInfo?.deltas || [])) {
+        const key = { 体力: 'hp', 攻: 'atk', 防: 'def', 速: 'spd', 敏: 'agi', 魔: 'mag', 抗: 'res', 智: 'wis' }[d.label];
+        if (key) bonus[key] = (bonus[key] || 0) + d.delta;
+      }
+      return bonus;
+    },
     ownedTacticObjects: (s) => G.ownedTacticObjects(s),
     forgeSelected: forgeSel,
     onPickSkillCard: (uid) => { forgeSel = forgeSel === uid ? null : uid; prep(); },
@@ -594,7 +608,7 @@ function mapScreen() {
           const out = el('div', { class: 'cpu-result' });
           const run = () => {
             const prefix = prefixInput.value.trim();
-            if (!/^[0-9A-Za-z]+$/.test(prefix)) { toast('前缀只能是数字或字母', 1600); return; }
+            if (!prefix || /\s/.test(prefix)) { toast('前缀不能为空，也不能带空格', 1600); return; }
             const startAt = 1000 + Math.floor(Math.random() * 9000);
             out.replaceChildren(el('div', { class: 'muted' }, '正在测号…'));
             setTimeout(() => {
@@ -610,8 +624,7 @@ function mapScreen() {
             }, 30);
           };
           const sheetNode = el('div', {},
-            el('h2', {}, '电脑 · ' + cpu.name + '-' + cpu.attr),
-            el('p', { class: 'muted' }, '这台电脑的八围是 ' + cpu.attr + '，速度 ' + cpu.speed + '。测号会在「前缀+随机数」起、共 ' + cpu.speed + ' 个数字里，选出八围最高的名字放进角色库。'),
+            el('h2', {}, 'CPU：' + cpu.name + '-' + cpu.speed),
             el('div', { class: 'cpu-form' }, prefixInput,
               el('button', { class: 'primary', type: 'button', onclick: run }, '测号')),
             out,
