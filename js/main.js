@@ -47,6 +47,9 @@ function nav(screen, render) {
   document.body.dataset.screen = screen;
   render();
   paintTopbar();
+  // 药水只在战斗里显示
+  const dock = document.getElementById('potion-dock');
+  if (dock) dock.style.display = screen === 'battle' ? 'flex' : 'none';
 }
 
 function sheet(...kids) {
@@ -117,6 +120,25 @@ function applySay(node, text) {
   if (text.length > 34) text = text.slice(0, 34) + '…';
   node.textContent = text;
   node.classList.toggle('home__title--say', text.length > 14);
+}
+
+// 地图副标题也用一句 Say（复用同一个缓存，1 分钟内不重复请求）
+async function loadSayInto(node) {
+  if (!node) return;
+  if (sayCache.text) node.textContent = sayCache.text;
+  if (sayCache.text && Date.now() - sayCache.at < SAY_TTL) return;
+  if (sayFetching) return;
+  sayFetching = true;
+  try {
+    const res = await fetch(SAY_URL, { cache: 'no-store' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const text = cleanSay(data?.say);
+    if (!text) return;
+    sayCache = { text, at: Date.now() };
+    node.textContent = text;
+  } catch { /* 失败就保留现有文案 */ }
+  finally { sayFetching = false; }
 }
 
 async function loadSayTitle() {
@@ -401,9 +423,9 @@ function afterBattle(won) {
 function mapScreen() {
   const run = state.run;
   if (!run?.graph) return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
-  UI.renderPotionDock(state, null);
   nav('map', () => UI.renderMap(root, state, {
     onHome: home,
+    say: sayCache.text,
     onInventory: () => {
       sheet(UI.inventorySheet(state));
       document.querySelector('.sheet')?.classList.add('sheet--full');
@@ -429,6 +451,7 @@ function mapScreen() {
       prep();
     },
   }));
+  loadSayInto(document.getElementById('map-say'));
 }
 // ————————————————————— 工坊
 

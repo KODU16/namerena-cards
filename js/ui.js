@@ -791,7 +791,7 @@ export function renderMap(root, state, h) {
         el('div', {},
           el('div', { class: 'home__kicker' }, `LAYER ${run.layer || 1} / 10`),
           el('h2', {}, `第 ${run.layer || 1} 层 · 天梯 ${run.lane}`),
-          el('div', { class: 'muted' }, '从下往上走：天梯名次一路变好，最后汇聚到本层名次最高的选手')),
+          el('div', { class: 'muted map__say', id: 'map-say' }, h.say || '从下往上走：天梯名次一路变好，最后汇聚到本层名次最高的选手')),
         el('div', { class: 'map__tools' }, 
           (() => { const end = g.byId.get(g.endId); const icon = end?.payload?.cards?.[0]?.icon; return el('div', { class: 'map__boss', title: '本层终点：名次最高的天梯选手' },
             icon ? el('img', { class: 'map__boss-icon', src: icon, alt: '' }) : null,
@@ -846,7 +846,9 @@ export function renderMap(root, state, h) {
     root.querySelectorAll('.map-node.is-avail').forEach((nodeEl) => {
       nodeEl.addEventListener('click', () => {
         if (moved > 6) return;
-        h.onPick(nodeEl.dataset.id);
+        if (nodeEl.classList.contains('is-choosing')) return;
+        nodeEl.classList.add('is-choosing');
+        setTimeout(() => h.onPick(nodeEl.dataset.id), 1000);
       });
     });
   }

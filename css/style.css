@@ -1039,3 +1039,24 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
 .inv__grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
 /* 弹窗打开时收起药水栏，避免盖住标题 */
 body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
+/* 节点不透明，避免连线透过图标显现 */
+.map-node circle { fill: #ffffff; }
+.map-node--ladder circle { fill: #ffffff; }
+.map-node--filler circle { fill: #ffffff; }
+.map-node--event circle { fill: #ffffff; }
+.map-node--end circle { fill: #ffffff; }
+.map-node--start circle { fill: #ffffff; }
+.map-node.is-avail circle { fill: #2f8ec9; }
+
+/* 选中节点的 1 秒特效 */
+.map-node.is-choosing circle { animation: nodeChoose 1s ease-out forwards; }
+.map-node.is-choosing .map-label { animation: nodeLabel 1s ease-out forwards; }
+@keyframes nodeChoose {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.35); }
+  100% { transform: scale(1.12); }
+}
+@keyframes nodeLabel {
+  0% { opacity: 1; }
+  100% { opacity: .6; }
+}
