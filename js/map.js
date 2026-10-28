@@ -6,7 +6,7 @@
 //  - 连线避让节点圆形边界及 8 像素余量，共用节点处的夹角至少 25°；
 //  - 所有节点可达，所有路径最终汇聚到终点。
 export const LAYER_COUNT = 10;
-export const DEPTHS = 9;          // 战斗层深度（1..DEPTHS），终点在 DEPTHS+1（每层最多 4 个节点）
+export const DEPTHS = 12;          // 战斗层深度（1..DEPTHS），终点在 DEPTHS+1（每层最多 4 个节点）
 export const MIN_NODES = 30;
 export const MAX_NODES = 35;
 // 总连接数上限；保留 MAX_OUT 供已有调用使用。
@@ -161,7 +161,7 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     groups[d].forEach((n, i) => { n.depth = d; n.order = i; });
   }
   // 篝火节点：休息或锻造，每层 1~2 个
-  const campCount = 2 + Math.floor(rng() * 2);
+  const campCount = 3 + Math.floor(rng() * 2);
   for (let i = 0; i < campCount; i++) {
     const open = sparseDepths();
     if (!open.length) break;
@@ -171,7 +171,7 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
   // 精英试炼：更强、奖励更厚，每层 1 个
   {
     const open = sparseDepths();
-    if (open.length && makeElite) {
+    for (let rep = 0; rep < 2 && makeElite; rep++) if (open.length) {
       const d = open[Math.floor(rng() * open.length)];
       groups[d].push(mk('elite', makeElite(teamSize, rng), null));
     }
@@ -183,10 +183,13 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     if (open.length) {
       const d = open[Math.floor(rng() * open.length)];
       groups[d].push(mk('shop', null, null));
+      const open2 = [];
+      for (let d2 = 2; d2 <= DEPTHS; d2++) if (groups[d2].length < MAX_PER_DEPTH) open2.push(d2);
+      if (open2.length) groups[open2[Math.floor(rng() * open2.length)]].push(mk('shop', null, null));
     }
   }
   // 事件节点（?）：进入不战斗，随机给一张战术/名字/技能卡，1~2 个
-  const eventCount = 1 + Math.floor(rng() * 2);
+  const eventCount = 2 + Math.floor(rng() * 2);
   for (let i = 0; i < eventCount; i++) {
     const open = sparseDepths();
     if (!open.length) break;
