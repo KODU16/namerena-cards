@@ -437,7 +437,11 @@ async function fight() {
   G.rollBattleSeed(run);
   G.persist(state);
   logEvent('fight.seed', { seed: G.battleSeed(run), index: run.index, lane: run.lane });
-  const lines = team.map((c) => buildLine(applyRunBuff(applyTactics(c, tactics), mult)));
+  // 已落在角色基础值上的保底/锻造不再重复乘算；开战前修复旧换装丢失的技能。
+  const lines = team.map((c) => {
+    const ready = G.prepareBattleCard(state, c);
+    return buildLine(applyTactics(ready.runMult ? ready : applyRunBuff(ready, mult), tactics));
+  });
   const oppLines = (opp.cards || []).map((c) => buildLine(c));
   const input = [...lines, '', ...oppLines, `seed:${G.battleSeed(run)}@!`].join('\n');
   const wasm = engineWasm();
@@ -490,7 +494,7 @@ function potionCode(id) {
 
 function usePotion(id) {
   const run = state.run;
-  if (!run || !duelView || duelView.done) return;
+  if (!run || !duelView || duelView.done || !duelView.interactive || !duelView.waitingState) return;
   const item = (run.potions || []).find((p) => p.id === id && p.n > 0);
   if (!item) return;
   if (duelView.pendingPotion) return toast('这回合已经喝过药水了');
@@ -503,8 +507,7 @@ function usePotion(id) {
   G.persist(state);
   UI.renderPotionDock(state, usePotion);
   const meta = G.potionById(id);
-  const what = meta && meta.id === 'hp' ? '回复体力' : '提升' + String(meta?.name || '').replace('药水', '');
-  toast('喝下' + (meta?.name || '药水') + '：这一手' + what + '（不消耗回合）', 2000);
+  toast(G.potionDescription(meta), 3600);
 }
 
 function showSettleBar(won) {
@@ -557,7 +560,7 @@ function afterBattle(won) {
   }
   // 赢下这个节点：位置推进过去
   const node = G.clearNode(state);
-  if (node && node.kind === 'ladder') {
+  if (node && (node.kind === 'ladder' || node.kind === 'end')) {
     const gain = G.addScore(state, node.payload?.score);
     if (gain) toast('天梯 +' + gain + ' 分', 1800);
   }
@@ -683,27 +686,35 @@ function mapScreen() {
         const openCpu = () => {
           const prefixInput = el('input', { id: 'cpu-prefix', placeholder: '输入前缀，例如 123', maxlength: '8', autocomplete: 'off' });
           const out = el('div', { class: 'cpu-result' });
-          const run = () => {
+          const showResult = (res) => out.replaceChildren(
+            el('div', { class: 'muted small' }, '扫描 ' + res.scanned + ' 个名字'),
+            UI.charRowEl(res.card),
+            el('div', { class: 'muted small' }, '已加入角色库：' + res.name + '（八围 ' + res.sum + '）'));
+          const scanButton = el('button', { class: 'primary', type: 'button', disabled: !!node.cpuScanUsed }, node.cpuScanUsed ? '已测号' : '测号（仅一次）');
+          // 按钮立即锁定；实际次数由节点持久状态校验，不能靠重新打开弹窗绕过。
+          scanButton.addEventListener('click', () => {
+            if (scanButton.disabled || node.cpuScanUsed) return;
             const prefix = prefixInput.value.trim();
             if (!prefix || /\s/.test(prefix)) { toast('前缀不能为空，也不能带空格', 1600); return; }
+            scanButton.disabled = true;
+            prefixInput.disabled = true;
+            scanButton.textContent = '已测号';
             const startAt = 1000 + Math.floor(Math.random() * 9000);
             out.replaceChildren(el('div', { class: 'muted' }, '正在测号…'));
             setTimeout(() => {
-              const res = G.cpuScan(prefix, startAt, cpu, state.run.clan || '无名');
-              if (!res) { out.replaceChildren(el('div', { class: 'error' }, '没有扫到可用名字')); return; }
-              if (!state.collection.some((c) => c.name === res.card.name)) G.grantCard(state, res.card);
-              out.replaceChildren(
-                el('div', { class: 'muted small' }, '扫描 ' + res.scanned + ' 个名字（' + prefix + startAt + ' ~ ' + prefix + (startAt + cpu.speed) + '）'),
-                UI.charRowEl(res.card),
-                el('div', { class: 'muted small' }, '已加入角色库：' + res.name + '（八围 ' + res.sum + '）'));
-              toast('测号完成：' + res.name, 2000);
+              const scan = G.scanCpuNode(state, nodeId, prefix, startAt);
+              if (!scan.ok) { out.replaceChildren(el('div', { class: 'muted' }, '本台电脑的测号机会已使用。')); return; }
+              showResult(scan.result);
+              toast('测号完成：' + scan.result.name, 2000);
             }, 30);
-          };
+          });
+          if (node.cpuScanResult) showResult(node.cpuScanResult);
+          else if (node.cpuScanUsed) out.textContent = '本台电脑的测号机会已使用。';
+          prefixInput.disabled = !!node.cpuScanUsed;
           const sheetNode = el('div', {},
             el('h2', {}, 'CPU：' + cpu.name + '-' + cpu.speed),
-            el('div', { class: 'cpu-form' }, prefixInput,
-              el('button', { class: 'primary', type: 'button', onclick: run }, '测号')),
-            out,
+            el('p', { class: 'muted small' }, '每台电脑只能测号一次，刷新或重进不会重置。'),
+            el('div', { class: 'cpu-form' }, prefixInput, scanButton), out,
             el('div', { class: 'result__actions' }, el('button', { class: 'ghost', type: 'button', onclick: () => { closeSheet(); mapScreen(); } }, '离开')));
           sheet(sheetNode);
         };

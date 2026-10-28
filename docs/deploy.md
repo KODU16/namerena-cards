@@ -1,76 +1,28 @@
-# 部署到 GitHub Pages
+# 部署到主站 /cards/
 
-## 压缩发布
+正式地址：[名竞尖塔](https://shenjack.top:10007/cards/)。服务器已配置自动拉取本仓库的 `main` 分支并构建发布；提交推送后检查主站是否加载对应的新资源指纹。
 
-先运行 `npm ci` 和 `npm run build:site`，再把生成的 `dist/` 内容作为 Pages 的发布根目录。若使用 GitHub Actions，上传 Pages artifact 的 `path` 应指向 `dist`；若使用分支发布，将 `dist/` 内容同步到所选发布分支的根目录。不要把开发源码直接覆盖成压缩文件。
-
-`dist/` 可用 `python -m http.server 8123 --directory dist` 本地预览，支持仓库子路径。体积与兼容性说明见 [流量与压缩发布](bandwidth.md)。
-
-本仓库通过 `.github/workflows/pages.yml` 自动构建发布；Pages 来源应设置为 GitHub Actions。
-
-
-## 1. 推仓库
+## 构建与发布
 
 ```powershell
-cd "C:\Program Files (x86)\360\360PT\namerena-ladder\namerena-cards"
-git init
-git add .
-git commit -m "namerena cards: static card game on tswn-core"
-git branch -M main
-git remote add origin https://github.com/<you>/namerena-cards.git
-git push -u origin main
+npm ci
+npm run build:site
 ```
 
-仓库里已经带了 `.nojekyll`，Jekyll 不会动 `vendor/` 这类目录。
+构建使用 `tools/build-icons.mjs` 生成 16×16 像素图标，再将压缩运行资源输出到 `dist/`。开发源码和 SVG 图标源文件不作为运行资源发布。
 
-## 2. 开 Pages
+服务器更新方式与管理员检查项见 [自动更新](../server/AUTO-UPDATE.md) 和 [部署检查](../server/DEPLOY-CHECK.md)。服务器定时拉取是当前正式发布方式；GitHub Actions 的 `deploy-cards.yml` 也能构建，并在配置部署密钥时通过 SSH 上传。
 
-GitHub → 仓库 **Settings → Pages**：
+未配置部署密钥时，该工作流成功仅表示构建完成，不能作为服务器已更新的依据。发布后需核对主站页面、JS/CSS 指纹及新图标资源。
 
-- Source: `GitHub Actions`
-- 工作流：`.github/workflows/pages.yml`，推送 `main` 或手动运行时构建并发布 `dist/`
-- 保存后等 Actions 跑完，地址是 `https://<you>.github.io/namerena-cards/`
+## 同源账号与存档
 
-打开后应当是首页；如果显示 404，检查是否把项目放在子目录（所有资源都是相对路径，子目录部署是支持的）。
+`/cards/` 与 `/api/cards/` 必须保持相同协议、域名和端口，以便复用主站登录及账号存档。不要把正式发布切回 GitHub Pages。
 
-## 3. 天梯数据为什么会“过期”
-
-页面启动时会先尝试 `fetch('https://shenjack.top:10007/')` 实时抓取，**失败就退回 `data/ladder.json`**。
-
-失败是常态：对方站点没有 `Access-Control-Allow-Origin`，浏览器会以 CORS 拒绝，控制台会留一条红色的跨域报错——这是预期行为，不影响游戏。
-
-因此快照需要定期刷新，三选一：
-
-### 手动
+## 本地预览
 
 ```powershell
-node tools/fetch-ladder.mjs
-git add data/ladder.json && git commit -m "refresh ladder" && git push
+python -m http.server 8123 --directory dist
 ```
 
-### 定时 Action（推荐）
-
-`.github/workflows/ladder.yml` 已经写好，默认每天 UTC 03:00 跑一次 `fetch-ladder.mjs`，有变化就自动提交。
-
-需要的话在仓库 **Settings → Actions → General** 把 `Workflow permissions` 设为 *Read and write permissions*。
-
-### 以后想真·实时
-
-只有两条路：
-
-1. 让 `shenjack.top` 加 `Access-Control-Allow-Origin: https://<you>.github.io`；
-2. 自己加一个小小的代理（Cloudflare Worker / Vercel Function），页面改成请求代理。
-
-在那之前，快照 + 定时刷新是最稳的“纯静态”方案。
-
-## 4. 自定义域名
-
-在 `Pages` 里填 Custom domain，并在仓库根放一个 `CNAME` 文件（内容为域名）。DNS 加一条 CNAME 指向 `<you>.github.io`。
-
-## 5. 本地预览
-
-```powershell
-python -m http.server 8080
-```
-
-不要用 `file://` 打开：ES Module + `fetch` 读 wasm 都会被浏览器安全策略拦掉。
+GitHub Pages 工作流仅保留手动触发，用于需要时发布独立演示；推送 `main` 不再自动部署旧站。

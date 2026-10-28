@@ -3,6 +3,7 @@
 import { el, sleep, handCardEl } from './ui.js';
 import { emojiImg } from './emoji.js';
 import { skillMeta } from './skills.js';
+import { potionPreview } from './game.js';
 import { playSkillFX } from './fx.js';
 
 const ACTIVE_ID = {
@@ -541,16 +542,20 @@ export class DuelView {
   // 喝药后立刻把界面上的血条/蓝条改掉；引擎会在这一手出牌时结算同样的数值
   previewPotion(meta, state) {
     if (!state || !meta) return null;
-    const next = { ...state };
-    if (meta.id === 'hp') {
-      next.hp = Math.min(state.max_hp, (state.hp || 0) + Math.max(10, Math.round((state.max_hp || 0) * 0.25)));
-    } else if (meta.id === 'mp') {
-      next.magic_point = Math.min(100, (state.magic_point || 0) + 40);
-    } else {
-      return next;
-    }
+    const next = potionPreview(meta, state);
     this.patchUnit(next);
     this.waitingState = next;
+    if (meta.id === 'mp' && this.handEl) {
+      // 回复 MP 后刷新原手牌的锁定状态，不重抽牌或重新掷费用。
+      for (const card of this.handEl.querySelectorAll('.hcard')) {
+        const cost = Number(card.dataset.mpCost || 0);
+        const locked = cost > next.magic_point;
+        card.disabled = locked;
+        card.classList.toggle('is-locked', locked);
+        card.title = locked ? 'MP 不足（需要 ' + cost + ' MP）' : (skillMeta(card.dataset.cardId)?.desc || '普通攻击');
+      }
+      this.renderEnergy(next.magic_point);
+    }
     return next;
   }
 
@@ -615,6 +620,7 @@ export class DuelView {
       node.style.animationDelay = `${i * 70}ms`;
       const card = i === 0 ? { id: 'normal' } : hand[i - 1];
       node.dataset.cardId = card.id;
+      node.dataset.mpCost = String(card.cost || 0);
     });
     this.handEl.replaceChildren(...cards);
     this.markWaiting(state.id);
@@ -630,9 +636,11 @@ export class DuelView {
 
   choose(decision, card, mp) {
     if (!this.interactive) return;
-    this.clearWaiting();
+    // 使用喝药后的 MP，避免点击回调仍捕获喝药前的旧余额。
+    mp = this.waitingState?.magic_point ?? mp;
     const id = card.id === 'normal' ? NORMAL_ID : ACTIVE_ID[card.id];
     if (id == null || (card.cost || 0) > mp) return;
+    this.clearWaiting();
     this.interactive = false;
     const node = this.handEl.querySelector(`[data-card-id="${card.id}"]`);
     if (node) {
@@ -657,9 +665,9 @@ export class DuelView {
   renderEnergy(energy) {
     if (!this.energyEl) return;
     const pips = [];
-    for (let i = 0; i < 4; i++) pips.push(el('i', { class: `pip${i < energy ? ' is-on' : ''}` }));
+    for (let i = 0; i < 4; i++) pips.push(el('i', { class: `pip${i < Math.ceil(energy / 25) ? ' is-on' : ''}` }));
     this.energyEl.replaceChildren(
-      el('span', { class: 'energybar__label' }, `能量 ${energy} / 4`),
+      el('span', { class: 'energybar__label' }, `MP ${energy} / 100`),
       el('span', { class: 'energybar__pips' }, pips),
     );
   }

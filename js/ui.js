@@ -1,9 +1,9 @@
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
-import { potionById, currentOpponent } from './game.js';
+import { potionById, currentOpponent, ladderStandings, potionDescription } from './game.js';
 import { makeCard } from './engine.js';
-import { emojiImg } from './emoji.js';
+import { emojiImg, mapIconSvg } from './emoji.js';
 // 生成和绘制共用尺寸，保持节点半径和几何约束一致。
 import { MAP_LAYOUT, mapNodeRadius } from './map.js';
 // 抽牌概率：被动不进牌堆，权重随熟练度线性增长（原先在 combat.js，那里已废弃）
@@ -818,6 +818,8 @@ export function renderMap(root, state, h) {
     const card = n.payload?.cards?.[0] || (n.payload?.cards ? n.payload.cards[0] : null);
     return card?.icon || null;
   };
+  // 地图物体也从同一雪碧图的 view 提取，避免混用系统 Emoji 字形。
+  const objectArt = mapIconSvg;
   const nodeHtml = g.nodes.map((n) => {
     const p = pos.get(n.id) || { x: 0, y: 0 };
     const isAvail = available.has(n.id);
@@ -832,17 +834,17 @@ export function renderMap(root, state, h) {
     const art = n.kind === 'start'
       ? '<text y="6" text-anchor="middle" class="map-glyph">起</text>'
       : n.kind === 'event'
-        ? '<text y="8" text-anchor="middle" class="map-question">?</text>'
+        ? objectArt('event')
         : n.kind === 'elite'
-          ? '<text y="9" text-anchor="middle" class="map-elite">👾</text>'
+          ? objectArt('boss')
           : n.kind === 'cpu'
-          ? '<text y="7" text-anchor="middle" class="map-cpu">PC</text>'
+          ? objectArt('cpu')
           : n.kind === 'shop'
           ? '<text y="8" text-anchor="middle" class="map-shop">$</text>'
           : n.kind === 'camp'
-          ? '<text y="8" text-anchor="middle" class="map-camp">🔥</text>'
+          ? objectArt('camp')
           : n.kind === 'filler'
-          ? '<text y="9" text-anchor="middle" class="map-monster">👾</text>'
+          ? objectArt('battle')
           : icon
             ? `<image href="${icon}" x="-16" y="-16" width="32" height="32" />`
             : '<text y="6" text-anchor="middle" class="map-glyph">战</text>';
@@ -890,16 +892,7 @@ export function renderMap(root, state, h) {
         el('div', { class: 'map__body' }),
         (() => {
           const mine = Number.isFinite(run.score) ? run.score : 0;
-          const sorted = [...(run.entries || [])].sort((a, b) => b.score - a.score);
-          const above = sorted.filter((e) => e.score > mine).length;
-          const startIdx = Math.max(0, above - 5);
-          const rows = [];
-          for (let i = 0; i < sorted.length; i++) {
-            const e = sorted[i];
-            rows.push({ pos: i + 1, entry: e, me: false });
-            if (i === above - 1) rows.push({ pos: above + 1, entry: null, me: true });
-          }
-          if (!rows.some((r) => r.me)) rows.push({ pos: Math.min(sorted.length + 1, above + 1), entry: null, me: true });
+          const rows = ladderStandings(run);
           const mineIdx = rows.findIndex((r) => r.me);
           const slice = rows.slice(Math.max(0, mineIdx - 5), mineIdx + 6);
           return el('aside', { class: 'map__rank' },
@@ -1238,24 +1231,16 @@ export function inventorySheet(state, h = {}) {
 }
 // ————————————————————— 药水
 
-export function potionIcon(p, size = 22) {
-  const svg = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">
-    <path d="M10 3h4v4.2c0 .5.2 1 .6 1.3l3.1 2.7c.8.7 1.3 1.7 1.3 2.8v5c0 1.7-1.3 3-3 3H8c-1.7 0-3-1.3-3-3v-5c0-1.1.5-2.1 1.3-2.8l3.1-2.7c.4-.3.6-.8.6-1.3V3z"
-      fill="${p.color}" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
-    <rect x="9" y="2" width="6" height="2.4" rx="1" fill="#7d8894"/>
-    <path d="M7 14h10v4c0 1-.8 1.8-1.8 1.8H8.8C7.8 19.8 7 19 7 18v-4z" fill="rgba(255,255,255,.35)"/>
-  </svg>`;
-  const wrap = document.createElement('span');
-  wrap.className = 'potion-icon';
-  wrap.innerHTML = svg;
-  return wrap;
+// 药瓶与技能共用 16×16 像素设计，奖励预览仅做最近邻等比放大。
+export function potionIcon(p, size = 16) {
+  const icon = emojiImg('potion-' + (p.id || 'hp'), 'emoji potion-icon');
+  icon.style.setProperty('--cell', size + 'px');
+  return icon;
 }
 
 // 药水说明：按实际实现（tswn 结算）精确描述
-function potionDesc(meta) {
-  if (meta.id === 'hp') return '生命药水：这一手不消耗行动，出牌时回复 25% 最大体力（不超过上限）';
-  return meta.name + '：这一手不消耗行动，出牌时' + meta.stat + ' +25%（至少 +8），结算完这一次行动后还原';
-}
+// 所有药水入口共用同一份引擎语义说明。
+const potionDesc = potionDescription;
 
 export function renderPotionDock(state, onUse) {
   let dock = document.getElementById('potion-dock');

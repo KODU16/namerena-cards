@@ -81,6 +81,6 @@ node tools/cdp.mjs <url> <out.png> [waitMs] [js]   # 无头 Chrome 截图 + 控�
 ## 版权与致谢
 
 - 引擎、角色构建规则、头像渲染：[`shenjackyuanjie/tswn-core`](https://github.com/shenjackyuanjie/tswn-core)（Rust / WASM，官方 v0.7.0 发行包）。
-- Twemoji 图形：CC-BY 4.0，版权归 Twitter/X 与贡献者，版本 17.0.2（与论坛 `shenjack.top:10008` 同款）。
+- 当前技能、战术与物体图标：项目自绘 16×16 像素设计，源码位于 `tools/build-icons.mjs`；发布时使用合并后的无损 PNG。仓库保留的旧 Twemoji 图形遵循 CC-BY 4.0，版权归 Twitter/X 与贡献者。
 - 天梯数据：`shenjack.top:10007` 的公开成员分数排名。
 - 本仓库的卡牌规则、界面与代码：见 [NOTICE.md](NOTICE.md)。

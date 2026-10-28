@@ -1,8 +1,6 @@
-# 推送主分支后构建并发布压缩产物，避免将开发源码作为站点提供。
+# GitHub Pages 仅保留手动演示；主站 /cards/ 由服务器自动跟随 main。
 name: Deploy compressed Pages
 on:
-  push:
-    branches: [main]
   workflow_dispatch:
 permissions:
   contents: read

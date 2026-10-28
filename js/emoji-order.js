@@ -1,13 +1,4 @@
-// 自动生成：雪碧图顺序（10 列，36px 一格）
-export const EMOJI_ORDER = [
-  'agi', 'atk', 'battle', 'coin', 'deck', 'def', 'engine', 'help',
-  'hp', 'ladder', 'lose', 'mag', 'normal', 'res', 'sklabsorb', 'sklaccumulate',
-  'sklassassinate', 'sklberserk', 'sklcharge', 'sklcharm', 'sklclone', 'sklcounter', 'sklcritical', 'sklcurse',
-  'skldefend', 'skldisperse', 'sklexchange', 'sklfire', 'sklhalf', 'sklhaste', 'sklheal', 'sklhide',
-  'sklice', 'skliron', 'sklmerge', 'sklpoison', 'sklprotect', 'sklquake', 'sklrapid', 'sklreflect',
-  'sklreraise', 'sklrevive', 'sklshadow', 'sklshield', 'sklslow', 'sklsummon', 'sklthunder', 'sklupgrade',
-  'sklzombie', 'spd', 'speed', 'star', 't-agi', 't-atk', 't-def', 't-fire',
-  't-heal', 't-hp', 't-ice', 't-iron', 't-mag', 't-poison', 't-protect', 't-reflect',
-  't-res', 't-revive', 't-shadow', 't-shield', 't-spd', 't-summon', 't-thunder', 't-wis',
-  'win', 'wis',
-];
+// 自动生成：16×16 原生像素图标的排列，修改 tools/build-icons.mjs 后重建。
+export const ICON_COLUMNS = 10;
+export const ICON_ROWS = 10;
+export const EMOJI_ORDER = ["atk","def","spd","agi","mag","res","wis","hp","sklfire","sklice","sklthunder","sklquake","sklabsorb","sklpoison","sklrapid","sklcritical","sklhalf","sklexchange","sklberserk","sklcharm","sklhaste","sklslow","sklcurse","sklheal","sklrevive","skldisperse","skliron","sklcharge","sklaccumulate","sklassassinate","sklsummon","sklclone","sklshadow","skldefend","sklprotect","sklreflect","sklreraise","sklshield","sklcounter","sklmerge","sklzombie","sklupgrade","sklhide","sklexplode","sklpossess","t-atk","t-def","t-spd","t-agi","t-mag","t-res","t-hp","t-wis","t-fire","t-ice","t-thunder","t-iron","t-reflect","t-summon","t-shadow","t-revive","t-poison","t-heal","t-shield","t-protect","potion-atk","potion-def","potion-spd","potion-agi","potion-mag","potion-res","potion-wis","potion-hp","potion-mp","battle","deck","ladder","engine","help","win","lose","speed","coin","normal","star","weapon","forge","bag","event","camp","cpu","shop","boss"];

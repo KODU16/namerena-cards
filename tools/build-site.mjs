@@ -5,6 +5,8 @@ import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { resolve, dirname, join, sep } from 'node:path';
 import { gzipSync } from 'node:zlib';
+// 所有构建平台由同一份整数坐标设计生成图标。
+import './build-icons.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'dist');
@@ -65,15 +67,19 @@ for (const n of [1, 2, 3]) {
   await emit(gradePaths[n], icon);
   gradeBytes += icon.length;
 }
-const app = Buffer.from(bundled.outputFiles[0].text.replace(/assets\/grade-([123])\.png/g, (_, n) => gradePaths[n]));
+// JS 和 CSS 使用同一张带内容指纹的图，不额外请求旧雪碧图。
+const iconSprite = await read('assets/icons-16.png');
+const iconSpriteName = 'icons-16-' + hash(iconSprite) + '.png';
+const app = Buffer.from(bundled.outputFiles[0].text.replace(/assets\/grade-([123])\.png/g, (_, n) => gradePaths[n])
+  .replaceAll('assets/icons-16.png', 'assets/' + iconSpriteName));
 const appName = 'main-' + hash(app) + '.js';
 await emit('js/' + appName, app);
-const sprite = await read('assets/emoji-sprite.png');
-const spriteName = 'emoji-sprite-' + hash(sprite) + '.png';
+const sprite = await read('assets/icons-16.png');
+const spriteName = 'icons-16-' + hash(sprite) + '.png';
 await emit('assets/' + spriteName, sprite);
 await emit('assets/favicon.png', await read('assets/favicon.png'));
 // 评级图标已随应用生成指纹路径，仅复制三张独立切片。
-const cssSource = (await read('css/style.css')).toString('utf8').replace(/emoji-sprite\.png(?:\?v=\d+)?/g, spriteName);
+const cssSource = (await read('css/style.css')).toString('utf8').replace(/icons-16\.png(?:\?v=\d+)?/g, spriteName);
 const css = (await transform(cssSource, { loader: 'css', minify: true, legalComments: 'none' })).code;
 const cssName = 'style-' + hash(css) + '.css';
 await emit('css/' + cssName, css);

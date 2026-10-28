@@ -100,7 +100,7 @@ button.ghost { background: #a9bcc8; border-color: #fff; }
 button.ghost:hover:not(:disabled) { background: linear-gradient(0deg, #a9bcc8 0%, #bcccd5 100%); }
 button.big { font-size: 16px; padding: 9px 22px; }
 
-/* ——— 表情图标（Twemoji 17.0.2，与论坛一致） */
+/* ——— 自绘 16×16 像素图标，使用独立单元边界 */
 .emoji {
   --cell: 16px;
   display: inline-block;
@@ -819,14 +819,14 @@ body, .app { background: #ffffff; }
 .unit-row .statuses { flex: none; }
 /* 雪碧图：一张 10x8 的图代替 74 个 img 请求 */
 .emoji-sprite {
-  background-image: url('../assets/emoji-sprite.png?v=5');
+  background-image: url('../assets/icons-16.png?v=1');
   background-repeat: no-repeat;
-  background-size: calc(var(--cell) * 10) calc(var(--cell) * 8);
+  background-size: calc(var(--cell) * var(--icon-cols, 10)) calc(var(--cell) * var(--icon-rows, 10));
   background-position: calc(var(--col, 0) * var(--cell) * -1) calc(var(--row, 0) * var(--cell) * -1);
   width: var(--cell);
   height: var(--cell);
   image-rendering: pixelated;
-  image-rendering: -webkit-optimize-contrast;
+  overflow: hidden;
 }
 
 /* 等待玩家出牌的单位：常亮高亮 */

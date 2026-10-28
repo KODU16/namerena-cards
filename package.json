@@ -8,6 +8,7 @@
     "serve": "python -m http.server 8080",
     "build:cards": "node tools/build-cards.mjs",
     "fetch:ladder": "node tools/fetch-ladder.mjs",
+    "build:icons": "node tools/build-icons.mjs",
     "build:site": "node tools/build-site.mjs"
   },
   "devDependencies": {

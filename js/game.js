@@ -33,6 +33,42 @@ export function randomWeapon(rng) {
   return s;
 }
 
+// 描述与实际 tswn 药水槽位一致；“魔力”属性和施法能量 MP 分开说明。
+export function potionDescription(meta) {
+  if (!meta) return '';
+  const timing = '作用于当前行动角色，不额外占用行动；选择后随本次出牌结算。';
+  if (meta.id === 'mp') return meta.name + '：回复 40 点 MP，上限 100；不是提高魔力属性。' + timing;
+  if (meta.id === 'hp') return meta.name + '：回复最大体力的 25%（向下取整，至少 10 点），不超过最大体力。' + timing;
+  const label = meta.id === 'mag' ? '魔力属性（法术强度，不是 MP）' : meta.stat;
+  return meta.name + '：' + label + '临时增加当前战斗内部值的 25%（向下取整，至少 8 点），持续本次行动，下一次行动开始前还原。' + timing;
+}
+
+// 与引擎相同的整数口径，供血条/蓝条和属性预览复用。
+export function potionPreview(meta, state) {
+  if (!meta || !state) return state;
+  const next = { ...state };
+  if (meta.id === 'hp') next.hp = Math.min(state.max_hp, state.hp + Math.max(10, Math.floor(state.max_hp / 4)));
+  else if (meta.id === 'mp') next.magic_point = Math.min(100, (state.magic_point || 0) + 40);
+  else {
+    const field = ['attack', 'defense', 'speed', 'agility', 'magic', 'resistance', 'wisdom'][meta.field];
+    if (field) next[field] = state[field] + Math.max(8, Math.trunc(state[field] / 4));
+  }
+  return next;
+}
+
+// 插入玩家后统一排序并重算名次，支持榜首、榜尾和同分并列。
+export function ladderStandings(run) {
+  const score = Number(run?.score) || 0;
+  const rows = (run?.entries || []).filter((e) => Number.isFinite(Number(e?.score)))
+    .map((entry) => ({ entry, score: Number(entry.score), me: false }));
+  rows.push({ entry: null, score, me: true });
+  rows.sort((a, b) => b.score - a.score || Number(a.me) - Number(b.me));
+  let rank = 1;
+  return rows.map((row, i) => {
+    if (i && row.score !== rows[i - 1].score) rank = i + 1;
+    return { ...row, pos: rank };
+  });
+}
 export function potionById(id) { return POTIONS.find((p) => p.id === id) || null; }
 
 const SAVE_KEY = 'namerena-cards/v1';
@@ -120,6 +156,7 @@ export function snapshot(state) {
     id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
     cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
     weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, forge: c.forge || null,
+    skillTraining: c.skillTraining || null,
     runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
   });
   return {
@@ -159,7 +196,7 @@ export function persist(state) {
       id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
       cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
       // 装备与武器信息也要存，否则刷新后武器就「消失」了
-      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, forge: c.forge || null, runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
+      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, forge: c.forge || null, skillTraining: c.skillTraining || null, runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
     });
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       v: 1,
@@ -514,6 +551,52 @@ export function cardBonus(state, card) {
   return bonus;
 }
 
+// 技能锻造独立于武器构建保存，换装仅替换天然技能，随后重叠永久增量。
+function rememberSkillTraining(state, card) {
+  if (card.skillTraining) return;
+  card.skillTraining = {};
+  const oldBuild = card.weapon ? buildWithWeapon(card.name, card.clan, card.weapon)?.skills : makeCard(card.name, card.clan)?.skillList;
+  for (const skill of card.skillList || []) {
+    if (!skill.forge) continue;
+    const natural = oldBuild?.find((s) => s.id === skill.id)?.lv || 0;
+    const forged = (state.run?.forged || []).filter((f) => f.charId === card.id && f.skillId === skill.id).reduce((sum, f) => sum + f.lv, 0);
+    card.skillTraining[skill.id] = { gain: Math.max(0, skill.lv - natural - forged), count: skill.forge, mpMul: skill.mpMul || 1 };
+  }
+}
+
+function skillsForBuild(state, card, natural) {
+  const list = new Map((natural || []).map((s) => [s.id, { ...s, cat: s.cat || SKILLS[s.id]?.cat || 'atk',
+    lv: card.weapon && s.id === 'skldisperse' ? Math.min(1, s.lv) : s.lv, fromWeapon: !!card.weapon }]));
+  const get = (id) => {
+    if (!list.has(id)) list.set(id, { id, lv: 0, cat: SKILLS[id]?.cat || 'atk' });
+    return list.get(id);
+  };
+  for (const f of state.run?.forged || []) {
+    if (f.charId !== card.id) continue;
+    const skill = get(f.skillId);
+    skill.lv += f.lv;
+    skill.forges = (skill.forges || ((natural || []).some((s) => s.id === skill.id) ? 1 : 0)) + 1;
+  }
+  for (const [id, training] of Object.entries(card.skillTraining || {})) {
+    const skill = get(id);
+    skill.lv += training.gain;
+    skill.forge = training.count;
+    skill.mpMul = training.mpMul;
+  }
+  return [...list.values()].filter((s) => s.lv > 0);
+}
+
+// 开战前也恢复旧存档里被换武器覆盖、但仍有锻造记录的技能。
+export function prepareBattleCard(state, card) {
+  rememberSkillTraining(state, card);
+  const hasForge = (state.run?.forged || []).some((f) => f.charId === card.id);
+  if (hasForge || Object.keys(card.skillTraining).length) {
+    const natural = card.weapon ? buildWithWeapon(card.name, card.clan, card.weapon)?.skills : makeCard(card.name, card.clan)?.skillList;
+    if (natural) card.skillList = skillsForBuild(state, card, natural);
+  }
+  return card;
+}
+
 // 构建结果再叠锻造、再套开局保底（保持与装备前一致）
 function finalStats(card, stats) {
   const mult = card.runMult || 1;
@@ -551,15 +634,11 @@ export function equipWeapon(state, weaponId, charId) {
   if (card.weapon) {
     list.push({ id: 'w-' + Date.now().toString(36) + '-old', name: card.weapon });
   }
+  rememberSkillTraining(state, card);
   card.weapon = weapon.name;
-  // 与 namerena 一致：装备武器后整条构建结果都换成「名字+武器」，属性与技能一起变
+  // 天然构建替换为名字+武器，属性锻造与技能锻造作为独立增量叠回。
   card.stats = finalStats(card, built.stats);
-  card.skillList = built.skills.map((s) => ({
-    id: s.id,
-    lv: s.id === 'skldisperse' ? Math.min(1, s.lv) : s.lv,
-    cat: SKILLS[s.id]?.cat || 'atk',
-    fromWeapon: true,
-  }));
+  card.skillList = skillsForBuild(state, card, built.skills);
 
   const deltas = [];
   for (const [key, label] of STAT_LABELS) {
@@ -580,11 +659,12 @@ export function equipWeapon(state, weaponId, charId) {
   state.weapons = state.weapons || [];
   const weapon = card.weapon;
   state.weapons.push({ id: 'w-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e6).toString(36), name: weapon });
+  rememberSkillTraining(state, card);
   card.weapon = '';
-  // 卸下后恢复本体构建：属性和技能都要回来
+  // 卸下后恢复本体天然构建，再叠回独立保存的锻造加成。
   const base = makeCard(card.name, card.clan);
   card.stats = finalStats(card, base.stats);
-  card.skillList = base.skillList;
+  card.skillList = skillsForBuild(state, card, base.skillList);
   card.weaponInfo = null;
   persist(state);
   return weapon;
@@ -698,6 +778,26 @@ export function cpuScan(prefix, startAt, cpu, clan) {
   return best ? { card: best, sum: bestSum, name: bestName, scanned: range + 1 } : null;
 }
 
+// 每个 PC 节点只消耗一次有效测号机会；先落盘再扫描，刷新或连点也不会重复发奖。
+export function scanCpuNode(state, nodeId, prefix, startAt) {
+  const node = state.run?.graph?.byId?.get(nodeId);
+  if (!node || node.kind !== 'cpu' || state.run.nodeId !== nodeId) return { ok: false, reason: 'invalid_node' };
+  if (node.cpuScanUsed) return { ok: false, reason: 'used', result: node.cpuScanResult || null };
+  if (!String(prefix || '').trim() || /\s/.test(prefix)) return { ok: false, reason: 'invalid_prefix' };
+  node.cpuScanUsed = true;
+  persist(state);
+  try {
+    const result = cpuScan(prefix, startAt, node.payload, state.run.clan || '无名');
+    node.cpuScanResult = result;
+    if (result && !state.collection.some((c) => c.name === result.card.name)) grantCard(state, result.card);
+    persist(state);
+    return { ok: !!result, reason: result ? '' : 'empty', result };
+  } catch {
+    persist(state);
+    return { ok: false, reason: 'failed' };
+  }
+}
+
 // 商店：用任意类型的奖励
 export function rollShop(state, seed, layer = 1) {
   const r = mulberry32(seed);
@@ -776,9 +876,16 @@ export function campForge(state, charId, skillId) {
   const card = (state.collection || []).find((c) => c.id === charId);
   const skill = card?.skillList?.find((s) => s.id === skillId);
   if (!skill) return null;
-  skill.forge = (skill.forge || 0) + 1;
-  skill.lv = skill.lv + Math.max(1, Math.round(skill.lv * 0.05));
-  skill.mpMul = (skill.mpMul || 1) * 0.95;
+  rememberSkillTraining(state, card);
+  const gain = Math.max(1, Math.round(skill.lv * 0.05));
+  const training = card.skillTraining[skillId] || { gain: 0, count: 0, mpMul: 1 };
+  training.gain += gain;
+  training.count += 1;
+  training.mpMul *= 0.95;
+  card.skillTraining[skillId] = training;
+  skill.forge = training.count;
+  skill.lv += gain;
+  skill.mpMul = training.mpMul;
   persist(state);
   return skill;
 }

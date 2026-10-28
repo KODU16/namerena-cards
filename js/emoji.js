@@ -1,4 +1,4 @@
-﻿// 表情图标：与论坛（shenjack.top:10008）同款 Twemoji 17.0.2，本地打包不走外链。
+// 项目自绘 16×16 像素图标：统一配色、透明边界，无需外部字体或图片服务。
 export const EMOJI_CHARS = {
   // 技能
   sklfire: '🔥', sklice: '❄️', sklthunder: '⚡', sklquake: '🌋', sklabsorb: '🩸', sklpoison: '☠️',
@@ -17,12 +17,18 @@ export const EMOJI_CHARS = {
   speed: '⏩', coin: '🪙', normal: '⚔️', star: '✨',
 };
 
-// 雪碧图：74 个图标合成一张（10 列 × 36px），只占一次请求
-import { EMOJI_ORDER } from './emoji-order.js';
+// 全部技能和物体图标合成一张无损 PNG，每个单元恰好 16×16。
+import { EMOJI_ORDER, ICON_COLUMNS, ICON_ROWS } from './emoji-order.js';
 
-const COLS = 10;
+const COLS = ICON_COLUMNS;
 
-export const emojiSrc = (key) => `assets/emoji/${key}.png`;
+// SVG 地图通过嵌套视口裁切同一张 PNG，不需要额外下载整张源 SVG。
+export function mapIconSvg(key) {
+  const i = EMOJI_ORDER.indexOf(key);
+  if (i < 0) return '';
+  return '<svg x="-12" y="-12" width="24" height="24" viewBox="' + (i % COLS * 16) + ' ' + (Math.floor(i / COLS) * 16)
+    + ' 16 16" overflow="hidden"><image href="assets/icons-16.png" width="' + ICON_COLUMNS * 16 + '" height="' + ICON_ROWS * 16 + '" style="image-rendering:pixelated" /></svg>';
+}
 
 export function emojiImg(key, cls = 'emoji') {
   const span = document.createElement('span');
@@ -31,6 +37,8 @@ export function emojiImg(key, cls = 'emoji') {
   span.setAttribute('aria-label', key);
   const i = EMOJI_ORDER.indexOf(key);
   if (i < 0) return span;
+  span.style.setProperty('--icon-cols', String(ICON_COLUMNS));
+  span.style.setProperty('--icon-rows', String(ICON_ROWS));
   span.style.setProperty('--col', String(i % COLS));
   span.style.setProperty('--row', String(Math.floor(i / COLS)));
   return span;
