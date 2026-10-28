@@ -1,4 +1,4 @@
-﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById } from './game.js';
@@ -779,8 +779,10 @@ export function renderMap(root, state, h) {
           : n.kind === 'event' ? '事件 ?'
             : '试炼';
     return `<g class="${cls.join(' ')}" data-id="${n.id}" transform="translate(${p.x},${p.y})">
-      <circle r="${r}"></circle>
-      ${art}
+      <g class="map-node__art">
+        <circle r="${r}"></circle>
+        ${art}
+      </g>
       <text y="${r + 16}" text-anchor="middle" class="map-label">${label}</text>
     </g>`;
   }).join('');

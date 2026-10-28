@@ -1048,9 +1048,11 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .map-node--start circle { fill: #ffffff; }
 .map-node.is-avail circle { fill: #2f8ec9; }
 
-/* 悬停放大；点击时由粒子爆发反馈 */
-.map-node.is-avail { transition: scale .16s ease; transform-box: fill-box; transform-origin: center; }
-.map-node.is-avail:hover { scale: 1.14; }
+/* 悬停放大：只缩放节点本体（绕本地原点 0,0，不随鼠标位移） */
+.map-node__art { transform-origin: 0 0; transform-box: view-box; }
+.map-node.is-avail { cursor: pointer; }
+.map-node.is-avail .map-node__art { transition: transform .16s ease; }
+.map-node.is-avail:hover .map-node__art { transform: scale(1.14); }
 .map-node.is-choosing circle { animation: nodePulse .7s ease-out both; }
 @keyframes nodePulse {
   0% { opacity: 1; }
