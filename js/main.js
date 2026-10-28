@@ -238,6 +238,21 @@ function prep() {
     ownedTacticObjects: (s) => G.ownedTacticObjects(s),
     forgeSelected: forgeSel,
     onPickSkillCard: (uid) => { forgeSel = forgeSel === uid ? null : uid; prep(); },
+    onBack: () => {
+      state.run.selectedId = null;
+      G.persist(state);
+      mapScreen();
+    },
+    onEquipWeapon: (weaponId, charId) => {
+      const w = G.equipWeapon(state, weaponId, charId);
+      if (w) toast('已装备 ' + w.name, 1500);
+      prep();
+    },
+    onUnequip: (charId) => {
+      const w = G.unequipWeapon(state, charId);
+      if (w) toast('已卸下 ' + w, 1500);
+      prep();
+    },
     onToggleTeam: (id) => {
       if ((state.run.downed || []).includes(id)) return toast('这名角色已经倒下，本局不能再出战');
       const ids = state.run.teamIds;

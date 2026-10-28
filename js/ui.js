@@ -253,7 +253,26 @@ export function renderPrep(root, state, h) {
         el('div', { class: 'prep__col' },
           el('h3', { class: 'col-title' }, `你的出战队伍 ${team.length}/${run.teamSize}`),
           el('div', { class: 'roster-grid' }, team.length
-            ? team.map((c) => cardEl(c, { size: 'big' }))
+            ? team.map((c) => el('div', { class: 'team-slot' },
+              cardEl(c, { size: 'big' }),
+              (() => {
+                const weapons = state.weapons || [];
+                const sel = el('select', {
+                  class: 'weapon-pick',
+                  title: '给这名角色换武器',
+                  onchange: (ev) => {
+                    const v = ev.target.value;
+                    if (!v) h.onUnequip && h.onUnequip(c.id);
+                    else h.onEquipWeapon && h.onEquipWeapon(v, c.id);
+                  },
+                },
+                  el('option', { value: '' }, '无武器'),
+                  ...weapons.map((w) => el('option', { value: w.id }, '⚔ ' + w.name)),
+                );
+                const current = weapons.find((w) => w.name === c.weapon);
+                sel.value = current ? current.id : '';
+                return sel;
+              })()))
             : [el('div', { class: 'empty-slot' }, `从下方选择 ${run.teamSize} 名角色`)]),
           el('div', { class: 'tactic-slots' },
             tactics.length ? tactics.map((t) => el('span', { class: 'tactic-chip', title: t.desc }, emojiImg(t.id, 'emoji emoji--xs'), ` ${t.name}`)) : el('span', { class: 'muted' }, '未挂战术卡')),
@@ -291,6 +310,7 @@ export function renderPrep(root, state, h) {
       ),
       el('div', { class: 'prep__foot' },
         el('div', { class: 'muted' }, full ? `出战：${team.map((t) => t.name).join('、')}` : `还需要 ${run.teamSize - team.length} 名角色`),
+        el('button', { class: 'ghost', type: 'button', onclick: h.onBack || (() => {}) }, '返回地图'),
         el('button', { class: 'primary', type: 'button', disabled: !full, onclick: h.onFight }, '开战'),
       ),
     ),
