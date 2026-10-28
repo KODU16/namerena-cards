@@ -1,0 +1,97 @@
+name: Deploy cards to shenjack.top
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'js/**'
+      - 'css/**'
+      - 'index.html'
+      - 'data/**'
+      - 'assets/**'
+      - 'vendor/**'
+      - 'server/**'
+      - 'tools/**'
+      - 'package.json'
+      - 'package-lock.json'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-cards
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7.0.1
+
+      - uses: actions/setup-node@v7.1.0
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Build compressed site
+        run: |
+          npm ci
+          npm run build:site
+
+      # 没配密钥时整步跳过：fork / PR / 未配置仓库都不会失败
+      - name: Check deploy secrets
+        id: gate
+        env:
+          DEPLOY_HOST: ${{ secrets.CARDS_DEPLOY_HOST }}
+        run: |
+          if [ -n "$DEPLOY_HOST" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::未配置 CARDS_DEPLOY_HOST，跳过部署（只构建）"
+          fi
+
+      - name: Install ssh key
+        if: steps.gate.outputs.enabled == 'true'
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.CARDS_DEPLOY_KEY }}" > ~/.ssh/id_deploy
+          chmod 600 ~/.ssh/id_deploy
+          ssh-keyscan -H "${{ secrets.CARDS_DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Upload dist
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          HOST: ${{ secrets.CARDS_DEPLOY_HOST }}
+          USER: ${{ secrets.CARDS_DEPLOY_USER }}
+          TARGET: ${{ secrets.CARDS_DEPLOY_PATH }}
+          PORT: ${{ secrets.CARDS_DEPLOY_PORT }}
+        run: |
+          PORT="${PORT:-22}"
+          TARGET="${TARGET:-/srv/namerena-cards/dist}"
+          rsync -az --delete -e "ssh -i ~/.ssh/id_deploy -p $PORT" \
+            dist/ "$USER@$HOST:$TARGET/"
+
+      - name: Upload server code
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          HOST: ${{ secrets.CARDS_DEPLOY_HOST }}
+          USER: ${{ secrets.CARDS_DEPLOY_USER }}
+          TARGET: ${{ secrets.CARDS_DEPLOY_PATH }}
+          PORT: ${{ secrets.CARDS_DEPLOY_PORT }}
+        run: |
+          PORT="${PORT:-22}"
+          TARGET="${TARGET:-/srv/namerena-cards/dist}"
+          SERVER_DIR="$(dirname "$TARGET")/server"
+          rsync -az --delete -e "ssh -i ~/.ssh/id_deploy -p $PORT" \
+            server/ "$USER@$HOST:$SERVER_DIR/"
+
+      - name: Restart backend
+        if: steps.gate.outputs.enabled == 'true'
+        env:
+          HOST: ${{ secrets.CARDS_DEPLOY_HOST }}
+          USER: ${{ secrets.CARDS_DEPLOY_USER }}
+          PORT: ${{ secrets.CARDS_DEPLOY_PORT }}
+          RESTART: ${{ secrets.CARDS_RESTART_CMD }}
+        run: |
+          PORT="${PORT:-22}"
+          ssh -i ~/.ssh/id_deploy -p "$PORT" "$USER@$HOST" "${RESTART:-sudo systemctl restart cards-backend}"

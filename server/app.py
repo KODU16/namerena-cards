@@ -360,6 +360,28 @@ def api_finish_run(run_id: int):
     })
 
 
+# ———————————————————————————————— 部署钩子（可选）
+
+DEPLOY_SECRET = env('DEPLOY_SECRET', '')
+DEPLOY_SCRIPT = env('DEPLOY_SCRIPT', os.path.join(APP_DIR, 'deploy.sh'))
+
+
+@app.post('/api/cards/_deploy')
+def api_deploy():
+    """让 CI 或本地一把梭触发服务器更新：带 X-Deploy-Secret 的 POST。
+
+    没配 DEPLOY_SECRET 时这个接口等于不存在（一律 404），避免误开。
+    """
+    if not DEPLOY_SECRET:
+        raise ApiError(404, 'not_found', '未启用部署钩子。')
+    if not hmac.compare_digest(request.headers.get('X-Deploy-Secret', ''), DEPLOY_SECRET):
+        raise ApiError(401, 'login_required', '部署密钥不正确。')
+    if not os.path.isfile(DEPLOY_SCRIPT):
+        raise ApiError(500, 'deploy_failed', '服务器上找不到 deploy.sh。')
+    import subprocess
+    subprocess.Popen(['bash', DEPLOY_SCRIPT], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return ok({'started': True, 'script': DEPLOY_SCRIPT})
+
 # ———————————————————————————————— 静态站点：/cards/
 
 

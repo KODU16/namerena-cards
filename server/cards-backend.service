@@ -1,0 +1,18 @@
+[Unit]
+Description=namerena-cards backend
+After=network.target
+
+[Service]
+Type=simple
+User=cards
+WorkingDirectory=/srv/namerena-cards/server
+Environment=CARDS_SECRET=CHANGE_ME
+Environment=DATABASE_PATH=/var/lib/cards/cards.sqlite3
+Environment=DIST_DIR=/srv/namerena-cards/dist
+Environment=PLATFORM_SESSION=https://shenjack.top/api/cards/session
+ExecStart=/usr/bin/env gunicorn -w 2 -b 127.0.0.1:8800 app:app
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

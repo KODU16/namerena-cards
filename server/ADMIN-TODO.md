@@ -133,3 +133,50 @@ https://shenjack.top/api/cards/session
 3. 会话校验接口地址（若沿用默认则无需提供）；
 4. 测试账号 `cards-dev` 的密码；
 5. dist 的更新方式（rsync 账号 / CI / 手动）。
+
+---
+
+## 六、自动部署（让「本地推送 → 线上生效」无需人工）
+
+仓库里已经内置两条可选通路，管理员挑一条启用即可。
+
+### 通路 A：GitHub Actions 直推（延迟 ≈ 1 分钟，推荐）
+
+仓库新增 `.github/workflows/deploy-cards.yml`：推 `main` 后自动 `npm run build:site`，
+再用 rsync 把 `dist/` 与 `server/` 推到服务器，最后执行重启命令。
+
+管理员需要提供：
+
+- [ ] 一个可 `ssh` 的部署账号（只需对 `/srv/namerena-cards` 有写权限 + 重启服务的 sudo）；
+- [ ] 它的私钥（我们这边填到仓库 Secrets）；
+- [ ] 服务器地址、端口、部署路径；
+- [ ] 重启命令（默认 `sudo systemctl restart cards-backend`）。
+
+仓库 Secrets 需要填：`CARDS_DEPLOY_HOST`、`CARDS_DEPLOY_USER`、`CARDS_DEPLOY_KEY`、
+`CARDS_DEPLOY_PORT`（可选）、`CARDS_DEPLOY_PATH`、`CARDS_RESTART_CMD`（可选）。
+没填 `CARDS_DEPLOY_HOST` 时该工作流只构建不部署，不会报错。
+
+### 通路 B：服务器定时拉取（不给 SSH，延迟可调到 30 秒）
+
+服务器上装好 `server/cards-pull.timer`（默认每 2 分钟）：
+
+```bash
+sudo cp server/cards-pull.service server/cards-pull.timer /etc/systemd/system/
+sudo systemctl enable --now cards-pull.timer
+```
+
+`server/deploy.sh` 会做：`git reset --hard origin/main` → `npm ci` → `npm run build:site` →
+`systemctl restart cards-backend`。把 timer 里的 `OnUnitActiveSec` 改成 `30s` 即可做到近实时。
+
+要求：服务器上要有 `git`、`node`、`npm`，且 `/srv/namerena-cards` 是仓库的 clone。
+
+### 通路 C：Webhook（可选）
+
+`POST /api/cards/_deploy`，请求头 `X-Deploy-Secret: <DEPLOY_SECRET>`，服务端执行
+`server/deploy.sh` 并立即返回。未设置 `DEPLOY_SECRET` 时该接口一律 404。
+
+适合「本地推 → 手动或脚本打一发」的场景：
+
+```bash
+curl -X POST https://shenjack.top/api/cards/_deploy -H "X-Deploy-Secret: $SECRET"
+```

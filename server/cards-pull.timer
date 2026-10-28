@@ -1,0 +1,10 @@
+[Unit]
+Description=Every 2 minutes: pull and redeploy namerena-cards
+
+[Timer]
+OnBootSec=2min
+OnUnitActiveSec=2min
+Unit=cards-pull.service
+
+[Install]
+WantedBy=timers.target

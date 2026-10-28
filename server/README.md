@@ -1,4 +1,4 @@
-﻿# cards 后端（对局记录 + 静态站点）
+# cards 后端（对局记录 + 静态站点）
 
 与主站同源部署：`https://shenjack.top/cards/` 提供游戏，`https://shenjack.top/api/cards/*` 提供接口。
 

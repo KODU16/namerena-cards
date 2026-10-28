@@ -1,0 +1,9 @@
+[Unit]
+Description=Pull latest namerena-cards and redeploy
+
+[Service]
+Type=oneshot
+User=cards
+WorkingDirectory=/srv/namerena-cards
+Environment=APP_DIR=/srv/namerena-cards
+ExecStart=/srv/namerena-cards/server/deploy.sh
