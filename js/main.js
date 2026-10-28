@@ -197,7 +197,7 @@ function syncDraft() {
   draft.names = draft.names || [];
   while (draft.names.length < size) draft.names.push(G.randomName());
   draft.names.length = size;
-  draft.cards = draft.names.map((n) => safeCard(n, draft.clan || '无名')).filter(Boolean);
+  draft.cards = draft.names.map((n) => (n ? safeCard(n, draft.clan || '无名') : null)).filter(Boolean);
 }
 
 function newRunSetup() {
@@ -227,6 +227,16 @@ function newRunSetup() {
       syncDraft();
       newRunSetup();
     },
+    onRemoveName: (i) => {
+      draft.names[i] = '';
+      syncDraft();
+      newRunSetup();
+    },
+    onRefillName: (i) => {
+      draft.names[i] = G.randomName();
+      syncDraft();
+      newRunSetup();
+    },
     onRerollAll: () => {
       if (draft.rerolls <= 0) return;
       draft.rerolls -= 1;
@@ -235,7 +245,7 @@ function newRunSetup() {
       newRunSetup();
     },
     onStart: async () => {
-      if (!draft.cards || draft.cards.length < teamSizeOf(draft.lane)) return toast('这些名字无法构建，先重抽');
+      if (!draft.cards || draft.cards.length < teamSizeOf(draft.lane)) return toast('还有空位，先填满名字');
       await G.startRun(state, {
         seed: Date.now() >>> 0,
         lane: draft.lane || '1A',
@@ -574,6 +584,41 @@ function mapScreen() {
     onInventory: openInventory,
     onPick: (nodeId) => {
       const node = state.run.graph.byId.get(nodeId);
+      if (node?.kind === 'cpu') {
+        G.enterCamp(state, nodeId);
+        const cpu = node.payload;
+        const openCpu = () => {
+          const prefixInput = el('input', { id: 'cpu-prefix', placeholder: '输入前缀，例如 123', maxlength: '8', autocomplete: 'off' });
+          const out = el('div', { class: 'cpu-result' });
+          const run = () => {
+            const prefix = prefixInput.value.trim();
+            if (!/^[0-9A-Za-z]+$/.test(prefix)) { toast('前缀只能是数字或字母', 1600); return; }
+            const startAt = 1000 + Math.floor(Math.random() * 9000);
+            out.replaceChildren(el('div', { class: 'muted' }, '正在测号…'));
+            setTimeout(() => {
+              const res = G.cpuScan(prefix, startAt, cpu, state.run.clan || '无名');
+              if (!res) { out.replaceChildren(el('div', { class: 'error' }, '没有扫到可用名字')); return; }
+              if (!state.collection.some((c) => c.name === res.card.name)) state.collection.push(res.card);
+              G.persist(state);
+              out.replaceChildren(
+                el('div', { class: 'muted small' }, '扫描 ' + res.scanned + ' 个名字（' + prefix + startAt + ' ~ ' + prefix + (startAt + cpu.speed) + '）'),
+                UI.charRowEl(res.card),
+                el('div', { class: 'muted small' }, '已加入角色库：' + res.name + '（八围 ' + res.sum + '）'));
+              toast('测号完成：' + res.name, 2000);
+            }, 30);
+          };
+          const sheetNode = el('div', {},
+            el('h2', {}, '电脑 · ' + cpu.name + '-' + cpu.attr),
+            el('p', { class: 'muted' }, '这台电脑的八围是 ' + cpu.attr + '，速度 ' + cpu.speed + '。测号会在「前缀+随机数」起、共 ' + cpu.speed + ' 个数字里，选出八围最高的名字放进角色库。'),
+            el('div', { class: 'cpu-form' }, prefixInput,
+              el('button', { class: 'primary', type: 'button', onclick: run }, '测号')),
+            out,
+            el('div', { class: 'result__actions' }, el('button', { class: 'ghost', type: 'button', onclick: () => { closeSheet(); mapScreen(); } }, '离开')));
+          sheet(sheetNode);
+        };
+        openCpu();
+        return;
+      }
       if (node?.kind === 'shop') {
         const openShop = () => {
           const items = G.rollShop(state, (state.run.seed ^ (state.run.layer * 2654435761) ^ 0x51ed270b) >>> 0, state.run.layer);

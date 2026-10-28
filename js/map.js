@@ -87,7 +87,7 @@ function shuffle(arr, rng) {
 }
 
 // 构造一层地图。makeFiller(teamSize) 返回若干张 @! 卡
-export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, makeElite }) {
+export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, makeElite, makeCpu }) {
   const ranks = layerRanks(layer);
   const byRank = new Map(entries.map((e) => [e.rank, e]));
   const ladderNodes = ranks.map((r) => byRank.get(r)).filter(Boolean);
@@ -183,6 +183,15 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     if (open.length) {
       const d = open[Math.floor(rng() * open.length)];
       groups[d].push(mk('shop', null, null));
+    }
+  }
+  // 电脑节点：一台 CPU，可以测号，每层 1 个
+  {
+    const open = [];
+    for (let d = 2; d <= DEPTHS; d++) if (groups[d].length < MAX_PER_DEPTH) open.push(d);
+    if (open.length && makeCpu) {
+      const d = open[Math.floor(rng() * open.length)];
+      groups[d].push(mk('cpu', makeCpu(rng), null));
       const open2 = [];
       for (let d2 = 2; d2 <= DEPTHS; d2++) if (groups[d2].length < MAX_PER_DEPTH) open2.push(d2);
       if (open2.length) groups[open2[Math.floor(rng() * open2.length)]].push(mk('shop', null, null));

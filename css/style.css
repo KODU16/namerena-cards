@@ -1170,3 +1170,16 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .setup__name-idx { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 18px; }
 .setup__name-row b { font-size: 14px; }
 .setup__name-row .ghost { margin-left: auto; font-size: 11px; padding: 2px 8px; }
+/* 八围评级图标 */
+.grade-icon { width: 16px; height: 16px; image-rendering: pixelated; vertical-align: middle; }
+.fullrow__head .grade-icon { margin-left: 4px; }
+/* 电脑节点 */
+.map-node--cpu circle { fill: #eef2fb; stroke: #4a5b9a; }
+.map-node.is-avail.map-node--cpu circle { fill: #4a5b9a; }
+/* 开始界面：空位与删除 */
+.setup__name-row.is-empty b { color: var(--muted); font-weight: 400; }
+.ghost--del { color: #b3452f !important; }.cpu-form { display: flex; gap: 8px; margin: 10px 0; }
+.cpu-form input { flex: 1; padding: 7px 10px; border-radius: 10px; border: 1px solid var(--line); font-size: 13px; }
+.cpu-result { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.map-cpu { font-size: 11px; font-weight: 700; fill: #4a5b9a; pointer-events: none; }
+

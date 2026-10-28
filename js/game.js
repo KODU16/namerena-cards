@@ -258,6 +258,7 @@ export function buildGraphForLayer(state) {
     rng: r,
     makeFiller: (teamSize, rr) => makeFiller(teamSize, rr),
     makeElite: (teamSize, rr) => makeElite(teamSize, rr),
+    makeCpu: (rr) => makeCpu(rr),
   });
   run.nodeId = run.graph.startId;
   run.selectedId = null;
@@ -518,7 +519,41 @@ export function addScorePoints(state, points) {
   return Math.round(points);
 }
 
-// 商店：用分数买任意类型的奖励
+// 八围：七围 + 体力，速用引擎内部值（对外展示是 -124 的折合值）
+export function eightSum(card) {
+  const s = card?.stats;
+  if (!s) return 0;
+  return Math.round((s.atk || 0) + (s.def || 0) + (s.spd || 0) + (s.agi || 0) + (s.mag || 0) + (s.res || 0) + (s.wis || 0) + (s.hp || 0));
+}
+
+// 电脑节点：一台随机 CPU，八围随机（显示名-八围），速度 = 八围 × 10
+export function makeCpu(rng) {
+  const len = 3 + Math.floor(rng() * 3);
+  let name = '';
+  for (let i = 0; i < len; i++) name += String.fromCharCode(65 + Math.floor(rng() * 26));
+  const attr = 380 + Math.floor(rng() * 220);
+  return { name, attr, speed: attr * 10 };
+}
+
+// 测号：从「前缀+随机数字」开始，在 speed 个数字内找八围最高的名字
+export function cpuScan(prefix, startAt, cpu, clan) {
+  const pre = String(prefix || '').replace(/[^0-9A-Za-z]/g, '');
+  if (!pre) return null;
+  let best = null;
+  let bestSum = -1;
+  let bestName = '';
+  const range = Math.max(1, Math.round(cpu?.speed || 0));
+  for (let i = 0; i <= range; i++) {
+    const nm = pre + (startAt + i);
+    const card = makeCard(nm, clan || '无名');
+    if (!card) continue;
+    const sum = eightSum(card);
+    if (sum > bestSum) { bestSum = sum; best = card; bestName = nm; }
+  }
+  return best ? { card: best, sum: bestSum, name: bestName, scanned: range + 1 } : null;
+}
+
+// 商店：用任意类型的奖励
 export function rollShop(state, seed, layer = 1) {
   const r = mulberry32(seed);
   const run = state.run;

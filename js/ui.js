@@ -206,10 +206,15 @@ export function renderNewRun(root, state, h) {
             el('button', { class: `chip${d.lane === lane ? ' is-active' : ''}`, type: 'button', onclick: () => h.onChangeLane(lane) }, lane))),
           el('div', { class: 'setup__names' },
             el('span', { class: 'muted' }, '本次随机名字（每行一个，对应一名出战角色）'),
-            ...(d.names || []).map((name, i) => el('div', { class: 'setup__name-row' },
+            ...(d.names || []).map((name, i) => el('div', { class: 'setup__name-row' + (name ? '' : ' is-empty') },
               el('span', { class: 'setup__name-idx' }, String(i + 1) + '.'),
-              el('b', {}, name),
-              el('button', { class: 'ghost', type: 'button', disabled: d.rerolls <= 0, onclick: () => h.onRerollRow && h.onRerollRow(i) }, '换'))),
+              el('b', {}, name || '（空位）'),
+              name
+                ? el('button', { class: 'ghost', type: 'button', disabled: d.rerolls <= 0, onclick: () => h.onRerollRow && h.onRerollRow(i) }, '换')
+                : el('button', { class: 'ghost', type: 'button', onclick: () => h.onRefillName && h.onRefillName(i) }, '随机填'),
+              name
+                ? el('button', { class: 'ghost ghost--del', type: 'button', title: '删除这个角色', onclick: () => h.onRemoveName && h.onRemoveName(i) }, '删除')
+                : null)),
           ),
           el('div', { class: 'setup__actions' },
             el('button', { class: 'secondary', type: 'button', disabled: d.rerolls <= 0, onclick: h.onReroll },
@@ -825,6 +830,8 @@ export function renderMap(root, state, h) {
         ? '<text y="8" text-anchor="middle" class="map-question">?</text>'
         : n.kind === 'elite'
           ? '<text y="9" text-anchor="middle" class="map-elite">👾</text>'
+          : n.kind === 'cpu'
+          ? '<text y="7" text-anchor="middle" class="map-cpu">PC</text>'
           : n.kind === 'shop'
           ? '<text y="8" text-anchor="middle" class="map-shop">$</text>'
           : n.kind === 'camp'
@@ -838,7 +845,8 @@ export function renderMap(root, state, h) {
       : n.kind === 'end' ? `终点 #${n.rank ?? ''}`
         : n.kind === 'ladder' ? `天梯 #${n.rank ?? '?'}`
           : n.kind === 'elite' ? '精英'
-            : n.kind === 'shop' ? '商店'
+            : n.kind === 'cpu' ? '电脑'
+              : n.kind === 'shop' ? '商店'
               : n.kind === 'camp' ? '篝火'
                 : n.kind === 'event' ? '事件 ?'
                   : '试炼';
@@ -982,6 +990,20 @@ function colorFromIcon(src) {
   } catch { return ''; }
 }
 
+// 八围：七围 + 体力，速用引擎内部值
+export function eightSumOf(card) {
+  const s = card?.stats;
+  if (!s) return 0;
+  return Math.round((s.atk || 0) + (s.def || 0) + (s.spd || 0) + (s.agi || 0) + (s.mag || 0) + (s.res || 0) + (s.wis || 0) + (s.hp || 0));
+}
+
+// 八围评级图标：>692 第一枚，>672 第二枚，>652 第三枚
+export function gradeIcon(card) {
+  const sum = eightSumOf(card);
+  const n = sum > 692 ? 1 : sum > 672 ? 2 : sum > 652 ? 3 : 0;
+  return n ? el('img', { class: 'grade-icon', src: 'assets/grade-' + n + '.png', alt: '', title: '八围 ' + sum }) : null;
+}
+
 // 可交互的完整角色行（点击/置灰/选中）
 export function charRowEl(card, { onClick = null, dim = false, selected = false } = {}) {
   const row = fullCharRow(card);
@@ -993,8 +1015,6 @@ export function charRowEl(card, { onClick = null, dim = false, selected = false 
   return node;
 }
 
-// 角色库里的完整角色行：仿战斗中单位行，全文字、不用图标
-// 可交互的完整角色行（点击/置灰/选中）
 
 // 角色库里的完整角色行：仿战斗中单位行，全文字、不用图标
 export function fullCharRow(card) {
@@ -1010,7 +1030,8 @@ export function fullCharRow(card) {
     el('div', { class: 'fullrow__head' },
       card.icon ? el('img', { class: 'fullrow__icon', src: card.icon, alt: '' }) : null,
       el('b', {}, (card.name || '') + '@' + (card.clan || '')),
-      card.weapon ? el('span', { class: 'fullrow__weapon' }, '+' + card.weapon) : null),
+      card.weapon ? el('span', { class: 'fullrow__weapon' }, '+' + card.weapon) : null,
+      gradeIcon(card)),
     bar('fullrow__bar--hp', '血量 ' + hp, 100),
     bar('fullrow__bar--mp', '魔力 ' + mp, mp),
     shield > 0 ? bar('fullrow__bar--shield', '护盾 ' + shield, (shield / hp) * 100) : null,
