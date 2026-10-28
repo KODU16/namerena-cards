@@ -292,10 +292,33 @@ export function makeFiller(teamSize, rng) {
   for (let i = 0; i < Math.max(1, teamSize); i++) {
     try {
       const card = makeCard(randomName(rng), '!');
-      if (rng() < 0.35) {
+      // 试炼敌人 50% 概率带武器：整条构建换成「名字+武器」，并记录差值供卡面显示
+      if (rng() < 0.5) {
         const weapon = randomWeapon(rng);
-        const stats = statsWithWeapon(card.name, card.clan, weapon);
-        if (stats) { card.weapon = weapon; card.stats = stats; }
+        const built = buildWithWeapon(card.name, card.clan, weapon);
+        if (built) {
+          const before = { ...card.stats };
+          const beforeSkills = new Map((card.skillList || []).map((s) => [s.id, s.lv]));
+          card.weapon = weapon;
+          card.stats = built.stats;
+          card.skillList = built.skills.map((s) => ({
+            id: s.id,
+            lv: s.id === 'skldisperse' ? Math.min(1, s.lv) : s.lv,
+            cat: SKILLS[s.id]?.cat || 'atk',
+            fromWeapon: true,
+          }));
+          const deltas = [];
+          for (const [key, label] of STAT_LABELS) {
+            const d = Math.round((built.stats[key] || 0) - (before[key] || 0));
+            if (d) deltas.push({ label, delta: d });
+          }
+          card.weaponInfo = {
+            weapon,
+            deltas,
+            added: card.skillList.filter((s) => !beforeSkills.has(s.id)).map((s) => ({ id: s.id, lv: s.lv })),
+            removed: [...beforeSkills.keys()].filter((id) => !card.skillList.some((s) => s.id === id)).map((id) => ({ id, lv: beforeSkills.get(id) })),
+          };
+        }
       }
       cards.push(card);
     } catch {
