@@ -197,7 +197,11 @@ function syncDraft() {
   draft.names = draft.names || [];
   while (draft.names.length < size) draft.names.push(G.randomName());
   draft.names.length = size;
-  draft.cards = draft.names.map((n) => (n ? safeCard(n, draft.clan || '无名') : null)).filter(Boolean);
+  const played = (state.records || []).length;
+  draft.cards = draft.names.map((n) => {
+    const card = n ? safeCard(n, draft.clan || '无名') : null;
+    return card ? G.withRunBuff(card, played) : null;
+  }).filter(Boolean);
 }
 
 function newRunSetup() {
@@ -205,6 +209,7 @@ function newRunSetup() {
   syncDraft();
   nav('newrun', () => UI.renderNewRun(root, state, {
     draft,
+    cardBonus: (card) => G.cardBonus(state, card),
     onHome: () => { draft = null; home(); },
     onChangeLane: (lane) => {
       draft.lane = lane;

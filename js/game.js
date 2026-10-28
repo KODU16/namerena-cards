@@ -1,5 +1,5 @@
 ﻿// 局内状态、爬塔流程与存档。
-import { makeCard, iconFor, statsWithWeapon, buildWithWeapon } from './engine.js';
+import { makeCard, iconFor, statsWithWeapon, buildWithWeapon, applyRunBuff, runMultiplier } from './engine.js';
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
 import { SKILLS, SKILL_IDS, skillMeta } from './skills.js';
 
@@ -235,10 +235,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     }
     if (used.has(card.id)) card = makeCard(randomName(r), ['青', '赤', '玄', '白'][Math.floor(r() * 4)]);
     used.add(card.id);
-    // 开局保底：第一局全属性 ×2，之后每局 -0.1，最低 1.0；加成记在卡上以便显示
-    const mult = runMultiplier(state.records?.length || 0);
-    const buffed = applyRunBuff(card, mult);
-    collection.push({ ...buffed, runMult: mult });
+    collection.push(withRunBuff(card, state.records?.length || 0));
   }
   state.collection = collection;
   state.run.teamIds = collection.slice(0, teamSize).map((c) => c.id);
