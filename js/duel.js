@@ -1,4 +1,4 @@
-// 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
+﻿// 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
 // 前端只负责「轮到玩家单位时，从手牌里选一张写进强制队列」。
 import { el, sleep, handCardEl } from './ui.js';
 import { emojiImg } from './emoji.js';
@@ -36,7 +36,7 @@ export const rollMpCost = (rng) => 8 + (Math.floor(rng() * 256) & 15);
 export function drawHand(skills, rng, count = 3, exclude = null) {
   // 净化是敌人专属：玩家抽到时直接换成别的技能（熟练度不变）
   const pool = (skills || [])
-    .filter((s) => ACTIVE_ID[s.id] != null && s.id !== 'skldisperse')
+    .filter((s) => ACTIVE_ID[s.id] != null && (s.id !== 'skldisperse' || s.fromWeapon))
     .filter((s) => !exclude || !exclude.has(s.id))
     .map((s) => ({ ...s, weight: weightOf(s.lv) }));
   const out = [];

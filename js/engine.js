@@ -48,6 +48,33 @@ function decodeStats(attrs) {
  * @param {string} name 名字本体（不含 @阵营）
  * @param {string} clan 阵营
  */
+// 带武器的属性线：用引擎的 name+weapon@clan 构建，只取 attrs
+export function statsWithWeapon(name, clan, weapon) {
+  if (!ready || !weapon) return null;
+  try {
+    const diy = wasm.to_diy(name + '+' + weapon + '@' + clan);
+    const at = diy.indexOf('ol:');
+    if (at < 0) return null;
+    const ol = JSON.parse(diy.slice(at + 3));
+    return decodeStats(ol.attrs);
+  } catch { return null; }
+}
+
+// 带武器的完整构建（属性 + 技能）
+export function buildWithWeapon(name, clan, weapon) {
+  if (!ready || !weapon) return null;
+  try {
+    const diy = wasm.to_diy(name + '+' + weapon + '@' + clan);
+    const at = diy.indexOf('ol:');
+    if (at < 0) return null;
+    const ol = JSON.parse(diy.slice(at + 3));
+    const skills = Object.entries(ol.skills || {})
+      .map(([id, v]) => ({ id, lv: Math.round(levelOf(v)) }))
+      .filter((s) => SKILLS[s.id] && s.lv > 0);
+    return { stats: decodeStats(ol.attrs), skills };
+  } catch { return null; }
+}
+
 export function makeCard(name, clan = '无名') {
   if (!ready) throw new Error('引擎尚未加载');
   const key = `${name}@${clan}`;

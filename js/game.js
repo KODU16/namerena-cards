@@ -1,5 +1,5 @@
 ﻿// 局内状态、爬塔流程与存档。
-import { makeCard, iconFor } from './engine.js';
+import { makeCard, iconFor, statsWithWeapon, buildWithWeapon } from './engine.js';
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
 import { SKILLS, SKILL_IDS, skillMeta } from './skills.js';
 
@@ -14,12 +14,21 @@ export const POTIONS = [
   { id: 'hp', name: '生命药水', field: 8, stat: '体力', color: '#c0353a' },
 ];
 
+// 试炼敌人可能携带的武器：随机字符串，掉落进物品栏后可装备
+const WEAPON_CHARS = '试作残章旧梦远山寒潭星屑铁锈月影风铃霜刃木纹砂砾'.split('');
+export function randomWeapon(rng) {
+  const len = 2 + Math.floor(rng() * 3);
+  let s = '';
+  for (let i = 0; i < len; i++) s += WEAPON_CHARS[Math.floor(rng() * WEAPON_CHARS.length)];
+  return s;
+}
+
 export function potionById(id) { return POTIONS.find((p) => p.id === id) || null; }
 
 const SAVE_KEY = 'namerena-cards/v1';
 const MAX_ENCOUNTERS = 8;
 
-const mulberry32 = (a) => () => {
+export const mulberry32 = (a) => () => {
   a |= 0; a = (a + 0x6d2b79f5) | 0;
   let t = Math.imul(a ^ (a >>> 15), 1 | a);
   t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
@@ -183,6 +192,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     downed: [],
     tacticIds: [],
     potions: [],
+    weapons: [],
     skillCards: [],
     graph: null,
     nodeId: null,
@@ -245,7 +255,13 @@ export function makeFiller(teamSize, rng) {
   const cards = [];
   for (let i = 0; i < Math.max(1, teamSize); i++) {
     try {
-      cards.push(makeCard(randomName(rng), '!'));
+      const card = makeCard(randomName(rng), '!');
+      if (rng() < 0.35) {
+        const weapon = randomWeapon(rng);
+        const stats = statsWithWeapon(card.name, card.clan, weapon);
+        if (stats) { card.weapon = weapon; card.stats = stats; }
+      }
+      cards.push(card);
     } catch {
       cards.push(statlessCard(randomName(rng) + '@!'));
     }
@@ -318,6 +334,106 @@ export function enterEvent(state, nodeId) {
   else if (pick.card) label = '角色卡「' + pick.card.name + '@' + pick.card.clan + '」';
   persist(state);
   return { kind: pick.kind, label };
+}
+
+// 打赢带武器的试炼 → 50% 掉落一把武器
+export function maybeDropWeapon(state, node, rng) {
+  if (!node || node.kind !== 'filler') return null;
+  const armed = (node.payload || []).filter((c) => c && c.weapon);
+  if (!armed.length || rng() >= 0.5) return null;
+  const pick = armed[Math.floor(rng() * armed.length)];
+  state.weapons = state.weapons || [];
+  const item = { id: 'w-' + Date.now().toString(36) + '-' + Math.floor(rng() * 1e6).toString(36), name: pick.weapon };
+  state.weapons.push(item);
+  persist(state);
+  return item;
+}
+
+// 装备武器：用引擎重算该角色的属性线
+const STAT_LABELS = [['hp', '体力'], ['atk', '攻'], ['def', '防'], ['spd', '速'], ['agi', '敏'], ['mag', '魔'], ['res', '抗'], ['wis', '智']];
+
+// 装备武器：用引擎重算属性线，并记录这件武器加了哪些属性 / 新技能
+export function equipWeapon(state, weaponId, charId) {
+  const list = state.weapons || [];
+  const idx = list.findIndex((w) => w.id === weaponId);
+  if (idx < 0) return null;
+  const card = (state.collection || []).find((c) => c.id === charId);
+  if (!card) return null;
+  const weapon = list[idx];
+  const built = buildWithWeapon(card.name, card.clan, weapon.name);
+  if (!built) return null;
+  const before = { ...card.stats };
+  const beforeSkills = new Map((card.skillList || []).map((s) => [s.id, s.lv]));
+
+  if (card.weapon) {
+    list.push({ id: 'w-' + Date.now().toString(36) + '-old', name: card.weapon });
+  }
+  card.weapon = weapon.name;
+  card.stats = built.stats;
+
+  // 属性变化
+  const deltas = [];
+  for (const [key, label] of STAT_LABELS) {
+    const d = Math.round((built.stats[key] || 0) - (before[key] || 0));
+    if (d) deltas.push({ label, delta: d });
+  }
+  // 新技能：武器带来了本体没有的技能；净化允许出现，但熟练度封顶 1
+  const added = [];
+  for (const s of built.skills) {
+    const prev = beforeSkills.get(s.id) || 0;
+    if (s.lv <= prev) continue;
+    const lv = s.id === 'skldisperse' ? Math.min(1, s.lv) : s.lv;
+    added.push({ id: s.id, lv });
+    const existing = (card.skillList || []).find((x) => x.id === s.id);
+    if (existing) existing.lv = Math.max(existing.lv, lv);
+    else {
+      card.skillList = card.skillList || [];
+      card.skillList.push({ id: s.id, lv, cat: SKILLS[s.id]?.cat || 'atk', fromWeapon: true });
+    }
+  }
+  card.skillList = (card.skillList || []).slice(0, 12);
+  card.weaponInfo = { weapon: weapon.name, deltas, added };
+  list.splice(idx, 1);
+  persist(state);
+  return { ...weapon, deltas, added };
+}
+
+export function unequipWeapon(state, charId) {
+  const card = (state.collection || []).find((c) => c.id === charId);
+  if (!card || !card.weapon) return null;
+  state.weapons = state.weapons || [];
+  const weapon = card.weapon;
+  state.weapons.push({ id: 'w-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e6).toString(36), name: weapon });
+  card.weapon = '';
+  const base = makeCard(card.name, card.clan);
+  card.stats = base.stats;
+  persist(state);
+  return weapon;
+}
+
+// 物品栏销毁
+export function destroyItem(state, kind, id) {
+  if (kind === 'card') {
+    if ((state.run?.teamIds || []).includes(id)) return false;
+    const before = state.collection.length;
+    state.collection = state.collection.filter((c) => c.id !== id);
+    if (state.collection.length === before) return false;
+  } else if (kind === 'tactic') {
+    state.ownedTactics = (state.ownedTactics || []).filter((t) => t !== id);
+    if (state.tacticPower) delete state.tacticPower[id];
+    if (state.run) state.run.tacticIds = (state.run.tacticIds || []).filter((t) => t !== id);
+  } else if (kind === 'forge') {
+    if (!state.run) return false;
+    const before = state.run.skillCards.length;
+    state.run.skillCards = state.run.skillCards.filter((s) => s.uid !== id);
+    if (state.run.skillCards.length === before) return false;
+  } else if (kind === 'weapon') {
+    state.weapons = (state.weapons || []).filter((w) => w.id !== id);
+  } else {
+    return false;
+  }
+  persist(state);
+  return true;
 }
 
 // 终点打完 → 进入下一层；返回 true 表示整座塔通关

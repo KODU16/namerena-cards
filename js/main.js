@@ -404,6 +404,11 @@ function afterBattle(won) {
   }
   // 赢下这个节点：位置推进过去
   const node = G.clearNode(state);
+  if (node) {
+    const dropRng = G.mulberry32((state.run.seed ^ (state.run.index * 7919)) >>> 0);
+    const dropped = G.maybeDropWeapon(state, node, dropRng);
+    if (dropped) toast('掉落武器「' + dropped.name + '」，已放进物品栏', 2400);
+  }
   if (node && node.kind === 'end') {
     const finished = G.advanceLayer(state);
     if (finished) {
@@ -420,16 +425,58 @@ function afterBattle(won) {
 
 // ————————————————————— 地图
 
+function openInventory() {
+  const reopen = () => {
+    sheet(UI.inventorySheet(state, {
+      onDestroy: (kind, id, label) => {
+        const ok = G.destroyItem(state, kind, id);
+        toast(ok ? '已销毁 ' + (label || '') : '不能销毁（出战中的角色/无效对象）', 1800);
+        return ok;
+      },
+      onEquipWeapon: (weaponId, charId) => {
+        const w = G.equipWeapon(state, weaponId, charId);
+        toast(w ? '已装备 ' + w.name : '装备失败', 1600);
+        render();
+      },
+      onUnequip: (charId) => {
+        const w = G.unequipWeapon(state, charId);
+        toast(w ? '已卸下 ' + w : '没有武器', 1600);
+        render();
+      },
+    }));
+    document.querySelector('.sheet')?.classList.add('sheet--full');
+  };
+  const render = () => {
+    const inv = UI.inventorySheet(state, {
+      onDestroy: (kind, id, label) => {
+        const ok = G.destroyItem(state, kind, id);
+        toast(ok ? '已销毁 ' + (label || '') : '不能销毁（出战中的角色/无效对象）', 1800);
+        return ok;
+      },
+      onEquipWeapon: (weaponId, charId) => {
+        const w = G.equipWeapon(state, weaponId, charId);
+        toast(w ? '已装备 ' + w.name : '装备失败', 1600);
+        reopen();
+      },
+      onUnequip: (charId) => {
+        const w = G.unequipWeapon(state, charId);
+        toast(w ? '已卸下 ' + w : '没有武器', 1600);
+        reopen();
+      },
+    });
+    overlay.replaceChildren(el('div', { class: 'sheet sheet--full' }, inv));
+    overlay.classList.remove('hidden');
+  };
+  reopen();
+}
+
 function mapScreen() {
   const run = state.run;
   if (!run?.graph) return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
   nav('map', () => UI.renderMap(root, state, {
     onHome: home,
     say: sayCache.text,
-    onInventory: () => {
-      sheet(UI.inventorySheet(state));
-      document.querySelector('.sheet')?.classList.add('sheet--full');
-    },
+    onInventory: openInventory,
     onPick: (nodeId) => {
       const node = state.run.graph.byId.get(nodeId);
       if (node?.kind === 'event') {

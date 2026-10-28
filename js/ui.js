@@ -888,39 +888,58 @@ function colorFromIcon(src) {
 
 // ————————————————————— 物品栏
 
-export function inventorySheet(state) {
+export function inventorySheet(state, h = {}) {
   const run = state.run || {};
   const tabs = [
     { id: 'chars', name: '角色库' },
     { id: 'forge', name: '锻造卡' },
     { id: 'tactics', name: '战术卡' },
     { id: 'potions', name: '药水' },
+    { id: 'weapons', name: '武器' },
   ];
   const body = el('div', { class: 'inv__body' });
   const tabBar = el('div', { class: 'inv__tabs' });
+  const del = (kind, id, label) => el('button', {
+    class: 'ghost inv__del',
+    type: 'button',
+    title: '销毁',
+    onclick: () => { if (h.onDestroy && h.onDestroy(kind, id, label)) paint(currentTab); },
+  }, '销毁');
   const paint = (id) => {
+    currentTab = id;
     [...tabBar.children].forEach((b) => b.classList.toggle('is-active', b.dataset.tab === id));
     if (id === 'chars') {
       body.replaceChildren(
-        el('div', { class: 'inv__chars' }, (state.collection || []).map((card) => el('div', { class: 'inv__char' }, cardEl(card, { size: 'grid' })))),
-        el('p', { class: 'muted small' }, '悬停角色卡可看完整技能与八围'));
+        el('div', { class: 'inv__chars' }, (state.collection || []).map((card) => {
+          const inTeam = (run.teamIds || []).includes(card.id);
+          return el('div', { class: 'inv__char' },
+            cardEl(card, { size: 'grid' }),
+            el('div', { class: 'inv__ops' },
+              card.weapon ? el('span', { class: 'inv__weapon' }, '⚔ ' + card.weapon) : null,
+              card.weaponInfo ? el('div', { class: 'inv__wd' },
+                el('div', {}, '加成：' + (card.weaponInfo.deltas.length ? card.weaponInfo.deltas.map((d) => d.label + (d.delta > 0 ? '+' : '') + d.delta).join('、') : '无')),
+                card.weaponInfo.added.length ? el('div', {}, '新技能：' + card.weaponInfo.added.map((a) => skillMeta(a.id).name + '(' + a.lv + ')').join('、')) : null) : null,
+              card.weapon ? el('button', { class: 'ghost', type: 'button', onclick: () => { h.onUnequip && h.onUnequip(card.id); paint('chars'); } }, '卸下') : null,
+              inTeam ? el('span', { class: 'muted small' }, '出战中') : del('card', card.id, card.name)));
+        })),
+        el('p', { class: 'muted small' }, '出战中的角色不能销毁；悬停角色卡可看完整技能与八围'));
     } else if (id === 'forge') {
       const list = (run.skillCards || []);
       body.replaceChildren(list.length
         ? el('div', { class: 'inv__grid' }, list.map((s) => el('div', { class: 'inv__item', title: skillMeta(s.id).desc },
-          el('b', {}, skillMeta(s.id).name), el('small', {}, '熟练度 ' + s.lv))))
+          el('b', {}, skillMeta(s.id).name), el('small', {}, '熟练度 ' + s.lv), del('forge', s.uid, skillMeta(s.id).name))))
         : el('p', { class: 'muted' }, '还没有锻造卡'));
     } else if (id === 'tactics') {
       const ids = state.ownedTactics || [];
       const pool = Array.isArray(state.tacticsPool) ? state.tacticsPool : [];
       body.replaceChildren(ids.length
-        ? el('div', { class: 'inv__grid' }, ids.map((id) => {
-          const t = pool.find((x) => x.id === id);
-          const power = (state.tacticPower || {})[id] || 1;
-          return el('div', { class: 'inv__item' }, el('b', {}, t?.name || id), el('small', {}, '强度 ×' + power));
+        ? el('div', { class: 'inv__grid' }, ids.map((tid) => {
+          const t = pool.find((x) => x.id === tid);
+          const power = (state.tacticPower || {})[tid] || 1;
+          return el('div', { class: 'inv__item' }, el('b', {}, t?.name || tid), el('small', {}, '强度 ×' + power), del('tactic', tid, t?.name || tid));
         }))
         : el('p', { class: 'muted' }, '还没有战术卡'));
-    } else {
+    } else if (id === 'potions') {
       const list = (run.potions || []).filter((p) => p.n > 0);
       body.replaceChildren(list.length
         ? el('div', { class: 'inv__grid' }, list.map((p) => {
@@ -928,8 +947,19 @@ export function inventorySheet(state) {
           return meta ? el('div', { class: 'inv__item', title: potionDesc(meta) }, el('b', {}, meta.name), el('small', {}, '×' + p.n)) : null;
         }))
         : el('p', { class: 'muted' }, '药水用完了'));
+    } else {
+      const list = state.weapons || [];
+      body.replaceChildren(list.length
+        ? el('div', { class: 'inv__grid' }, list.map((w) => el('div', { class: 'inv__item' },
+          el('b', {}, '⚔ ' + w.name),
+          el('select', { class: 'inv__pick', onchange: (ev) => { if (ev.target.value) { h.onEquipWeapon && h.onEquipWeapon(w.id, ev.target.value); paint('weapons'); } } },
+            el('option', { value: '' }, '装备给…'),
+            ...(state.collection || []).map((c) => el('option', { value: c.id }, c.name + '@' + c.clan))),
+          del('weapon', w.id, w.name))))
+        : el('p', { class: 'muted' }, '还没有武器：击败携带武器的试炼对手有几率掉落'));
     }
   };
+  let currentTab = 'chars';
   for (const t of tabs) {
     tabBar.append(el('button', { class: 'ghost inv__tab', type: 'button', 'data-tab': t.id, onclick: () => paint(t.id) }, t.name));
   }
@@ -937,7 +967,6 @@ export function inventorySheet(state) {
   paint('chars');
   return sheet;
 }
-
 // ————————————————————— 药水
 
 export function potionIcon(p, size = 22) {
