@@ -214,7 +214,7 @@ export function renderNewRun(root, state, h) {
           el('p', { class: 'muted small' }, '重抽只换名字，不换战队名。'),
         ),
         el('div', { class: 'setup__preview' },
-          card ? cardEl(card, { size: 'big' }) : el('div', { class: 'boot-error' }, '这个名字无法构建，换一个'),
+          card ? charRowEl(card) : el('div', { class: 'boot-error' }, '这个名字无法构建，换一个'),
           card ? el('div', { class: 'setup__detail' },
             el('div', { class: 'muted' }, statLine(card)),
             el('div', { class: 'skills-full' }, (card.skillList || []).map((s) =>
@@ -247,14 +247,14 @@ export function renderPrep(root, state, h) {
       el('div', { class: 'prep__board' },
         el('div', { class: 'prep__col' },
           el('h3', { class: 'col-title' }, '对手'),
-          el('div', { class: 'roster-grid' }, opp.cards.map((c) => cardEl(c, { size: 'big', dim: true }))),
+          el('div', { class: 'roster-grid' }, opp.cards.map((c) => charRowEl(c, { dim: true }))),
         ),
         el('div', { class: 'prep__col prep__col--mid' }, el('div', { class: 'vs-mark' }, 'VS')),
         el('div', { class: 'prep__col' },
           el('h3', { class: 'col-title' }, `你的出战队伍 ${team.length}/${run.teamSize}`),
           el('div', { class: 'roster-grid' }, team.length
             ? team.map((c) => el('div', { class: 'team-slot' },
-              cardEl(c, { size: 'big' }),
+              charRowEl(c),
               (() => {
                 const weapons = state.weapons || [];
                 const sel = el('select', {
@@ -286,7 +286,7 @@ export function renderPrep(root, state, h) {
         el('div', { class: 'roster-grid' }, state.collection.map((c) => el('div', { class: 'roster-item' },
           (() => {
             const downed = (run.downed || []).includes(c.id);
-            const node = cardEl(c, { size: 'grid', dim: downed, selected: (run.teamIds || []).includes(c.id), onClick: () => (h.forgeSelected ? h.onPickChampion(c.id) : h.onToggleTeam(c.id)) });
+            const node = charRowEl(c, { dim: downed, selected: (run.teamIds || []).includes(c.id), onClick: () => (h.forgeSelected ? h.onPickChampion(c.id) : h.onToggleTeam(c.id)) });
             if (downed) node.title = (node.title || '') + '\n已倒下：本局不能再出战';
             if (h.forgeSelected && h.onForgeHover) {
               node.addEventListener('mouseenter', (ev) => h.onForgeHover(c.id, ev));
@@ -647,7 +647,7 @@ export function renderReward(root, state, offers, h) {
           )
           : el('div', { class: 'offer' },
             el('div', { class: 'offer__tag' }, `角色卡 · 费用 ${o.card.cost ?? '—'}`),
-            cardEl(o.card, { size: 'big' }),
+            charRowEl(o.card),
             el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
           ),
       )),
@@ -982,7 +982,20 @@ function colorFromIcon(src) {
   } catch { return ''; }
 }
 
+// 可交互的完整角色行（点击/置灰/选中）
+export function charRowEl(card, { onClick = null, dim = false, selected = false } = {}) {
+  const row = fullCharRow(card);
+  const node = onClick
+    ? el('button', { class: 'fullrow-btn', type: 'button', onclick: onClick }, row)
+    : el('div', { class: 'fullrow-btn' }, row);
+  if (dim) node.classList.add('is-dim');
+  if (selected) node.classList.add('is-selected');
+  return node;
+}
+
 // 角色库里的完整角色行：仿战斗中单位行，全文字、不用图标
+// 可交互的完整角色行（点击/置灰/选中）
+
 // 角色库里的完整角色行：仿战斗中单位行，全文字、不用图标
 export function fullCharRow(card) {
   const s = card.stats || {};

@@ -641,7 +641,7 @@ function buildForgeCard() {
   try {
     const card = makeCard(name, clan);
     box.replaceChildren(
-      cardEl(card, { size: 'big' }),
+      UI.charRowEl(card),
       el('div', { class: 'forge__meta' },
         el('div', { class: 'muted' }, statLine(card)),
         el('div', { class: 'skills-full' }, (card.skillList || []).map((s) =>
