@@ -1,4 +1,4 @@
-// 生成独立的压缩发布目录；只复制运行资源，不输出源码映射。
+﻿// 生成独立的压缩发布目录；只复制运行资源，不输出源码映射。
 import { build, transform } from 'esbuild';
 import { readFile, writeFile, mkdir, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -63,6 +63,10 @@ const sprite = await read('assets/emoji-sprite.png');
 const spriteName = 'emoji-sprite-' + hash(sprite) + '.png';
 await emit('assets/' + spriteName, sprite);
 await emit('assets/favicon.png', await read('assets/favicon.png'));
+// 八围评级图标（三枚），不打哈希，路径固定，方便 JS 直接引用
+for (const n of [1, 2, 3]) {
+  await emit('assets/grade-' + n + '.png', await read('assets/grade-' + n + '.png'));
+}
 const cssSource = (await read('css/style.css')).toString('utf8').replace(/emoji-sprite\.png(?:\?v=\d+)?/g, spriteName);
 const css = (await transform(cssSource, { loader: 'css', minify: true, legalComments: 'none' })).code;
 const cssName = 'style-' + hash(css) + '.css';
