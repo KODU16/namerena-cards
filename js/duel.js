@@ -246,10 +246,10 @@ function panelHtml(state, side, icon, base) {
 
 export class DuelView {
   constructor(root, duel, { onFinish, seed = 1, startHpPct = 0 }) {
-    this.startHpPct = startHpPct;
-    this.duel.startHpPct = startHpPct;
     this.root = root;
     this.duel = duel;
+    this.startHpPct = startHpPct;
+    this.duel.startHpPct = startHpPct;
     this.onFinish = onFinish;
     this.rng = mulberry32(seed);
     this.shownFrames = 0;
