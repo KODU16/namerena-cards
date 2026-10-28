@@ -11,10 +11,10 @@ export const CAT = {
 };
 
 export const SKILLS = {
-  sklfire: { name: '火球术', cat: 'magic', glyph: '火', desc: '造成法术伤害，并附加 3 回合灼烧。' },
+  sklfire: { name: '火球术', cat: 'magic', glyph: '火', desc: '造成 1.5 倍于魔力的法术伤害（目标身上每层灼烧再抬高这个倍率），并附加 3 回合灼烧。' },
   sklice: { name: '冰冻术', cat: 'magic', glyph: '冰', desc: '造成法术伤害，并让目标冻结、跳过下一次行动。' },
-  sklthunder: { name: '雷击术', cat: 'magic', glyph: '雷', desc: '高倍率雷击，但有几率被闪避。' },
-  sklquake: { name: '地裂术', cat: 'atk', glyph: '裂', desc: '对敌方全体造成物理伤害。' },
+  sklthunder: { name: '雷击术', cat: 'magic', glyph: '雷', desc: '连打 3~5 段，每段 0.36 倍于魔力的法术伤害；每段都可能被闪避，命中率逐段下降。' },
+  sklquake: { name: '地裂术', cat: 'atk', glyph: '裂', desc: '打 4~5 个敌人，倍率随人数摊薄：约为攻击力口径除以（目标数 + 0.6）的物理伤害。' },
   sklabsorb: { name: '吸血', cat: 'atk', glyph: '吸', desc: '造成物理伤害，并回复其中 60% 的体力。' },
   sklpoison: { name: '投毒', cat: 'ctrl', glyph: '毒', desc: '造成少量伤害，并叠加持续掉血的中毒。' },
   sklrapid: { name: '连击', cat: 'atk', glyph: '连', desc: '连续攻击 2~3 次，单次伤害较低。' },
@@ -42,7 +42,7 @@ export const SKILLS = {
   sklreraise: { name: '护身符', cat: 'def', glyph: '符', desc: '抵挡一次致命伤害，保留 1 点体力。' },
   sklshield: { name: '蓄盾', cat: 'def', glyph: '盾', desc: '获得一层可吸收伤害的护盾。' },
   sklcounter: { name: '反击', cat: 'def', glyph: '击', desc: '受到攻击时反击对手，持续 2 回合。' },
-  sklmerge: { name: '吞噬', cat: 'atk', glyph: '吞', desc: '重击目标；若因此击杀则永久提升属性。' },
+  sklmerge: { name: '吞噬', cat: 'def', glyph: '吞', desc: '被动：自己击杀目标时吞噬它，按固定槽位继承对方的属性与技能等级。' },
   sklzombie: { name: '召唤亡灵', cat: 'summon', glyph: '尸', desc: '召唤一只丧尸，攻击力尚可但很脆。' },
   sklupgrade: { name: '垂死抗争', cat: 'atk', glyph: '垂', desc: '体力低于 30% 时全属性上升，持续 2 回合。' },
   sklhide: { name: '隐匿', cat: 'ctrl', glyph: '隐', desc: '闪避大幅上升，持续 2 回合。' },
