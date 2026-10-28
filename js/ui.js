@@ -994,7 +994,8 @@ function colorFromIcon(src) {
 export function eightSumOf(card) {
   const s = card?.stats;
   if (!s) return 0;
-  return Math.round((s.atk || 0) + (s.def || 0) + (s.spd || 0) + (s.agi || 0) + (s.mag || 0) + (s.res || 0) + (s.wis || 0) + (s.hp || 0));
+  // 速按外显值（-124 的折合值）计入八围
+  return Math.round((s.atk || 0) + (s.def || 0) + ((s.spd || 0) - 124) + (s.agi || 0) + (s.mag || 0) + (s.res || 0) + (s.wis || 0) + (s.hp || 0));
 }
 
 // 八围评级图标：>692 第一枚，>672 第二枚，>652 第三枚

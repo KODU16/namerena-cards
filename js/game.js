@@ -523,7 +523,8 @@ export function addScorePoints(state, points) {
 export function eightSum(card) {
   const s = card?.stats;
   if (!s) return 0;
-  return Math.round((s.atk || 0) + (s.def || 0) + (s.spd || 0) + (s.agi || 0) + (s.mag || 0) + (s.res || 0) + (s.wis || 0) + (s.hp || 0));
+  // 速按外显值（-124 的折合值）计入八围
+  return Math.round((s.atk || 0) + (s.def || 0) + ((s.spd || 0) - 124) + (s.agi || 0) + (s.mag || 0) + (s.res || 0) + (s.wis || 0) + (s.hp || 0));
 }
 
 // 电脑节点：一台随机 CPU，八围随机（显示名-八围），速度 = 八围 × 10
