@@ -1,4 +1,4 @@
-// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
+﻿// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
 import { loadEngine, makeCard, hydrateCard, buildLine, applyTactics, applyRunBuff, runMultiplier, engineWasm, iconFor } from './engine.js';
 import { Duel, DuelView } from './duel.js';
 import * as G from './game.js';
@@ -311,7 +311,29 @@ async function fight() {
     });
   });
   duelView.start();
+  UI.renderPotionDock(state, usePotion);
 }
+function potionCode(id) {
+  const meta = G.potionById(id);
+  return meta ? meta.field + 1 : 0;
+}
+
+function usePotion(id) {
+  const run = state.run;
+  if (!run || !duelView || duelView.done) return;
+  const item = (run.potions || []).find((p) => p.id === id && p.n > 0);
+  if (!item) return;
+  if (duelView.pendingPotion) return toast('这回合已经喝过药水了');
+  item.n -= 1;
+  duelView.duel.pendingPotion = potionCode(id);
+  duelView.pendingPotion = potionCode(id);
+  G.persist(state);
+  UI.renderPotionDock(state, usePotion);
+  const meta = G.potionById(id);
+  const what = meta && meta.id === 'hp' ? '回复体力' : '提升' + String(meta?.name || '').replace('药水', '');
+  toast('喝下' + (meta?.name || '药水') + '：这一手' + what + '（不消耗回合）', 2000);
+}
+
 function showSettleBar(won) {
   let bar = document.getElementById('settle-bar');
   if (!bar) {
@@ -379,6 +401,7 @@ function afterBattle(won) {
 function mapScreen() {
   const run = state.run;
   if (!run?.graph) return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
+  UI.renderPotionDock(state, null);
   nav('map', () => UI.renderMap(root, state, {
     onHome: home,
     onPick: (nodeId) => {

@@ -86,7 +86,11 @@ export class Duel {
   flatPairs(extra = []) {
     const triples = [];
     for (const [unit, queue] of this.queues) {
-      for (const item of queue) triples.push(unit, item.skill ?? item, item.mp || 0);
+      for (const item of queue) {
+        const mp = (item.mp || 0) & 0xff;
+        const potion = (item.potion || 0) & 0xff;
+        triples.push(unit, item.skill ?? item, mp | (potion << 8));
+      }
     }
     for (const [unit, skill] of extra) triples.push(unit, skill, 0);
     return triples;
@@ -144,9 +148,11 @@ export class Duel {
     return { replay, index: frames.length, unit: null };
   }
 
-  queue(unitId, skillId, mp = 0) {
+  queue(unitId, skillId, mp = 0, potion = null) {
+    const code = ((potion == null ? this.pendingPotion : potion) || 0) & 0xff;
+    this.pendingPotion = 0;
     const q = this.queues.get(unitId) || [];
-    q.push({ skill: skillId, mp });
+    q.push({ skill: skillId, mp, potion: code });
     this.queues.set(unitId, q);
   }
 }
@@ -332,7 +338,7 @@ export class DuelView {
     const rows = frame.rows || [];
     rows.forEach((row, ri) => {
       const line = el('div', { class: 'log__line log__line--step' });
-      line.style.animationDelay = (ri * 90) + 'ms';
+      line.style.animationDelay = (ri * 135) + 'ms';
       row.clips.forEach((clip, ci) => {
         if (ci > 0) line.append(document.createTextNode('，'));
         for (const part of clip.parts) {
@@ -381,7 +387,7 @@ export class DuelView {
     for (let i = from; i < Math.min(to, frames.length); i++) {
       this.renderFrame(frames[i]);
       if (this.manual) await this.waitClick();
-      else if (!this.skip) await sleep(960 / this.speed);
+      else if (!this.skip) await sleep(1440 / this.speed);
     }
     this.shownFrames = Math.max(this.shownFrames, Math.min(to, frames.length));
   }
@@ -396,7 +402,7 @@ export class DuelView {
     });
     const skills = (state.skills || []).map(([name, lv]) => {
       const id = 'skl' + String(name).replace(/^core[.]skill[.]/, '');
-      return el('span', { class: 'skill-tag' }, id + ' ' + lv);
+      return el('span', { class: 'skill-tag', title: skillMeta(id).desc }, skillMeta(id).name + ' 熟练度' + lv);
     });
     overlay.replaceChildren(el('div', { class: 'sheet' },
       el('h2', {}, state.display_name),
@@ -492,8 +498,25 @@ export class DuelView {
     return (states || []).find((s) => s.id === unitId) || null;
   }
 
+  // 回合横幅：玩家回合蓝色、敌方回合黑色，1 秒后淡出
+  turnBanner(side, round) {
+    const node = document.createElement('div');
+    node.className = 'turn-banner turn-banner--' + side;
+    node.innerHTML = '<div class="turn-banner__main">' + (side === 'player' ? '玩家回合' : '敌方回合')
+      + '</div><div class="turn-banner__sub">第' + round + '回合</div>';
+    document.body.appendChild(node);
+    setTimeout(() => node.remove(), 1000);
+  }
+
+  roundOf(decision) {
+    const frames = decision?.replay?.frames || [];
+    const f = frames[Math.max(0, Math.min(frames.length - 1, (decision.index || 1) - 1))];
+    return (f && f.round_index) || 1;
+  }
+
   askCard(decision, state) {
     if (this.berserkTimer) { clearTimeout(this.berserkTimer); this.berserkTimer = null; }
+    this.turnBanner('player', this.roundOf(decision));
     const mp = Math.max(0, state.magic_point || 0);
     // 狂暴（含被附体）：四张牌全部是「狂暴攻击」，自动随机打出一张，结果交给引擎
     const berserk = (state.status_labels || []).some((l) => l.includes('狂暴'));
@@ -563,12 +586,16 @@ export class DuelView {
       // 其余手牌向左收拢
       [...this.handEl.children].forEach((el2) => { if (el2 !== node) el2.classList.add('is-discarding'); });
       setTimeout(() => {
-        this.duel.queue(decision.unit.id, id, card.cost || 0);
+        this.turnBanner('enemy', this.roundOf(decision));
+        this.duel.queue(decision.unit.id, id, card.cost || 0, this.pendingPotion || 0);
+        this.pendingPotion = 0;
         this.handEl.replaceChildren();
         this.step();
       }, 300);
     } else {
-      this.duel.queue(decision.unit.id, id, card.cost || 0);
+      this.turnBanner('enemy', this.roundOf(decision));
+      this.duel.queue(decision.unit.id, id, card.cost || 0, this.pendingPotion || 0);
+      this.pendingPotion = 0;
       this.handEl.replaceChildren();
       this.step();
     }

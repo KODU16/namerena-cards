@@ -949,3 +949,43 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
 .map-node .map-question { font-size: 19px; font-weight: 700; fill: #b07d00; pointer-events: none; }
 .map-node.is-avail.map-node--event circle { fill: #f6c945; stroke: #b07d00; }
 .map-node.is-avail.map-node--event .map-question { fill: #4a3400; }
+/* 回合横幅：玩家蓝色 / 敌方黑色，1 秒后淡出 */
+.turn-banner {
+  position: fixed;
+  left: 50%;
+  top: 44%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+  z-index: 120;
+  animation: turnBannerIn 1s ease-out forwards;
+}
+.turn-banner__main { font-size: 44px; font-weight: 800; letter-spacing: .18em; font-family: var(--sans); }
+.turn-banner__sub { margin-top: 6px; font-size: 18px; letter-spacing: .2em; color: #8a8f99; font-family: var(--mono); }
+.turn-banner--player .turn-banner__main { color: #1f7fb8; text-shadow: 0 6px 24px rgba(31, 127, 184, .25); }
+.turn-banner--enemy .turn-banner__main { color: #14171c; text-shadow: 0 6px 24px rgba(20, 23, 28, .18); }
+@keyframes turnBannerIn {
+  0% { opacity: 0; transform: translate(-50%, -46%) scale(.94); }
+  14% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -54%) scale(1); }
+}
+/* 药水栏：左上角悬浮 */
+#potion-dock {
+  position: fixed;
+  left: 16px;
+  top: 74px;
+  display: flex;
+  gap: 8px;
+  z-index: 130;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, .92);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: 0 10px 24px -16px rgba(18, 58, 84, .5);
+}
+#potion-dock:empty { display: none; }
+.potion { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 2px 4px; cursor: pointer; border-radius: 10px; }
+.potion:hover { background: #eef6fb; }
+.potion-icon { display: inline-flex; }
+.potion__n { font-family: var(--mono); font-size: 11px; color: var(--muted); }

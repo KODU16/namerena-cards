@@ -1,7 +1,20 @@
-// 局内状态、爬塔流程与存档。
+﻿// 局内状态、爬塔流程与存档。
 import { makeCard, iconFor } from './engine.js';
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
 import { SKILLS, SKILL_IDS, skillMeta } from './skills.js';
+
+export const POTIONS = [
+  { id: 'atk', name: '力量药水', field: 0, color: '#d94b3a' },
+  { id: 'def', name: '铁壁药水', field: 1, color: '#3b6fd9' },
+  { id: 'spd', name: '疾风药水', field: 2, color: '#2fa36b' },
+  { id: 'agi', name: '灵巧药水', field: 3, color: '#d9a13a' },
+  { id: 'mag', name: '魔力药水', field: 4, color: '#8a5cd9' },
+  { id: 'res', name: '抗性药水', field: 5, color: '#3aa8a3' },
+  { id: 'wis', name: '智慧药水', field: 6, color: '#d97b3a' },
+  { id: 'hp', name: '生命药水', field: 8, color: '#c0353a' },
+];
+
+export function potionById(id) { return POTIONS.find((p) => p.id === id) || null; }
 
 const SAVE_KEY = 'namerena-cards/v1';
 const MAX_ENCOUNTERS = 8;
@@ -169,6 +182,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     teamIds: [],
     downed: [],
     tacticIds: [],
+    potions: [],
     skillCards: [],
     graph: null,
     nodeId: null,
@@ -202,6 +216,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
   state.collection = collection;
   state.run.teamIds = collection.slice(0, teamSize).map((c) => c.id);
   state.ownedTactics = shuffle(state.tacticsPool, r).slice(0, 3).map((t) => t.id);
+  state.run.potions = shuffle(POTIONS, r).slice(0, 3).map((p) => ({ id: p.id, n: 1 }));
   buildGraphForLayer(state);
   persist(state);
   return state.run;

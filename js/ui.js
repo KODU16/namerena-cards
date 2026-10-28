@@ -1,5 +1,6 @@
-// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, skillMeta } from './skills.js';
+import { potionById } from './game.js';
 import { emojiImg } from './emoji.js';
 // 抽牌概率：被动不进牌堆，权重随熟练度线性增长（原先在 combat.js，那里已废弃）
 const PASSIVE_IDS = new Set(['sklcounter', 'sklreflect', 'sklreraise']);
@@ -839,5 +840,44 @@ export function renderMap(root, state, h) {
         h.onPick(nodeEl.dataset.id);
       });
     });
+  }
+}
+// ————————————————————— 药水
+
+export function potionIcon(p, size = 22) {
+  const svg = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true">
+    <path d="M10 3h4v4.2c0 .5.2 1 .6 1.3l3.1 2.7c.8.7 1.3 1.7 1.3 2.8v5c0 1.7-1.3 3-3 3H8c-1.7 0-3-1.3-3-3v-5c0-1.1.5-2.1 1.3-2.8l3.1-2.7c.4-.3.6-.8.6-1.3V3z"
+      fill="${p.color}" stroke="rgba(0,0,0,.25)" stroke-width="1"/>
+    <rect x="9" y="2" width="6" height="2.4" rx="1" fill="#7d8894"/>
+    <path d="M7 14h10v4c0 1-.8 1.8-1.8 1.8H8.8C7.8 19.8 7 19 7 18v-4z" fill="rgba(255,255,255,.35)"/>
+  </svg>`;
+  const wrap = document.createElement('span');
+  wrap.className = 'potion-icon';
+  wrap.innerHTML = svg;
+  return wrap;
+}
+
+export function renderPotionDock(state, onUse) {
+  let dock = document.getElementById('potion-dock');
+  if (!dock) {
+    dock = document.createElement('div');
+    dock.id = 'potion-dock';
+    document.body.appendChild(dock);
+  }
+  const run = state.run;
+  const list = (run?.potions || []).filter((p) => p.n > 0);
+  dock.replaceChildren();
+  if (!list.length) { dock.style.display = 'none'; return; }
+  dock.style.display = 'flex';
+  for (const item of list) {
+    const meta = potionById(item.id);
+    if (!meta) continue;
+    const btn = el('button', {
+      class: 'potion',
+      type: 'button',
+      title: `${meta.name}：使用后本回合${meta.id === 'hp' ? '回复体力' : '提升' + meta.name.replace('药水', '')}，不消耗回合`,
+      onclick: () => onUse && onUse(item.id),
+    }, potionIcon(meta), el('span', { class: 'potion__n' }, '×' + item.n));
+    dock.append(btn);
   }
 }

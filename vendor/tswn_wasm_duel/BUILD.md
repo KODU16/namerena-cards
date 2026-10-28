@@ -3,7 +3,7 @@
 `vendor/tswn_wasm_duel/` 里的 wasm 由下面这份源码编译而来：
 
 - 仓库：https://github.com/KODU16/tswn-core
-- 提交：3548b91
+- 提交：139bdd8
 - 构建：
 
 ```powershell
