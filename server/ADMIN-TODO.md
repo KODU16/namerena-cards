@@ -1,4 +1,4 @@
-# 上线对接：需要 shenjack 管理员配合的事项
+﻿# 上线对接：需要 shenjack 管理员配合的事项
 
 > 目标：把 `KODU16/namerena-cards` 部署到 `https://shenjack.top/cards/`，
 > 并让游戏把自己的对局记录写进**同源的自有后端**（`/api/cards/*`）。
@@ -25,7 +25,7 @@ location /api/cards/ {
     proxy_pass http://127.0.0.1:8800;
     proxy_set_header Host $host;
     proxy_set_header Cookie $http_cookie;
-    proxy_set_header X-Forwarded-For $http_add_forwarded_for;   # 注意：见下方第 6 条
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;   # 注意：见下方第 6 条
     proxy_read_timeout 15s;
 }
 ```
