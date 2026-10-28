@@ -142,7 +142,8 @@ export function applyRunBuff(card, mult) {
   return {
     ...card,
     stats: {
-      hp: scale(s.hp), atk: scale(s.atk), def: scale(s.def), spd: scale(s.spd),
+      // 体力不吃保底：血量必须和 tswn 算出来的一致
+      hp: Math.max(1, Math.round(s.hp)), atk: scale(s.atk), def: scale(s.def), spd: scale(s.spd),
       agi: scale(s.agi), mag: scale(s.mag), res: scale(s.res), wis: scale(s.wis),
     },
   };
