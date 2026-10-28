@@ -992,12 +992,19 @@ function colorFromIcon(src) {
   } catch { return ''; }
 }
 
-// 八围：七围 + 体力，速用引擎内部值
+// 对外展示的八围数值（与 tswn 展示页一致）
+export function dispStats(s) {
+  const raw = s || {};
+  const r = (v) => Math.round(v || 0);
+  return { hp: r(raw.hp), atk: r(raw.atk), def: r(raw.def), agi: r(raw.agi), mag: r(raw.mag), res: r(raw.res), wis: r(raw.wis), spd: r(raw.spd) };
+}
+
+// 八围：七围 + 体力
 export function eightSumOf(card) {
   const s = card?.stats;
   if (!s) return 0;
-  // 速按外显值（-124 的折合值）计入八围
-  return Math.round((s.atk || 0) + (s.def || 0) + ((s.spd || 0) - 124) + (s.agi || 0) + (s.mag || 0) + (s.res || 0) + (s.wis || 0) + (s.hp || 0));
+  const d = dispStats(s);
+  return Math.round(d.atk + d.def + d.spd + d.agi + d.mag + d.res + d.wis + d.hp);
 }
 
 // 固定路径由发布构建替换为内容指纹路径，图标修改后不会命中旧切片缓存。
@@ -1024,6 +1031,7 @@ export function charRowEl(card, { onClick = null, dim = false, selected = false 
 // 角色库里的完整角色行：仿战斗中单位行，全文字、不用图标
 export function fullCharRow(card) {
   const s = card.stats || {};
+  const disp = dispStats(s);
   const hp = Math.max(1, Math.round(s.hp || 1));
   const mp = Math.round(card.maxMp || 100);
   const shield = Math.round(card.shield || 0);
@@ -1041,8 +1049,8 @@ export function fullCharRow(card) {
     bar('fullrow__bar--mp', '魔力 ' + mp, mp),
     shield > 0 ? bar('fullrow__bar--shield', '护盾 ' + shield, (shield / hp) * 100) : null,
     el('div', { class: 'fullrow__stats' },
-      line('攻', s.atk ?? 0), line('防', s.def ?? 0), line('速', Math.round((s.spd ?? 0) - 124)), line('敏', s.agi ?? 0),
-      line('魔', s.mag ?? 0), line('抗', s.res ?? 0), line('智', s.wis ?? 0)),
+      line('攻', disp.atk), line('防', disp.def), line('速', disp.spd), line('敏', disp.agi),
+      line('魔', disp.mag), line('抗', disp.res), line('智', disp.wis)),
     el('div', { class: 'fullrow__skills' }, (card.skillList || []).length
       ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: skillMeta(sk.id).desc }, skillMeta(sk.id).name + ' ' + sk.lv))
       : el('span', { class: 'muted small' }, '无技能')));

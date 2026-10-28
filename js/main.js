@@ -554,7 +554,7 @@ function forgeAtCamp() {
         toast(res ? label + ' ' + res.from + ' → ' + res.to + '（×1.1 基础值）' : '锻造失败', 2400);
         mapScreen();
       },
-    }, el('b', {}, label), el('small', {}, '基础 ' + (key === 'spd' ? Math.round((card?.stats?.spd ?? 0) - 124) : (card?.stats?.[key] ?? '?')))))), el('h2', {}, '或者锻造一个技能'),
+    }, el('b', {}, label), el('small', {}, '基础 ' + (card?.stats?.[key] ?? '?'))))), el('h2', {}, '或者锻造一个技能'),
       el('div', { class: 'inv__grid' }, (card?.skillList || []).map((s) => el('button', {
         class: 'ghost inv__item',
         type: 'button',

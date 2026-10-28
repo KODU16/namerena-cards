@@ -32,13 +32,14 @@ export function iconFor(name, clan) {
 // ol.attrs 的编码：前七围 = 内部值 + 36，速度实际是 attrs[2] + 124（含 160 基础速度），体力原样。
 function decodeStats(attrs) {
   return {
-    atk: Math.max(0, attrs[0] - 36),
-    def: Math.max(0, attrs[1] - 36),
-    spd: Math.max(0, attrs[2] + 124),
-    agi: Math.max(0, attrs[3] - 36),
-    mag: Math.max(0, attrs[4] - 36),
-    res: Math.max(0, attrs[5] - 36),
-    wis: Math.max(0, attrs[6] - 36),
+    // overlay attrs 就是展示页看到的数值，直接用
+    atk: Math.max(0, attrs[0]),
+    def: Math.max(0, attrs[1]),
+    spd: Math.max(0, attrs[2]),
+    agi: Math.max(0, attrs[3]),
+    mag: Math.max(0, attrs[4]),
+    res: Math.max(0, attrs[5]),
+    wis: Math.max(0, attrs[6]),
     hp: Math.max(1, attrs[7]),
   };
 }
@@ -111,8 +112,8 @@ export function buildLine(card) {
   // 前七围在 overlay 里是 0..255 的写法：超界会被引擎截断/回绕（速度尤其明显），必须夹紧
   const clampAttr = (v) => Math.max(0, Math.min(255, Math.round(v)));
   const attrs = [
-    clampAttr(card.stats.atk + 36), clampAttr(card.stats.def + 36), clampAttr(card.stats.spd - 124), clampAttr(card.stats.agi + 36),
-    clampAttr(card.stats.mag + 36), clampAttr(card.stats.res + 36), clampAttr(card.stats.wis + 36), Math.max(1, Math.round(card.stats.hp)),
+    clampAttr(card.stats.atk), clampAttr(card.stats.def), clampAttr(card.stats.spd), clampAttr(card.stats.agi),
+    clampAttr(card.stats.mag), clampAttr(card.stats.res), clampAttr(card.stats.wis), Math.max(1, Math.round(card.stats.hp)),
   ];
   const skills = Object.fromEntries(card.skillList.map((s) => [s.id, s.lv]));
   return `${card.name}@${card.clan}+ol:${JSON.stringify({ attrs, skills, name_factor_enabled: false })}`;
