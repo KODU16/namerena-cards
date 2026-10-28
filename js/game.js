@@ -411,6 +411,21 @@ export function maybeDropWeapon(state, node, rng) {
   return item;
 }
 
+// 旧存档/旧敌人卡只有武器名、没有差值：按「名字+武器」重建一次补上，保证加成有数可显示
+export function ensureWeaponInfo(card) {
+  if (!card || !card.weapon || card.weaponInfo) return card;
+  const base = makeCard(card.name, card.clan);
+  const built = buildWithWeapon(card.name, card.clan, card.weapon);
+  if (!base || !built) return card;
+  const deltas = [];
+  for (const [key, label] of STAT_LABELS) {
+    const d = Math.round((built.stats[key] || 0) - (base.stats[key] || 0));
+    if (d) deltas.push({ label, delta: d });
+  }
+  card.weaponInfo = { weapon: card.weapon, deltas, added: [], removed: [] };
+  return card;
+}
+
 // 角色当前的净加成（武器重建差 + 战术卡），用于界面上蓝/红字
 export function cardBonus(state, card) {
   const bonus = {};
@@ -420,6 +435,7 @@ export function cardBonus(state, card) {
       if (eff.stat) bonus[eff.stat] = (bonus[eff.stat] || 0) + eff.value;
     }
   }
+  ensureWeaponInfo(card);
   const LABEL_KEY = { 体力: 'hp', 攻: 'atk', 防: 'def', 速: 'spd', 敏: 'agi', 魔: 'mag', 抗: 'res', 智: 'wis' };
   for (const d of card?.weaponInfo?.deltas || []) {
     const key = LABEL_KEY[d.label];
