@@ -433,6 +433,16 @@ export function ensureWeaponInfo(card) {
   return card;
 }
 
+// 获得角色：前 10 局内一律套当前保底倍率（开局保底对之后拿到的角色同样生效）
+export function grantCard(state, card) {
+  if (!card) return null;
+  const played = (state.records || []).length;
+  const ready = card.runMult ? card : (played < 10 ? withRunBuff(card, played) : { ...card });
+  state.collection.push(ready);
+  persist(state);
+  return ready;
+}
+
 // 角色当前的净加成（武器重建差 + 战术卡），用于界面上蓝/红字
 export function cardBonus(state, card) {
   const bonus = {};
@@ -842,7 +852,7 @@ export function applyReward(state, offer) {
     state.weapons = state.weapons || [];
     state.weapons.push(offer.weapon);
   } else if (offer.card && !state.collection.some((c) => c.id === offer.card.id)) {
-    state.collection.push({ ...offer.card });
+    grantCard(state, offer.card);
   }
   persist(state);
 }

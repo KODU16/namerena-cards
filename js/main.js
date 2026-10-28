@@ -609,8 +609,7 @@ function mapScreen() {
             setTimeout(() => {
               const res = G.cpuScan(prefix, startAt, cpu, state.run.clan || '无名');
               if (!res) { out.replaceChildren(el('div', { class: 'error' }, '没有扫到可用名字')); return; }
-              if (!state.collection.some((c) => c.name === res.card.name)) state.collection.push(res.card);
-              G.persist(state);
+              if (!state.collection.some((c) => c.name === res.card.name)) G.grantCard(state, res.card);
               out.replaceChildren(
                 el('div', { class: 'muted small' }, '扫描 ' + res.scanned + ' 个名字（' + prefix + startAt + ' ~ ' + prefix + (startAt + cpu.speed) + '）'),
                 UI.charRowEl(res.card),
