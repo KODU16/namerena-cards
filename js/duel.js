@@ -559,7 +559,15 @@ export class DuelView {
     }
     // tswn 不允许连续蓄力：已经在蓄力状态时，牌堆里不再出现蓄力术
     const charging = (state.status_labels || []).some((l) => String(l).startsWith('蓄力'));
-    const hand = drawHand(skillsOf(state, this.duel.champion), this.rng, 3, charging ? new Set(['sklcharge']) : null);
+    // 已有使魔 → 血祭不再进牌池（每个角色只能有 1 只使魔）；蓄力中同理
+    const liveStates = (this.current?.frames || []).length
+      ? this.current.frames[this.current.frames.length - 1].states
+      : (this.current?.initial_states || []);
+    const hasSummon = (liveStates || []).some((s) => s.owner_id === state.id && s.minion_kind === 'summon');
+    const exclude = new Set();
+    if (charging) exclude.add('sklcharge');
+    if (hasSummon) exclude.add('sklsummon');
+    const hand = drawHand(skillsOf(state, this.duel.champion), this.rng, 3, exclude.size ? exclude : null);
     this.renderEnergy(mp);
     const cards = [
       handCardEl({ id: 'normal', lv: 0 }, { onPlay: (c) => this.choose(decision, c, mp) }),
@@ -578,7 +586,8 @@ export class DuelView {
     this.markWaiting(state.id);
     if (!hand.length) {
       // 蓄力把唯一可抽的技能排除掉了：本回合只剩普通攻击，明确提示一下
-      this.logEl.append(el('div', { class: 'log__you' }, '→ 蓄力中：没有可用的技能卡，本回合只能普通攻击'));
+      const why = hasSummon && !charging ? '已有使魔' : '蓄力中';
+      this.logEl.append(el('div', { class: 'log__you' }, '→ ' + why + '：没有可用的技能卡，本回合只能普通攻击'));
     }
     this.interactive = true;
     this.logEl.append(el('div', { class: 'log__you' }, `→ ${state.display_name || '你的单位'} 行动：从手牌里选一张`));

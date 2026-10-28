@@ -1,5 +1,6 @@
 ﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, skillMeta } from './skills.js';
+import { burstAt } from './fx.js';
 import { potionById } from './game.js';
 import { emojiImg } from './emoji.js';
 // 抽牌概率：被动不进牌堆，权重随熟练度线性增长（原先在 combat.js，那里已废弃）
@@ -848,11 +849,43 @@ export function renderMap(root, state, h) {
         if (moved > 6) return;
         if (nodeEl.classList.contains('is-choosing')) return;
         nodeEl.classList.add('is-choosing');
-        setTimeout(() => h.onPick(nodeEl.dataset.id), 1000);
+        // 粒子颜色：战队图标的主色；试炼 @! 固定紫色
+        const nodeData = g.byId.get(nodeEl.dataset.id);
+        const rect = nodeEl.getBoundingClientRect();
+        const cx = rect.left + rect.width / 2;
+        const cy = rect.top + rect.height / 2;
+        const color = nodeData?.kind === 'filler' ? '#8b5cf6' : (colorFromIcon(nodeData?.payload?.cards?.[0]?.icon) || '#2f8ec9');
+        burstAt(cx, cy, color);
+        setTimeout(() => h.onPick(nodeEl.dataset.id), 700);
       });
     });
   }
 }
+// 取图标里的主色（跳过透明像素），失败时返回空
+const iconColorCache = new Map();
+function colorFromIcon(src) {
+  if (!src) return '';
+  if (iconColorCache.has(src)) return iconColorCache.get(src);
+  try {
+    const img = new Image();
+    img.src = src;
+    if (!img.complete) { iconColorCache.set(src, ''); return ''; }
+    const cv = document.createElement('canvas');
+    cv.width = 16; cv.height = 16;
+    const cx = cv.getContext('2d');
+    cx.drawImage(img, 0, 0, 16, 16);
+    const data = cx.getImageData(0, 0, 16, 16).data;
+    let r = 0, gg = 0, b = 0, n = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      if (data[i + 3] < 128) continue;
+      r += data[i]; gg += data[i + 1]; b += data[i + 2]; n++;
+    }
+    const color = n ? 'rgb(' + Math.round(r / n) + ', ' + Math.round(gg / n) + ', ' + Math.round(b / n) + ')' : '';
+    iconColorCache.set(src, color);
+    return color;
+  } catch { return ''; }
+}
+
 // ————————————————————— 物品栏
 
 export function inventorySheet(state) {

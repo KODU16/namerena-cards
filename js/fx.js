@@ -1,4 +1,4 @@
-// 技能特效：canvas 粒子层。每个技能一套颜色/形状/扩散参数。
+﻿// 技能特效：canvas 粒子层。每个技能一套颜色/形状/扩散参数。
 const SKILL_FX = {
   sklfire: { c: '#ff7a3c', c2: '#ffd08a', n: 70, shape: 'spark', speed: 7, spread: 1.6, size: 4, gravity: -0.02 },
   sklice: { c: '#8fd8ff', c2: '#e8f8ff', n: 48, shape: 'flake', speed: 3.2, spread: 1.2, size: 6, gravity: 0.03 },
@@ -158,5 +158,28 @@ export function playSkillFX(skillId) {
     });
   }
   window.__fxCount = particles.length;
+  if (!raf) raf = requestAnimationFrame(tick);
+}
+
+// 地图选点：在节点位置爆一圈该战队图标颜色的粒子
+export function burstAt(x, y, color, n = 34) {
+  ensureCanvas();
+  for (let i = 0; i < n; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 3 + Math.random() * 5;
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      life: 34 + Math.random() * 26,
+      maxLife: 60,
+      size: 3 + Math.random() * 4,
+      color: Math.random() < 0.4 ? '#ffffff' : color,
+      shape: Math.random() < 0.5 ? 'orb' : 'spark',
+      rot: Math.random() * Math.PI,
+      vr: (Math.random() - 0.5) * 0.3,
+      gravity: 0.04,
+    });
+  }
   if (!raf) raf = requestAnimationFrame(tick);
 }
