@@ -265,6 +265,7 @@ function prep() {
   nav('prep', () => UI.renderPrep(root, state, {
     tacticsByIds: (s, ids) => G.tacticsByIds(s, ids),
     bonusOf: (card) => G.cardBonus(state, card),
+    cardBonus: (card) => G.cardBonus(state, card),
     ownedTacticObjects: (s) => G.ownedTacticObjects(s),
     forgeSelected: forgeSel,
     onPickSkillCard: (uid) => { forgeSel = forgeSel === uid ? null : uid; prep(); },

@@ -253,7 +253,7 @@ export function renderPrep(root, state, h) {
       el('div', { class: 'prep__board' },
         el('div', { class: 'prep__col' },
           el('h3', { class: 'col-title' }, '对手'),
-          el('div', { class: 'roster-grid' }, opp.cards.map((c) => charRowEl(c, { dim: true }))),
+          el('div', { class: 'roster-grid' }, opp.cards.map((c) => charRowEl(c, { dim: true, bonus: h.cardBonus ? h.cardBonus(c) : null }))),
         ),
         el('div', { class: 'prep__col prep__col--mid' }, el('div', { class: 'vs-mark' }, 'VS')),
         el('div', { class: 'prep__col' },
