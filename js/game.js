@@ -5,7 +5,10 @@ import { buildLayerGraph, LAYER_COUNT } from './map.js';
 // 给一张卡套上开局保底倍率，并把倍率记在卡上供界面显示加成
 export function withRunBuff(card, playedCount) {
   const mult = runMultiplier(playedCount || 0);
-  return { ...applyRunBuff(card, mult), runMult: mult };
+  // 幂等：记住第一次套保底前的数值，之后无论套多少次都从这份底值重算，绝不会叠乘
+  const base = card.statsBase || { ...card.stats };
+  const scaled = applyRunBuff({ ...card, stats: base }, mult);
+  return { ...scaled, statsBase: base, runMult: mult };
 }
 import { SKILLS, SKILL_IDS, skillMeta } from './skills.js';
 
