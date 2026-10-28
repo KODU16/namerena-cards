@@ -1088,3 +1088,7 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .home__below { max-width: 1180px; margin: 22px auto 0; }
 .home__below .panel { width: 100%; }
 .home__side:empty { display: none; }
+/* 篝火节点 */
+.map-node--camp circle { fill: #fff3e0; }
+.map-node .map-camp { font-size: 20px; pointer-events: none; }
+.map-node.is-avail.map-node--camp circle { fill: #f6a23c; stroke: #b25f00; }

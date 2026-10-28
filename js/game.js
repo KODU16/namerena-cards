@@ -443,6 +443,36 @@ export function destroyItem(state, kind, id) {
 }
 
 // 终点打完 → 进入下一层；返回 true 表示整座塔通关
+// 篝火：休息 → 下一场以 125% 体力开场；锻造 → 给某个角色的一个技能加工
+export function enterCamp(state, nodeId) {
+  const run = state.run;
+  if (!run?.graph) return false;
+  const from = run.graph.byId.get(run.nodeId);
+  if (!from?.next.includes(nodeId)) return false;
+  run.selectedId = nodeId;
+  clearNode(state);
+  persist(state);
+  return true;
+}
+
+export function campRest(state) {
+  const run = state.run;
+  if (!run) return false;
+  run.restBuff = true;
+  persist(state);
+  return true;
+}
+
+export function campForge(state, charId, skillId) {
+  const card = (state.collection || []).find((c) => c.id === charId);
+  const skill = card?.skillList?.find((s) => s.id === skillId);
+  if (!skill) return null;
+  skill.forge = (skill.forge || 0) + 1;
+  skill.lv = skill.lv + Math.max(1, Math.round(skill.lv * 0.05));
+  skill.mpMul = (skill.mpMul || 1) * 0.95;
+  persist(state);
+  return skill;
+}
 export function advanceLayer(state) {
   const run = state.run;
   if (!run) return false;

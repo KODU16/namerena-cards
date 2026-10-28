@@ -5,9 +5,9 @@
 //  - 同层节点按从左到右排序，出边在下一层取连续区间，保证线与线不交叉；
 //  - 所有节点可达，所有路径最终汇聚到终点。
 export const LAYER_COUNT = 10;
-export const DEPTHS = 6;          // 战斗层深度（1..DEPTHS），终点在 DEPTHS+1（每层最多 4 个节点）
-export const MIN_NODES = 20;
-export const MAX_NODES = 25;
+export const DEPTHS = 9;          // 战斗层深度（1..DEPTHS），终点在 DEPTHS+1（每层最多 4 个节点）
+export const MIN_NODES = 30;
+export const MAX_NODES = 35;
 export const MAX_OUT = 4;
 export const MAX_PER_DEPTH = 4;
 
@@ -101,7 +101,16 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller }) {
     }
     groups[d] = mixed;
     groups[d].forEach((n, i) => { n.depth = d; n.order = i; });
-  }  // 事件节点（?）：进入不战斗，随机给一张战术/名字/技能卡，1~2 个
+  }  // 篝火节点：休息或锻造，每层 1~2 个
+  const campCount = 1 + Math.floor(rng() * 2);
+  for (let i = 0; i < campCount; i++) {
+    const open = [];
+    for (let d = 1; d <= DEPTHS; d++) if (groups[d].length < MAX_PER_DEPTH) open.push(d);
+    if (!open.length) break;
+    const d = open[Math.floor(rng() * open.length)];
+    groups[d].push(mk('camp', null, null));
+  }
+  // 事件节点（?）：进入不战斗，随机给一张战术/名字/技能卡，1~2 个
   const eventCount = 1 + Math.floor(rng() * 2);
   for (let i = 0; i < eventCount; i++) {
     const open = [];

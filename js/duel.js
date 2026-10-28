@@ -47,7 +47,8 @@ export function drawHand(skills, rng, count = 3, exclude = null) {
     for (; idx < pool.length; idx++) { x -= pool[idx].weight; if (x <= 0) break; }
     idx = Math.min(idx, pool.length - 1);
     const [picked] = pool.splice(idx, 1);
-    out.push({ id: picked.id, lv: picked.lv, cost: rollMpCost(rng) });
+    const cost = Math.max(1, Math.round(rollMpCost(rng) * (picked.mpMul || 1)));
+    out.push({ id: picked.id, lv: picked.lv, cost });
   }
   return out;
 }
@@ -102,6 +103,8 @@ export class Duel {
       max_rounds: 20000,
       // 受控队伍：轮到本体/分身却没指令时，引擎会停下来等玩家
       controlled_team: this.playerTeam,
+      // 篝火休息：受控队伍以 125% 体力开场（超过 100% 时治疗无效）
+      start_hp_pct: this.startHpPct || undefined,
     });
   }
 
@@ -242,7 +245,9 @@ function panelHtml(state, side, icon, base) {
 // ————————————————————— 视图
 
 export class DuelView {
-  constructor(root, duel, { onFinish, seed = 1 }) {
+  constructor(root, duel, { onFinish, seed = 1, startHpPct = 0 }) {
+    this.startHpPct = startHpPct;
+    this.duel.startHpPct = startHpPct;
     this.root = root;
     this.duel = duel;
     this.onFinish = onFinish;

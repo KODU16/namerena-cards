@@ -29,6 +29,10 @@ export interface BattleOptions {
      * 玩家受控队伍编号；传了就会在轮到该队伍本体/分身时暂停等指令。
      */
     controlled_team?: number;
+    /**
+     * 开局体力倍率（只作用于受控队伍），1.25 = 125%
+     */
+    start_hp_pct?: number;
 }
 
 // 规范 core DTO 形状。没有单独的 Rust 绑定 schema。

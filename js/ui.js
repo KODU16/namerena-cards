@@ -778,7 +778,9 @@ export function renderMap(root, state, h) {
       ? '<text y="6" text-anchor="middle" class="map-glyph">起</text>'
       : n.kind === 'event'
         ? '<text y="8" text-anchor="middle" class="map-question">?</text>'
-        : n.kind === 'filler'
+        : n.kind === 'camp'
+          ? '<text y="8" text-anchor="middle" class="map-camp">🔥</text>'
+          : n.kind === 'filler'
           ? '<text y="9" text-anchor="middle" class="map-monster">👾</text>'
           : icon
             ? `<image href="${icon}" x="-16" y="-16" width="32" height="32" />`
@@ -786,6 +788,7 @@ export function renderMap(root, state, h) {
     const label = n.kind === 'start' ? '起点'
       : n.kind === 'end' ? `终点 #${n.rank ?? ''}`
         : n.kind === 'ladder' ? `天梯 #${n.rank ?? '?'}`
+          : n.kind === 'camp' ? '篝火'
           : n.kind === 'event' ? '事件 ?'
             : '试炼';
     return `<g class="${cls.join(' ')}" data-id="${n.id}" transform="translate(${p.x},${p.y})">

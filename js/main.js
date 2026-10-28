@@ -335,9 +335,11 @@ async function fight() {
     });
     duelView = new DuelView(root, duel, {
       seed: G.battleSeed(run),
+      startHpPct: run.restBuff ? 1.25 : 0,
       onFinish: ({ won, replay }) => finishDuel(won, replay),
     });
   });
+  if (run.restBuff) { run.restBuff = false; G.persist(state); }
   duelView.start();
   UI.renderPotionDock(state, usePotion);
 }
@@ -479,6 +481,33 @@ function openInventory() {
   reopen();
 }
 
+// 篝火锻造：先选角色，再选技能
+function forgeAtCamp() {
+  const pick = (charId) => {
+    const card = state.collection.find((c) => c.id === charId);
+    sheet(el('div', {}, el('h2', {}, '选一个技能锻造'),
+      el('div', { class: 'inv__grid' }, (card?.skillList || []).map((s) => el('button', {
+        class: 'ghost inv__item',
+        type: 'button',
+        onclick: () => {
+          const res = G.campForge(state, charId, s.id);
+          closeSheet();
+          toast(res ? (skillMetaName(s.id) + ' 锻造完成：熟练度 ' + res.lv + '，消耗 ×' + res.mpMul.toFixed(2)) : '锻造失败', 2400);
+          mapScreen();
+        },
+      }, el('b', {}, skillMetaName(s.id)), el('small', {}, '熟练度 ' + s.lv + (s.forge ? (' · 已锻 ' + s.forge + ' 次') : ''))))),
+    ));
+  };
+  sheet(el('div', {}, el('h2', {}, '选一个角色锻造'),
+    el('div', { class: 'inv__grid' }, state.collection.map((card) => el('button', {
+      class: 'ghost inv__item',
+      type: 'button',
+      onclick: () => pick(card.id),
+    }, el('b', {}, card.name + '@' + card.clan), el('small', {}, (card.skillList || []).length + ' 个技能'))))));
+}
+
+function skillMetaName(id) { return skillMeta(id).name; }
+
 function mapScreen() {
   const run = state.run;
   if (!run?.graph) return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
@@ -488,6 +517,28 @@ function mapScreen() {
     onInventory: openInventory,
     onPick: (nodeId) => {
       const node = state.run.graph.byId.get(nodeId);
+      if (node?.kind === 'camp') {
+        sheet(el('div', { class: 'result result--win' },
+          el('div', { class: 'result__kicker' }, 'CAMP'),
+          el('h2', {}, '篝火'),
+          el('p', { class: 'muted' }, '坐下来做点什么？')),
+          el('div', { class: 'result__actions' },
+            el('button', { class: 'primary', type: 'button', onclick: () => {
+              closeSheet();
+              G.enterCamp(state, nodeId);
+              G.campRest(state);
+              toast('休息好了：下一场以 125% 体力开场', 2400);
+              mapScreen();
+            } }, '休息'),
+            el('button', { class: 'secondary', type: 'button', onclick: () => {
+              closeSheet();
+              G.enterCamp(state, nodeId);
+              forgeAtCamp();
+            } }, '锻造'),
+          ),
+        );
+        return;
+      }
       if (node?.kind === 'event') {
         const res = G.enterEvent(state, nodeId);
         if (!res) return;
