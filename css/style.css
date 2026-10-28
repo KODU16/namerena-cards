@@ -1072,3 +1072,11 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .inv__weapon { font-size: 11.5px; color: #8a6b00; font-weight: 600; }
 .inv__del { margin-top: 4px; font-size: 11px; }
 .inv__pick { margin-top: 4px; width: 100%; font-size: 11.5px; padding: 3px 4px; border-radius: 8px; border: 1px solid var(--line); background: #fff; }
+/* 百科 */
+.codex__section { margin-bottom: 18px; }
+.codex__section h3 { font-size: 13px; letter-spacing: .14em; color: var(--sky-3); margin: 0 0 8px; }
+.codex__list { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 10px; }
+.codex__row { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; background: #fff; }
+.codex__row b { font-size: 13.5px; margin-right: 8px; }
+.codex__row small { color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
+.codex__row p { margin: 6px 0 0; font-size: 12px; line-height: 1.55; color: var(--ink-2); }

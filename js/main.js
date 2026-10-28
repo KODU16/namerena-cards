@@ -73,8 +73,14 @@ function paintTopbar() {
     screen: current,
     onHome: () => { if (!duelView) home(); },
     onHelp: help,
+    onCodex: codex,
     onLog: downloadLog,
   }));
+}
+
+function codex() {
+  sheet(UI.codexSheet(state));
+  document.querySelector('.sheet')?.classList.add('sheet--full');
 }
 
 function help() {

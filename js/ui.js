@@ -1,5 +1,5 @@
-// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
-import { CAT, skillMeta } from './skills.js';
+﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById } from './game.js';
 import { emojiImg } from './emoji.js';
@@ -116,7 +116,7 @@ export function tacticEl(t, { active = false, onClick = null } = {}) {
 
 // ————————————————————— 页头
 
-export function topbar(state, { screen, onHome, onHelp, onLog }) {
+export function topbar(state, { screen, onHome, onHelp, onLog, onCodex }) {
   const run = state.run;
   const meta = [];
   if (run && run.status === 'active') meta.push(`第 ${run.layer || 1} / 10 层`);
@@ -135,7 +135,8 @@ export function topbar(state, { screen, onHome, onHelp, onLog }) {
       el('a', { class: 'ghost', href: 'https://shenjack.top:10007/', target: '_blank', rel: 'noopener noreferrer', title: '打开名字竞技场天梯' },
         emojiImg('ladder', 'emoji emoji--xs'), ' 天梯'),
       el('button', { class: 'ghost', type: 'button', onclick: onLog || (() => {}) }, '日志'),
-      el('button', { class: 'ghost', type: 'button', onclick: onHelp }, emojiImg('help', 'emoji emoji--xs'), ' 玩法'),
+      el('button', { class: 'ghost', type: 'button', onclick: onCodex || onHelp }, emojiImg('help', 'emoji emoji--xs'), ' 百科'),
+      el('button', { class: 'ghost', type: 'button', onclick: onHelp }, ' 玩法'),
     ),
   );
 }
@@ -902,6 +903,65 @@ function colorFromIcon(src) {
     iconColorCache.set(src, color);
     return color;
   } catch { return ''; }
+}
+
+// ————————————————————— 百科
+
+const CODEX_STATS = [
+  ['体力', 'HP', '归零即被击倒。回复来自治愈魔法、苏生术、生命药水；护盾先于体力吸收伤害。'],
+  ['攻', 'attack', '物理攻击的伤害基础。普攻、地裂术、会心一击、连击等物理技能都吃这一项。'],
+  ['防', 'defense', '抵消物理伤害。铁壁、守护、防御药水都会临时抬高它。'],
+  ['速', 'speed', '行动顺序与行动条（速度点数）。越高越先动、行动越频繁；加速术/减速术直接改这项。'],
+  ['敏', 'agility', '闪避与命中的判定基础。隐匿、潜行会临时抬高闪避。'],
+  ['魔', 'magic', '魔法攻击的伤害基础。火球术、冰冻术、雷击术等法术都吃这一项。'],
+  ['抗', 'resistance', '抵消魔法伤害。抗性药水临时抬高它。'],
+  ['智', 'wisdom', '被动与判定的基础值。例如反击判定会用 wisdom 与引擎掷骰比较，越高越容易触发。'],
+];
+
+const CODEX_PLAYER = [
+  ['抽牌', '每回合从你已学的主动技能里抽 3 张，权重是 1 + 熟练度/6（熟练度越高越容易抽到）。普通攻击永远可用。'],
+  ['净化', '敌人专属，正常不会进你的牌池；只有武器带来的净化可以抽到，且熟练度封顶 1。'],
+  ['MP 时机', '卡牌在抽到的那一刻就用引擎的掷骰定好消耗（8~23），不是出牌时再掷。能量不足的牌会变灰。'],
+  ['谁听你指挥', '只有本体与分身会停下来等你下指令；幻影、使魔、丧尸由引擎自动行动。'],
+  ['背刺', '潜行与背刺是两段，引擎会强制走完第二段，玩家不能在这中间插别的牌。'],
+  ['狂暴', '进入狂暴（含被附体）后，四张牌全部变成「狂暴攻击」并自动随机打出，玩家不能选牌。'],
+  ['召唤上限', '每个角色只能拥有 1 只使魔；已有使魔时不会再抽到血祭。蓄力中同理不会再抽到蓄力。'],
+  ['护盾', '护盾按回合叠加，先于体力吸收伤害。'],
+  ['药水', '不消耗行动，效果作用于这一次行动；生命/能量药水点下去立刻反映在血条/蓝条上。'],
+  ['武器', '装备后属性线由 tswn 用 名字+武器@战队 重新构建，可能升也可能降；界面会列出加成了哪些属性、新添了哪些技能。'],
+];
+
+const CAT_NAMES = { atk: '物理', magic: '法术', ctrl: '控制', def: '防御', heal: '回复', summon: '召唤' };
+
+export function codexSheet(state) {
+  const tabBar = el('div', { class: 'inv__tabs' });
+  const body = el('div', { class: 'inv__body codex' });
+  const paint = (id) => {
+    [...tabBar.children].forEach((b) => b.classList.toggle('is-active', b.dataset.tab === id));
+    if (id === 'stats') {
+      body.replaceChildren(el('div', { class: 'codex__list' }, CODEX_STATS.map(([name, key, desc]) =>
+        el('div', { class: 'codex__row' }, el('b', {}, name), el('small', {}, key), el('p', {}, desc)))));
+    } else if (id === 'skills') {
+      const groups = {};
+      for (const [id2, s] of Object.entries(SKILLS)) {
+        (groups[s.cat] = groups[s.cat] || []).push({ id: id2, ...s });
+      }
+      body.replaceChildren(...Object.entries(groups).map(([cat, list]) =>
+        el('section', { class: 'codex__section' },
+          el('h3', {}, CAT_NAMES[cat] || cat),
+          el('div', { class: 'codex__list' }, list.map((s) => el('div', { class: 'codex__row' },
+            el('b', {}, s.name), el('small', {}, s.id), el('p', {}, s.desc)))))));
+    } else {
+      body.replaceChildren(el('div', { class: 'codex__list' }, CODEX_PLAYER.map(([name, desc]) =>
+        el('div', { class: 'codex__row' }, el('b', {}, name), el('p', {}, desc)))));
+    }
+  };
+  for (const t of [{ id: 'stats', n: '属性' }, { id: 'skills', n: '技能' }, { id: 'player', n: '玩家手操差异' }]) {
+    tabBar.append(el('button', { class: 'ghost inv__tab', type: 'button', 'data-tab': t.id, onclick: () => paint(t.id) }, t.n));
+  }
+  const wrap = el('div', { class: 'inv' }, el('h2', {}, '百科'), tabBar, body);
+  paint('stats');
+  return wrap;
 }
 
 // ————————————————————— 物品栏
