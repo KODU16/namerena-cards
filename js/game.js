@@ -111,7 +111,7 @@ export function persist(state) {
       id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
       cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
       // 装备与武器信息也要存，否则刷新后武器就「消失」了
-      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, maxMp: c.maxMp, shield: c.shield,
+      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, forge: c.forge || null, maxMp: c.maxMp, shield: c.shield,
     });
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       v: 1,
@@ -388,6 +388,15 @@ export function maybeDropWeapon(state, node, rng) {
   return item;
 }
 
+// 锻造增量叠加在任何构建结果之上（锻造只锻基础值，不进蓝字加成）
+export function applyForge(stats, forge) {
+  if (!stats) return stats;
+  const f = forge || {};
+  const out = { ...stats };
+  for (const k of Object.keys(f)) out[k] = Math.round((out[k] || 0) + f[k]);
+  return out;
+}
+
 // 装备武器：用引擎重算该角色的属性线
 const STAT_LABELS = [['hp', '体力'], ['atk', '攻'], ['def', '防'], ['spd', '速'], ['agi', '敏'], ['mag', '魔'], ['res', '抗'], ['wis', '智']];
 
@@ -409,7 +418,7 @@ export function equipWeapon(state, weaponId, charId) {
   }
   card.weapon = weapon.name;
   // 与 namerena 一致：装备武器后整条构建结果都换成「名字+武器」，属性与技能一起变
-  card.stats = built.stats;
+  card.stats = applyForge(built.stats, card.forge);
   card.skillList = built.skills.map((s) => ({
     id: s.id,
     lv: s.id === 'skldisperse' ? Math.min(1, s.lv) : s.lv,
@@ -439,7 +448,7 @@ export function equipWeapon(state, weaponId, charId) {
   card.weapon = '';
   // 卸下后恢复本体构建：属性和技能都要回来
   const base = makeCard(card.name, card.clan);
-  card.stats = base.stats;
+  card.stats = applyForge(base.stats, card.forge);
   card.skillList = base.skillList;
   card.weaponInfo = null;
   persist(state);
@@ -615,12 +624,17 @@ export function campRest(state) {
 export function campForgeStat(state, charId, key) {
   const card = (state.collection || []).find((c) => c.id === charId);
   if (!card || !card.stats || !(key in card.stats)) return null;
-  const base = card.stats[key] || 0;
-  card.stats[key] = Math.max(1, Math.round(base * 1.1));
+  // 锻造加在基础值上：先得到当前构建（本体或本体+武器），再叠加已记录的 forge 增量
+  const build = card.weapon ? buildWithWeapon(card.name, card.clan, card.weapon) : makeCard(card.name, card.clan);
+  const buildStats = build ? build.stats : card.stats;
+  card.forge = card.forge || {};
+  const cur = (buildStats[key] || 0) + (card.forge[key] || 0);
+  const gain = Math.max(1, Math.round(cur * 0.1));
+  card.forge[key] = (card.forge[key] || 0) + gain;
+  card.stats = applyForge(buildStats, card.forge);
   persist(state);
-  // 速在界面上按「折合后」显示（-124），锻造本身作用在原始值上
   const fold = (v) => Math.round(v);
-  return { key, from: fold(base), to: fold(card.stats[key]), raw: [base, card.stats[key]] };
+  return { key, from: fold(cur), to: fold(card.stats[key]), raw: [cur, card.stats[key]] };
 }
 
 export function campForge(state, charId, skillId) {
