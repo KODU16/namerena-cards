@@ -375,17 +375,8 @@ export class DuelView {
       this.logEl.append(line);
     });    this.logEl.scrollTop = this.logEl.scrollHeight;
     for (const state of frame.states || []) this.patchUnit(state);
-    // 己方有人进入狂暴（含被附体）：屏幕边缘泛红，提示本回合由引擎接管
-    const berserkNow = (frame.states || []).some((st) => st.team_index === this.duel.playerTeam
-      && (st.status_labels || []).some((l) => l.includes('狂暴')));
-    const battle = this.root.querySelector('.battle');
-    if (battle) battle.classList.toggle('is-berserk', berserkNow);
-    if (berserkNow && !this.berserkShown) {
-      this.berserkShown = true;
-      this.logEl.append(el('div', { class: 'log__you' }, '→ 进入狂暴：本回合由引擎接管行动'));
-      this.logEl.scrollTop = this.logEl.scrollHeight;
-    }
-    if (!berserkNow) this.berserkShown = false;
+    // 回放包含使魔和队友状态；全屏狂暴效果只由当前出牌单位控制。
+    this.root.querySelector('.battle')?.classList.remove('is-berserk');
   }
 
   async play(from, to) {
@@ -426,6 +417,7 @@ export class DuelView {
 
   clearWaiting() {
     for (const node of this.units.values()) node.classList.remove('is-waiting');
+    this.root.querySelector('.battle')?.classList.remove('is-berserk');
   }
 
   playCardEffect(node, card) {
@@ -566,6 +558,8 @@ export class DuelView {
     const mp = Math.max(0, state.magic_point || 0);
     // 狂暴（含被附体）：四张牌全部是「狂暴攻击」，自动随机打出一张，结果交给引擎
     const berserk = (state.status_labels || []).some((l) => l.includes('狂暴'));
+    // 分身和多人队友分别判断，只在自己的狂暴出牌期间泛红。
+    this.root.querySelector('.battle')?.classList.toggle('is-berserk', berserk);
     if (berserk) {
       this.renderEnergy(mp);
       const cards = [0, 1, 2, 3].map((i) => handCardEl({ id: 'berserk', lv: 0 }, { onPlay: () => {} }));
@@ -579,7 +573,7 @@ export class DuelView {
       this.logEl.scrollTop = this.logEl.scrollHeight;
       const delay = 700 + Math.floor(this.rng() * 500);
       this.interactive = false;
-      setTimeout(() => {
+      this.berserkTimer = setTimeout(() => {
         if (this.done) return;
         const pick = Math.floor(this.rng() * 4);
         const node = this.handEl.children[pick];
