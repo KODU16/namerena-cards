@@ -597,6 +597,10 @@ export class DuelView {
     const exclude = new Set();
     if (charging) exclude.add('sklcharge');
     if (hasSummon) exclude.add('sklsummon');
+    // 苏生术只能复活「已经倒下的本体/非召唤物」；没有这样的目标时不给这张牌，
+    // 否则引擎选不到目标会把它降级成普通攻击
+    const canRevive = (liveStates || []).some((s) => s.team_index === this.duel.playerTeam && s.alive === false && s.owner_id == null);
+    if (!canRevive) exclude.add('sklrevive');
     const hand = drawHand(skillsOf(state, this.duel.champion), this.rng, 3, exclude.size ? exclude : null);
     this.renderEnergy(mp);
     const cards = [
