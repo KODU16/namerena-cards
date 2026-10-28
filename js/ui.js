@@ -117,7 +117,8 @@ export function tacticEl(t, { active = false, onClick = null } = {}) {
 export function topbar(state, { screen, onHome, onHelp, onLog }) {
   const run = state.run;
   const meta = [];
-  if (run && run.status === 'active') meta.push(`第 ${Math.min(run.index + 1, run.opponents.length)} / ${run.opponents.length} 战`);
+  if (run && run.status === 'active') meta.push(`第 ${run.layer || 1} / 10 层`);
+  if (run && run.cleared?.length) meta.push(`本层已过 ${run.cleared.length} 关`);
   if (run && run.wins) meta.push(`${run.wins} 胜`);
   return el('header', { class: 'topbar' },
     el('button', { class: 'brand', type: 'button', onclick: onHome, title: '回首页' },
@@ -232,15 +233,20 @@ export function renderNewRun(root, state, h) {
 
 export function renderPrep(root, state, h) {
   const run = state.run;
-  const opp = run.opponents[run.index] || { cards: [], rank: null, score: 0, teamSize: 0 };
+  const node = run.graph?.byId?.get(run.selectedId || run.nodeId) || null;
+  const opp = node?.kind === 'ladder'
+    ? node.payload
+    : node?.kind === 'filler'
+      ? { rank: null, score: 0, name: node.payload[0]?.name || '试炼对手', cards: node.payload, teamSize: node.payload.length }
+      : { cards: [], rank: null, score: 0, teamSize: 0 };
   const team = (run.teamIds || []).map((id) => state.collection.find((c) => c.id === id)).filter(Boolean);
   const tactics = h.tacticsByIds(state, run.tacticIds);
   const full = team.length === run.teamSize;
   root.replaceChildren(
     el('section', { class: 'prep' },
       el('div', { class: 'prep__head' },
-        el('div', { class: 'stage' }, el('span', { class: 'stage__n' }, `第 ${run.index + 1} / ${run.opponents.length} 战`), el('span', { class: 'muted' }, `天梯 ${run.lane} · 队伍 ${run.teamSize} 人`)),
-        el('h2', {}, `天梯对手 #${opp.rank ?? '?'}`),
+        el('div', { class: 'stage' }, el('span', { class: 'stage__n' }, `第 ${run.layer || 1} 层`), el('span', { class: 'muted' }, `天梯 ${run.lane} · 队伍 ${run.teamSize} 人`)),
+        el('h2', {}, opp.rank ? `天梯对手 #${opp.rank}` : '试炼对手（@! 队名）'),
         el('div', { class: 'muted' }, `${opp.score ?? 0} 分 · 对方 ${opp.cards.length} 人`),
       ),
       el('div', { class: 'prep__board' },
@@ -699,4 +705,86 @@ if (typeof document !== 'undefined') {
     if (host) hideTip();
   });
   document.addEventListener('scroll', hideTip, true);
+}
+// ————————————————————— 地图（有向图）
+
+export function renderMap(root, state, h) {
+  const run = state.run;
+  const g = run?.graph;
+  if (!g) {
+    root.replaceChildren(el('div', { class: 'boot-error' }, '这一局没有地图数据'));
+    return;
+  }
+  const byDepth = new Map();
+  for (const n of g.nodes) {
+    if (!byDepth.has(n.depth)) byDepth.set(n.depth, []);
+    byDepth.get(n.depth).push(n);
+  }
+  const depths = [...byDepth.keys()].sort((a, b) => a - b);
+  const W = 40 + depths.length * 150;
+  const H = 60 + Math.max(...depths.map((d) => byDepth.get(d).length)) * 64;
+  const pos = new Map();
+  for (const d of depths) {
+    const list = byDepth.get(d);
+    const x = 70 + d * 150;
+    list.forEach((n, i) => {
+      const y = 50 + (i + 0.5) * ((H - 100) / Math.max(1, list.length));
+      pos.set(n.id, { x, y });
+    });
+  }
+  const current = g.byId.get(run.nodeId);
+  const available = new Set(current?.next || []);
+  const cleared = new Set(run.cleared || []);
+
+  const edges = [];
+  for (const n of g.nodes) {
+    for (const id of n.next) {
+      const a = pos.get(n.id);
+      const b = pos.get(id);
+      if (a && b) edges.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="map-edge${cleared.has(n.id) ? ' is-past' : ''}" />`);
+    }
+  }
+  const nodeHtml = g.nodes.map((n) => {
+    const p = pos.get(n.id) || { x: 0, y: 0 };
+    const isAvail = available.has(n.id);
+    const isCurrent = n.id === run.nodeId;
+    const isCleared = cleared.has(n.id);
+    const cls = ['map-node', `map-node--${n.kind}`];
+    if (isAvail) cls.push('is-avail');
+    if (isCurrent) cls.push('is-current');
+    if (isCleared) cls.push('is-cleared');
+    const label = n.kind === 'start' ? '起点'
+      : n.kind === 'end' ? `终点 #${n.rank ?? ''}`
+        : n.kind === 'ladder' ? `天梯 #${n.rank ?? '?'}`
+          : '试炼 @!';
+    const r = n.kind === 'start' || n.kind === 'end' ? 24 : 18;
+    return `<g class="${cls.join(' ')}" data-id="${n.id}" transform="translate(${p.x},${p.y})">
+      <circle r="${r}"></circle>
+      <text y="4" text-anchor="middle">${label}</text>
+    </g>`;
+  }).join('');
+
+  const svg = `<svg class="map-svg" viewBox="0 0 ${W} ${H}" width="100%" height="${Math.min(720, H)}">${edges.join('')}${nodeHtml}</svg>`;
+  root.replaceChildren(
+    el('section', { class: 'map' },
+      el('div', { class: 'map__head' },
+        el('div', {},
+          el('div', { class: 'home__kicker' }, `LAYER ${run.layer || 1} / 10`),
+          el('h2', {}, `第 ${run.layer || 1} 层 · 天梯 ${run.lane}`),
+          el('div', { class: 'muted' }, `本层已过 ${run.cleared?.length || 0} 关 · 终点是该层名次最高的天梯选手`)),
+        el('div', { class: 'map__legend' },
+          el('span', { class: 'map-legend map-legend--avail' }, '可前往'),
+          el('span', { class: 'map-legend map-legend--ladder' }, '天梯'),
+          el('span', { class: 'map-legend map-legend--filler' }, '试炼 @!'),
+          el('span', { class: 'map-legend map-legend--end' }, '终点')),
+      ),
+      el('div', { class: 'map__body' }),
+      el('div', { class: 'map__foot' }, el('button', { class: 'ghost', type: 'button', onclick: h.onHome }, '返回首页')),
+    ),
+  );
+  const bodyEl = root.querySelector('.map__body');
+  if (bodyEl) bodyEl.innerHTML = svg;
+  root.querySelectorAll('.map-node.is-avail').forEach((nodeEl) => {
+    nodeEl.addEventListener('click', () => h.onPick(nodeEl.dataset.id));
+  });
 }

@@ -1,4 +1,4 @@
-// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
+﻿// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
 import { loadEngine, makeCard, hydrateCard, buildLine, applyTactics, applyRunBuff, runMultiplier, engineWasm, iconFor } from './engine.js';
 import { Duel, DuelView } from './duel.js';
 import * as G from './game.js';
@@ -79,12 +79,12 @@ function help() {
     el('h2', {}, '玩法'),
     el('ul', { class: 'help-list' },
       el('li', {}, el('b', {}, '名字即卡牌。'), ' 卡面上的八围、技能与头像全部由 tswn_core 从名字算出；同名同战队永远得到同一张卡。'),
-      el('li', {}, el('b', {}, '开局。'), ' 你只决定战队名；自身名字随机，因此属性、技能和熟练度都是抽出来的。'),
+      el('li', {}, el('b', {}, '开局。'), ' 你只决定战队名（不能含 !）；自身名字随机，属性、技能和熟练度都是抽出来的。'),
       el('li', {}, el('b', {}, '每回合。'), ' 从技能组里抽 3 张技能卡和一份能量；主动技点选打出，能量不足的牌会变灰。普通攻击 0 能量、永远可用。'),
       el('li', {}, el('b', {}, '被动自动。'), ' 反击、反弹、护身符不占手牌，满足条件时自行发动；蓄盾则在每回合开始时按熟练度自动累积。'),
       el('li', {}, el('b', {}, '行动节奏。'), ' 每打出一次，对手会立刻应手一次；你也可以点「结束回合」提前收手。双方每回合的行动次数相同。'),
       el('li', {}, el('b', {}, '对手。'), ' 开战前从天梯 1A 抓取：取最底下第一个正分成员作为第一位对手，之后沿排名向上。'),
-      el('li', {}, el('b', {}, '胜负。'), ' 一方角色被击倒即结束。赢满 8 场通关，每胜一场三选一补强卡组。'),
+      el('li', {}, el('b', {}, '地图。'), ' 每层是一张随机有向图：只能往前走，所有路都汇聚到该层名次最高的天梯选手；赢下终点进入下一层，共 10 层。'),
     ),
     el('p', { class: 'muted small' }, `引擎 tswn_core ${state.core || '0.7.0'} / wasm ${state.wasm || '0.5.6'} · 战斗规则为本作实现的回合制，八围与技能来自引擎构建结果。`),
     el('button', { class: 'primary', type: 'button', onclick: closeSheet }, '知道了'),
@@ -149,7 +149,7 @@ function home() {
   nav('home', () => UI.renderHome(root, state, {
     versions: { wasm: state.wasm || '0.5.6', core: state.core || '0.7.0' },
     onNewRun: newRunSetup,
-    onContinue: () => prep(),
+    onContinue: () => (state.run?.selectedId ? prep() : mapScreen()),
     onForge: forgeScreen,
   }));
   // 每次回到首页都换一句随机 Say
@@ -170,7 +170,11 @@ function newRunSetup() {
     onHome: () => { draft = null; home(); },
     onChangeLane: (lane) => { draft.lane = lane; newRunSetup(); },
     onChangeClan: (clan) => {
-      draft.clan = String(clan || '').trim().slice(0, 18);
+      const raw = String(clan || '').trim().slice(0, 18);
+      // 「!」在 tswn 里是测试标记（@!），玩家不能用它当战队名
+      const clean = raw.replace(/[!！]/g, '');
+      if (clean !== raw) toast('战队名不能包含 !（那是引擎的测试标记）');
+      draft.clan = clean;
       draft.card = safeCard(draft.name, draft.clan || '无名');
       newRunSetup();
     },
@@ -191,8 +195,8 @@ function newRunSetup() {
         starters: draft.card ? [draft.card] : [],
       });
       draft = null;
-      prep();
-      toast('新的一局，从天梯最底下开始');
+      mapScreen();
+      toast('新的一局：先选一条路');
     },
   }));
 }
@@ -256,7 +260,7 @@ function prep() {
 
 async function fight() {
   const run = state.run;
-  const opp = run.opponents[run.index];
+  const opp = G.currentOpponent(state);
   const team = (run.teamIds || []).map((id) => state.collection.find((c) => c.id === id)).filter(Boolean);
   if (!team.length || !opp) return toast('队伍还没满');
   const tactics = G.tacticsByIds(state, run.tacticIds);
@@ -354,13 +358,33 @@ function afterBattle(won) {
     G.advanceRun(state, false);
     return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
   }
-  G.advanceRun(state, true);
-  if (state.run.status === 'won') {
-    return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
+  // 赢下这个节点：位置推进过去
+  const node = G.clearNode(state);
+  if (node && node.kind === 'end') {
+    const finished = G.advanceLayer(state);
+    if (finished) {
+      return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
+    }
+    toast(`第 ${state.run.layer - 1} 层通过，进入第 ${state.run.layer} 层`, 2600);
+    return mapScreen();
   }
   const offers = G.rollRewards(state, (state.run.seed + state.run.index * 7919) >>> 0);
   nav('reward', () => UI.renderReward(root, state, offers, {
-    onPickOffer: (o) => { G.applyReward(state, o); prep(); },
+    onPickOffer: (o) => { G.applyReward(state, o); mapScreen(); },
+  }));
+}
+
+// ————————————————————— 地图
+
+function mapScreen() {
+  const run = state.run;
+  if (!run?.graph) return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
+  nav('map', () => UI.renderMap(root, state, {
+    onHome: home,
+    onPick: (nodeId) => {
+      if (!G.selectNode(state, nodeId)) return;
+      prep();
+    },
   }));
 }
 // ————————————————————— 工坊

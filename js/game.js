@@ -1,5 +1,6 @@
 ﻿// 局内状态、爬塔流程与存档。
 import { makeCard, iconFor } from './engine.js';
+import { buildLayerGraph, LAYER_COUNT } from './map.js';
 import { SKILLS, SKILL_IDS } from './skills.js';
 
 const SAVE_KEY = 'namerena-cards/v1';
@@ -47,7 +48,7 @@ export function loadSave(state) {
     state.tacticPower = s.tacticPower || {};
     state.customCards = (s.customCards || []).map((c) => hydrateSaved(c)).filter(Boolean);
     if (s.run && s.run.status === 'active') {
-      s.run.opponents = (s.run.opponents || []).map(hydrateOpponent).filter(Boolean);
+      if (!s.run.graph) s.run.status = 'lost'; // 旧存档没有地图，直接结束这一局
       s.run.tacticIds = s.run.tacticIds || [];
       state.run = s.run;
     }
@@ -162,27 +163,28 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     teamSize,
     index: 0,
     wins: 0,
+    layer: 1,
     status: 'active',
     createdAt: Date.now(),
     teamIds: [],
     downed: [],
     tacticIds: [],
     skillCards: [],
-    opponents: [],
+    graph: null,
+    nodeId: null,
+    selectedId: null,
+    cleared: [],
+    entries: [],
     ladderSource: liveEntries && liveEntries.length ? source : (ladder?.source || 'snapshot'),
   };
-  state.run.opponents = queue.map((entry) => {
-    if (entry && entry.name && !entry.lineup) return opponentFromEntry(entry, teamSize);
-    const cards = (entry.lineup || []).slice(0, teamSize).map((line) => {
-      const at = line.lastIndexOf('@');
-      try {
-        return makeCard(at >= 0 ? line.slice(0, at) : line, at >= 0 ? line.slice(at + 1) : '无名');
-      } catch {
-        return statlessCard(line);
-      }
-    });
-    return { rank: entry.rank, score: entry.score, cards, name: entry.name, teamSize: cards.length };
-  });
+  // 整条天梯（按名次），只保留前 100 名
+  state.run.entries = queue
+    .filter((e) => e && Number.isFinite(e.rank) && e.rank >= 1 && e.rank <= 100)
+    .map((entry) => opponentFromEntry(entry, teamSize));
+  if (!state.run.entries.length) {
+    // 兜底：没有名次的队伍就按顺序补
+    state.run.entries = queue.slice(0, 100).map((entry) => opponentFromEntry(entry, teamSize));
+  }
   // 开局角色：人数 = 线号
   const base = starters && starters.length ? starters : [];
   const collection = [...(state.customCards || [])];
@@ -200,18 +202,104 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
   state.collection = collection;
   state.run.teamIds = collection.slice(0, teamSize).map((c) => c.id);
   state.ownedTactics = shuffle(state.tacticsPool, r).slice(0, 3).map((t) => t.id);
+  buildGraphForLayer(state);
   persist(state);
   return state.run;
+}
+
+// 生成第 n 层的地图（n 从 run.layer 取）
+export function buildGraphForLayer(state) {
+  const run = state.run;
+  if (!run) return null;
+  const r = mulberry32((run.seed ^ (run.layer * 2654435761)) >>> 0);
+  run.graph = buildLayerGraph({
+    entries: run.entries || [],
+    layer: run.layer,
+    teamSize: run.teamSize,
+    rng: r,
+    makeFiller: (teamSize, rr) => makeFiller(teamSize, rr),
+  });
+  run.nodeId = run.graph.startId;
+  run.selectedId = null;
+  run.cleared = [];
+  return run.graph;
+}
+
+// 随机 @! 队名的填充队伍（TestEx），人数 = 出战人数
+export function makeFiller(teamSize, rng) {
+  const cards = [];
+  for (let i = 0; i < Math.max(1, teamSize); i++) {
+    try {
+      cards.push(makeCard(randomName(rng), '!'));
+    } catch {
+      cards.push(statlessCard(randomName(rng) + '@!'));
+    }
+  }
+  return cards;
 }
 
 function statlessCard(line) {
   return { id: line, name: line, clan: '', stats: { hp: 200, atk: 20, def: 20, spd: 100, agi: 20, mag: 20, res: 20, wis: 20 }, skillList: [], icon: '' };
 }
-export function currentOpponent(state) {
+
+// 当前正在准备/进行的战斗节点
+export function currentNode(state) {
   const run = state.run;
-  if (!run) return null;
-  return run.opponents[run.index] || null;
+  if (!run?.graph) return null;
+  const id = run.selectedId || run.nodeId;
+  return run.graph.byId.get(id) || null;
 }
+
+// 战斗节点对应的对手（含 cards）
+export function currentOpponent(state) {
+  const node = currentNode(state);
+  if (!node) return null;
+  if (node.kind === 'ladder') return node.payload;
+  if (node.kind === 'filler') return { rank: null, score: 0, name: node.payload[0]?.name || '试炼对手', cards: node.payload, teamSize: node.payload.length };
+  return null;
+}
+
+// 选择一个节点（只能从当前位置的 next 里选）
+export function selectNode(state, nodeId) {
+  const run = state.run;
+  if (!run?.graph) return false;
+  const from = run.graph.byId.get(run.nodeId);
+  if (!from?.next.includes(nodeId)) return false;
+  run.selectedId = nodeId;
+  persist(state);
+  return true;
+}
+
+// 打完这个节点：把当前位置推进过去
+export function clearNode(state) {
+  const run = state.run;
+  if (!run?.selectedId) return null;
+  const node = run.graph.byId.get(run.selectedId);
+  run.nodeId = run.selectedId;
+  run.cleared.push(run.selectedId);
+  run.selectedId = null;
+  run.index += 1;
+  run.wins += 1;
+  persist(state);
+  return node;
+}
+
+// 终点打完 → 进入下一层；返回 true 表示整座塔通关
+export function advanceLayer(state) {
+  const run = state.run;
+  if (!run) return false;
+  if (run.layer >= LAYER_COUNT) {
+    run.status = 'won';
+    recordRun(state, run, true);
+    persist(state);
+    return true;
+  }
+  run.layer += 1;
+  buildGraphForLayer(state);
+  persist(state);
+  return false;
+}
+
 
 export function scaleTactic(t, power) {
   const p = power || 1;
@@ -255,7 +343,7 @@ export function battleSeed(run) {
 export function rollRewards(state, seed) {
   const r = mulberry32(seed);
   const run = state.run;
-  const progress = run.opponents.length > 1 ? run.index / (run.opponents.length - 1) : 0;
+  const progress = Math.min(1, Math.max(0, ((run.layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
   // 角色：必须是本战队（开局选的战队名）
   let card = null;
   for (let i = 0; i < 20; i++) {
@@ -351,10 +439,6 @@ export function advanceRun(state, won) {
   }
   run.wins += 1;
   run.index += 1;
-  if (run.index >= run.opponents.length) {
-    run.status = 'won';
-    recordRun(state, run, true);
-  }
   persist(state);
 }
 
@@ -363,7 +447,7 @@ function recordRun(state, run, won) {
   state.records.unshift({
     lane: run.lane || '1A',
     wins: run.wins,
-    total: run.opponents.length,
+    total: LAYER_COUNT * 7,
     won,
     at: Date.now(),
   });
@@ -553,18 +637,4 @@ export function opponentFromEntry(entry, teamSize) {
     cards,
     teamSize: cards.length,
   };
-}
-
-// 每次对战开始时只读当前线路的实时榜单，替换「这一场」的对手，不重建整条队列
-export async function refreshRunOpponents(state) {
-  const run = state.run;
-  if (!run) return false;
-  const entries = await fetchLaneEntries(run.lane);
-  if (!entries.length) return false;
-  const index = Math.min(run.index, entries.length - 1);
-  run.opponents[index] = opponentFromEntry(entries[index], run.teamSize);
-  run.ladderRank = entries[index].rank;
-  run.ladderUpdatedAt = new Date().toISOString();
-  persist(state);
-  return true;
 }
