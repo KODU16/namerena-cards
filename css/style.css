@@ -1085,3 +1085,6 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .codex__trow span { padding: 6px 8px; font-family: var(--mono); font-size: 12px; text-align: center; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .codex__trow span:last-child { border-right: 0; }
 .codex__trow.is-head { background: #f2f8fc; font-weight: 700; color: var(--sky-3); }
+.home__below { max-width: 1180px; margin: 22px auto 0; }
+.home__below .panel { width: 100%; }
+.home__side:empty { display: none; }

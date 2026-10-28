@@ -163,26 +163,19 @@ export function renderHome(root, state, h) {
           el('div', { class: 'fact' }, el('b', {}, `core ${core}`), el('span', {}, `wasm ${wasm}`)),
         ),
       ),
-      el('div', { class: 'home__side' },
-        el('div', { class: 'panel' },
-          el('h3', {}, '当前对手池'),
-          el('p', { class: 'muted' },
-            state.ladderSource === 'live' ? '已从 shenjack.top 实时抓取天梯 1A。' : '浏览器跨域被拦，使用仓库内快照；跑 tools/fetch-ladder.mjs 可更新。'),
-          el('ol', { class: 'ladder-list' }, (state.ladder?.queue || []).slice(0, 8).map((q, i) =>
-            el('li', {}, el('span', { class: 'rank' }, `#${q.rank ?? '?'}`), el('span', { class: 'who' }, q.name), el('span', { class: 'score' }, q.score))),
-          ),
-        ),
-        el('div', { class: 'panel panel--tip' },
-          el('h3', {}, '一局怎么打'),
-          el('ol', { class: 'steps' },
-            el('li', {}, '从卡组里选 1 名角色出战，可再挂 2 张战术卡。'),
-            el('li', {}, '每回合抽 3 张技能卡与一份能量：主动技点选，被动自动触发，能量不足的牌会变灰。'),
-            el('li', {}, '一路打到该组第 1 名。每胜一场三选一：技能卡、战术卡、角色卡。'),
-          ),
-        ),
-      ),
+      el('div', { class: 'home__side' }),
     ),
   );
+  const below = el('section', { class: 'home__below' },
+    el('div', { class: 'panel' },
+      el('h3', {}, state.ladderSource === 'live' ? '实时抓取天梯' : '天梯快照'),
+      el('p', { class: 'muted' },
+        state.ladderSource === 'live' ? '已从 shenjack.top 实时抓取天梯。' : '浏览器跨域被拦，使用仓库内快照；跑 tools/fetch-ladder.mjs 可更新。'),
+      el('ol', { class: 'ladder-list' }, (state.ladder?.queue || []).slice(0, 8).map((q) =>
+        el('li', {}, el('span', { class: 'rank' }, `#${q.rank ?? '?'}`), el('span', { class: 'who' }, q.name), el('span', { class: 'score' }, q.score)))),
+    ),
+  );
+  root.append(below);
 }
 
 // ————————————————————— 开局：选战队名，随机名字
@@ -916,6 +909,9 @@ const CODEX_STATS = [
   ['魔', 'magic', '魔法攻击的伤害基础。火球术、冰冻术、雷击术等法术都吃这一项。'],
   ['抗', 'resistance', '抵消魔法伤害。抗性药水临时抬高它。'],
   ['智', 'wisdom', '被动与判定的基础值。例如反击判定会用 wisdom 与引擎掷骰比较，越高越容易触发。'],
+  ['魔力（MP）', 'magic_point / 0~100', '放技能要花的资源。抽牌那一刻就定好这一手花多少（8~23），不够的牌会变灰；上限 100，能量药水回 40。'],
+  ['护盾', 'shield', '先于体力吸收伤害，按回合叠加，不会溢出到体力。'],
+  ['战场状态', 'status', '蓄力（下一击三倍）、狂暴（每次一点二倍且不能选牌）、铁壁（防御上升）、疾走/迟缓（速度）、中毒（持续掉血）、冰冻（跳过下一次行动）、魅惑（转而攻击自己人）、诅咒（受伤提高）、守护/反击/苏生/隐匿等，都会显示在单位名字下面。'],
 ];
 
 const CODEX_PLAYER = [
