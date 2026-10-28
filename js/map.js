@@ -188,6 +188,33 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
       const target = src.next;
       if (target.length < MAX_OUT) target.push(t.id);
     });
+  }  // 跨层连线：在已有单向边的基础上追加「跨 2 层」的长边，只在不与任何已有边相交时添加
+  const allNodes = groups.flat();
+  {
+    const xy = (n) => ({ x: n.px, y: n.depth + (n.py || 0) / 120 });
+    const segCross = (a, b, c, d) => {
+      const ccw = (p, q, r) => (r.y - p.y) * (q.x - p.x) > (q.y - p.y) * (r.x - p.x);
+      return ccw(a, c, d) !== ccw(b, c, d) && ccw(a, b, c) !== ccw(a, b, d);
+    };
+    const byId2 = new Map(allNodes.map((n) => [n.id, n]));
+    const all = [];
+    for (const n of allNodes) for (const id of n.next) all.push({ from: n, to: byId2.get(id) });
+    for (let d = 0; d <= DEPTHS - 1; d++) {
+      for (const node of groups[d]) {
+        if (node.next.length >= MAX_OUT) continue;
+        const far = groups[d + 2] || [];
+        for (const t of far) {
+          if (node.next.includes(t.id)) continue;
+          const cand = { from: node, to: t };
+          const hit = all.some((e2) => e2.from.id !== node.id && e2.to.id !== t.id
+            && segCross(xy(cand.from), xy(cand.to), xy(e2.from), xy(e2.to)));
+          if (hit) continue;
+          node.next.push(t.id);
+          all.push(cand);
+          break;
+        }
+      }
+    }
   }  // 终点汇聚：最后一层全部连到终点
   for (const node of groups[DEPTHS]) {
     if (!node.next.includes(end.id)) node.next.push(end.id);
