@@ -1121,3 +1121,24 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .map-node--shop circle { fill: #eef7ee; stroke: #4f8f5a; }
 .map-node .map-shop { font-size: 20px; font-weight: 700; fill: #2f6b3a; pointer-events: none; }
 .map-node.is-avail.map-node--shop circle { fill: #4f8f5a; stroke: #2f6b3a; }
+/* 地图右侧：天梯排名（自己前后各 5 名） */
+.map__row { display: flex; gap: 12px; align-items: stretch; }
+.map__row .map__body { flex: 1; min-width: 0; }
+.map__rank {
+  flex: none; width: 268px; align-self: flex-start;
+  background: #fff; border: 1px solid var(--line); border-radius: 16px;
+  padding: 12px 12px 10px; max-height: 70vh; overflow: auto;
+}
+.map__rank h4 { margin: 0 0 2px; font-size: 12px; letter-spacing: .14em; color: var(--sky-3); }
+.map__rank .muted { margin: 0 0 8px; }
+.rank-list { display: flex; flex-direction: column; gap: 2px; }
+.rank-row { display: grid; grid-template-columns: 34px 18px 1fr auto; gap: 6px; align-items: center; padding: 4px 6px; border-radius: 8px; font-size: 11.5px; }
+.rank-row:nth-child(odd) { background: #f7fafc; }
+.rank-row--me { background: #e8f4ff; outline: 1px solid #9ec9e6; font-weight: 700; }
+.rank-pos { font-family: var(--mono); color: var(--muted); font-size: 10.5px; }
+.rank-icon { width: 16px; height: 16px; image-rendering: pixelated; border-radius: 3px; }
+.rank-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank-score { font-family: var(--mono); font-size: 10.5px; color: var(--sky-3); }
+.rank-me-line { display: flex; align-items: baseline; gap: 8px; margin: 2px 0 8px; font-size: 11.5px; color: var(--muted); }
+.rank-me-line b { font-family: var(--mono); font-size: 15px; color: var(--sky-3); }
+.rank-row .rank-score { min-width: 44px; text-align: right; }

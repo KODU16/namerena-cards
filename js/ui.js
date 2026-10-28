@@ -1,4 +1,4 @@
-// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById, currentOpponent } from './game.js';
@@ -873,7 +873,37 @@ export function renderMap(root, state, h) {
           el('span', { class: 'map-legend map-legend--ladder' }, '天梯'),
           el('span', { class: 'map-legend map-legend--filler' }, '试炼'),
           el('span', { class: 'map-legend map-legend--end' }, '终点'))),
-      el('div', { class: 'map__body' }),
+      el('div', { class: 'map__row' },
+        el('div', { class: 'map__body' }),
+        (() => {
+          const mine = Number.isFinite(run.score) ? run.score : 0;
+          const sorted = [...(run.entries || [])].sort((a, b) => b.score - a.score);
+          const above = sorted.filter((e) => e.score > mine).length;
+          const startIdx = Math.max(0, above - 5);
+          const rows = [];
+          for (let i = 0; i < sorted.length; i++) {
+            const e = sorted[i];
+            rows.push({ pos: i + 1, entry: e, me: false });
+            if (i === above - 1) rows.push({ pos: above + 1, entry: null, me: true });
+          }
+          if (!rows.some((r) => r.me)) rows.push({ pos: Math.min(sorted.length + 1, above + 1), entry: null, me: true });
+          const mineIdx = rows.findIndex((r) => r.me);
+          const slice = rows.slice(Math.max(0, mineIdx - 5), mineIdx + 6);
+          return el('aside', { class: 'map__rank' },
+            el('h4', {}, '天梯排名'),
+            el('p', { class: 'rank-me-line' }, el('span', {}, '你的分数'), el('b', {}, String(Math.round(mine))), el('span', { class: 'muted' }, '第 ' + (above + 1) + ' 名')),
+            el('div', { class: 'rank-list' }, slice.map((r) => {
+              if (r.me) return el('div', { class: 'rank-row rank-row--me' }, el('span', { class: 'rank-pos' }, '#' + r.pos), el('b', {}, '你'), el('span', { class: 'rank-score' }, Math.round(mine)));
+              const e2 = r.entry;
+              const icon = e2.cards?.[0]?.icon;
+              return el('div', { class: 'rank-row', title: e2.name || '' },
+                el('span', { class: 'rank-pos' }, '#' + r.pos),
+                icon ? el('img', { class: 'rank-icon', src: icon, alt: '' }) : el('span', { class: 'rank-icon' }),
+                el('span', { class: 'rank-name' }, e2.name || ''),
+                el('span', { class: 'rank-score' }, Math.round(e2.score)));
+            })));
+        })(),
+      ),
       el('div', { class: 'map__foot' },
         el('span', { class: 'muted small' }, '按住拖动可以平移地图'),
         el('button', { class: 'ghost', type: 'button', onclick: h.onHome }, '返回首页')),
