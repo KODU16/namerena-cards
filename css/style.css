@@ -1157,6 +1157,7 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .fullrow__bar span { position: relative; z-index: 1; display: block; line-height: 14px; text-align: center; font-size: 10px; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.45); }
 .fullrow__bar--mp span, .fullrow__bar--shield span { color: #fff; }
 .fullrow__stats { display: flex; flex-wrap: wrap; gap: 4px 10px; font-size: 11.5px; color: var(--ink-2); font-family: var(--mono); }
+.fullrow__plus { font-style: normal; margin-left: 3px; font-size: 10px; color: var(--sky-2); }
 .fullrow__skills { display: flex; flex-wrap: wrap; gap: 4px 8px; }
 .fullrow__skill { font-size: 10.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; }
 /* 可交互的完整角色行 */

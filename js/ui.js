@@ -2,6 +2,7 @@
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById, currentOpponent } from './game.js';
+import { makeCard } from './engine.js';
 import { emojiImg } from './emoji.js';
 // 生成和绘制共用尺寸，保持节点半径和几何约束一致。
 import { MAP_LAYOUT, mapNodeRadius } from './map.js';
@@ -1035,7 +1036,14 @@ export function fullCharRow(card) {
   const hp = Math.max(1, Math.round(s.hp || 1));
   const mp = Math.round(card.maxMp || 100);
   const shield = Math.round(card.shield || 0);
-  const line = (label, v) => el('span', { class: 'fullrow__stat' }, label + ' ' + v);
+  // 与本体构建对比，把战术/武器带来的加成用更小一号的蓝字标出来
+  let baseStats = null;
+  try { baseStats = makeCard(card.name, card.clan)?.stats || null; } catch { baseStats = null; }
+  const line = (label, key, v) => {
+    const delta = baseStats && key ? Math.round((card.stats?.[key] ?? 0) - (baseStats[key] ?? 0)) : 0;
+    return el('span', { class: 'fullrow__stat' }, label + ' ' + v,
+      delta ? el('i', { class: 'fullrow__plus' }, (delta > 0 ? '+' : '') + delta) : null);
+  };
   const bar = (cls, label, pct) => el('div', { class: 'fullrow__bar ' + cls, title: label },
     el('i', { style: 'width:' + Math.max(0, Math.min(100, pct)) + '%' }),
     el('span', {}, label));
@@ -1049,8 +1057,8 @@ export function fullCharRow(card) {
     bar('fullrow__bar--mp', '魔力 ' + mp, mp),
     shield > 0 ? bar('fullrow__bar--shield', '护盾 ' + shield, (shield / hp) * 100) : null,
     el('div', { class: 'fullrow__stats' },
-      line('攻', disp.atk), line('防', disp.def), line('速', disp.spd), line('敏', disp.agi),
-      line('魔', disp.mag), line('抗', disp.res), line('智', disp.wis)),
+      line('攻', 'atk', disp.atk), line('防', 'def', disp.def), line('速', 'spd', disp.spd), line('敏', 'agi', disp.agi),
+      line('魔', 'mag', disp.mag), line('抗', 'res', disp.res), line('智', 'wis', disp.wis)),
     el('div', { class: 'fullrow__skills' }, (card.skillList || []).length
       ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: skillMeta(sk.id).desc }, skillMeta(sk.id).name + ' ' + sk.lv))
       : el('span', { class: 'muted small' }, '无技能')));
