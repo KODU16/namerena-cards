@@ -1147,8 +1147,8 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .fullrow { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: #fff; display: flex; flex-direction: column; gap: 6px; max-width: 340px; }
 .fullrow__head { display: flex; align-items: center; gap: 8px; }
 .fullrow__icon { width: 22px; height: 22px; image-rendering: pixelated; border-radius: 4px; }
-.fullrow__head b { font-size: 13px; }
-.fullrow__weapon { font-size: 11px; color: #8a6b00; }
+.fullrow__head b { font-size: 13px; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fullrow__weapon { flex: none; margin-left: 1px; font-size: 10px; color: var(--sky-2); letter-spacing: .02em; }
 .fullrow__bar { position: relative; height: 14px; border-radius: 7px; background: #eef1f4; overflow: hidden; }
 .fullrow__bar i { position: absolute; left: 0; top: 0; bottom: 0; display: block; }
 .fullrow__bar--hp i { background: linear-gradient(180deg, #e05a4f, #c0392b); }
@@ -1160,7 +1160,7 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .fullrow__skills { display: flex; flex-wrap: wrap; gap: 4px 8px; }
 .fullrow__skill { font-size: 10.5px; color: var(--muted); border: 1px solid var(--line); border-radius: 999px; padding: 1px 7px; }
 /* 可交互的完整角色行 */
-.fullrow-btn { border: 0; background: none; padding: 0; margin: 0; width: 100%; text-align: left; display: block; cursor: pointer; }
+.fullrow-btn { border: 0; background: none; padding: 0; margin: 0; width: 100%; text-align: left; display: block; cursor: pointer; color: var(--ink); }
 .fullrow-btn.is-selected .fullrow { outline: 2px solid var(--sky-2); outline-offset: 1px; }
 .fullrow-btn.is-dim { opacity: .5; filter: grayscale(.35); }
 .fullrow-btn:hover .fullrow { border-color: var(--sky-1); }

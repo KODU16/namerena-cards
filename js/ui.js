@@ -1008,7 +1008,7 @@ export function fullCharRow(card) {
     el('div', { class: 'fullrow__head' },
       card.icon ? el('img', { class: 'fullrow__icon', src: card.icon, alt: '' }) : null,
       el('b', {}, (card.name || '') + '@' + (card.clan || '')),
-      card.weapon ? el('span', { class: 'fullrow__weapon' }, '⚔ ' + card.weapon) : null),
+      card.weapon ? el('span', { class: 'fullrow__weapon' }, '+' + card.weapon) : null),
     bar('fullrow__bar--hp', '血量 ' + hp, 100),
     bar('fullrow__bar--mp', '魔力 ' + mp, mp),
     shield > 0 ? bar('fullrow__bar--shield', '护盾 ' + shield, (shield / hp) * 100) : null,
