@@ -64,41 +64,44 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller }) {
   groups[0] = [start];
   groups[DEPTHS + 1] = [end];
 
-  // 天梯节点按名次顺序铺到 1..DEPTHS：越靠上的层名次越好
-  ladderRest.forEach((e, i) => {
-    const depth = 1 + Math.floor((i * DEPTHS) / Math.max(1, ladderRest.length));
-    groups[Math.min(DEPTHS, depth)].push(mk('ladder', e, e.rank));
-  });
-  // 试炼节点随机撒在各层
-  for (let i = 0; i < fillerCount; i++) {
-    const depth = 1 + Math.floor(rng() * DEPTHS);
-    groups[depth].push(mk('filler', makeFiller(teamSize, rng), null));
-  }
-  // 每层最多 4 个节点：超出时把试炼节点挪到有空位的层（天梯节点保持名次顺序不动）
+  // 天梯节点：按名次从差到好，均匀铺到各深度（每层 1~2 个，保证顺序）
+  const perDepthLadder = Array(DEPTHS).fill(0);
+  ladderRest.forEach((_, i) => { perDepthLadder[i % DEPTHS] += 1; });
+  let li = 0;
   for (let d = 1; d <= DEPTHS; d++) {
-    while (groups[d].length > MAX_PER_DEPTH) {
-      const idx = groups[d].map((n) => n.kind).lastIndexOf('filler');
-      if (idx < 0) break;
-      const [moved] = groups[d].splice(idx, 1);
-      const target = [1, 2, 3, 4, 5, 6]
-        .filter((k) => k !== d && groups[k].length < MAX_PER_DEPTH)
-        .sort((a, b) => Math.abs(a - d) - Math.abs(b - d))[0];
-      if (!target) { groups[d].push(moved); break; }
-      groups[target].push(moved);
+    for (let k = 0; k < perDepthLadder[d - 1]; k++) {
+      const e = ladderRest[li++];
+      if (e) groups[d].push(mk('ladder', e, e.rank));
     }
   }
-  for (let d = 1; d <= DEPTHS; d++) {
-    if (groups[d].length) continue;
-    groups[d].push(mk('filler', makeFiller(teamSize, rng), null));
+  // 试炼节点：先给每层补 1 个，再把剩下的随机撒（每层最多 4 个）
+  const fillersPool = Array.from({ length: fillerCount }, () => makeFiller(teamSize, rng));
+  const spaceLeft = (d) => MAX_PER_DEPTH - groups[d].length;
+  for (let d = 1; d <= DEPTHS && fillersPool.length; d++) {
+    if (spaceLeft(d) > 0) groups[d].push(mk('filler', fillersPool.pop(), null));
   }
-  // 同一层里：天梯节点保持名次顺序在前，试炼节点打散在后
+  let guard = 0;
+  while (fillersPool.length && guard++ < 200) {
+    const d = 1 + Math.floor(rng() * DEPTHS);
+    if (spaceLeft(d) <= 0) continue;
+    groups[d].push(mk('filler', fillersPool.pop(), null));
+  }
+  // 同层内交替摆放（天梯/试炼交错），让每条路径都能遇到两种节点
   for (let d = 1; d <= DEPTHS; d++) {
     const ladders = groups[d].filter((n) => n.kind === 'ladder').sort((a, b) => b.rank - a.rank);
     const fillers = shuffle(groups[d].filter((n) => n.kind !== 'ladder'), rng);
-    groups[d] = [...ladders, ...fillers];
+    const mixed = [];
+    const startWithLadder = rng() < 0.5;
+    while (ladders.length || fillers.length) {
+      const pickLadder = (mixed.length % 2 === 0) === startWithLadder;
+      if (pickLadder && ladders.length) mixed.push(ladders.shift());
+      else if (fillers.length) mixed.push(fillers.shift());
+      else if (ladders.length) mixed.push(ladders.shift());
+      else break;
+    }
+    groups[d] = mixed;
     groups[d].forEach((n, i) => { n.depth = d; n.order = i; });
-  }
-  start.depth = 0; start.order = 0;
+  }  start.depth = 0; start.order = 0;
   end.depth = DEPTHS + 1; end.order = 0;
 
   // 连边：上一层按顺序切分下一层为「连续区间」，区间单调不减 → 线不会交叉

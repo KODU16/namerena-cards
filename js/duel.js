@@ -170,8 +170,24 @@ const STAT_KEYS = [['攻', 'attack', 'atk'], ['防', 'defense', 'def'], ['速', 
 // tswn 的八围显示用 overlay 里的原始写法：前七围 +36，速度 -124（引擎内部含 160 基础速度）
 const DISPLAY_OFFSET = { attack: 36, defense: 36, speed: -124, agility: 36, magic: 36, resistance: 36, wisdom: 36 };
 
-// 单位行显示全名：名字@队名；召唤物也用它自己的名字，不显示成「幻影」
+// 单位行显示名：
+//  - 分身：和本体同名（去掉引擎加的 ?N 后缀），例如 烟山?0@新纪元 → 烟山@新纪元
+//  - 召唤物（幻影/使魔/丧尸）：直接显示召唤物名称
+//  - 本体：名字@队名
 function fullNameOf(s) {
+  const kindOf = (k) => (k === 'shadow' ? '幻影' : k === 'summon' ? '使魔' : k === 'zombie' ? '丧尸' : k === 'clone' ? '分身' : '');
+  if (isCloneState(s)) {
+    const raw = s.id_key_name || '';
+    const base = raw.replace(/\?\d+(?=@|$)/, '');
+    if (base) return base;
+    const name = (s.display_name || s.id_name || '').replace(/\?\d+$/, '');
+    const clan = s.clan || s.team_name || '';
+    return clan ? name + '@' + clan : name;
+  }
+  if (s.minion_kind) {
+    const label = kindOf(s.minion_kind);
+    if (label) return label;
+  }
   const key = s.id_key_name || '';
   if (key.includes('@')) return key;
   const name = s.display_name || s.id_name || '';
@@ -201,7 +217,7 @@ function panelHtml(state, side, icon, base) {
       icon ? el('img', { class: 'unit-row__icon', src: icon, alt: '' }) : el('div', { class: 'unit-row__icon' }),
       el('div', { class: 'unit-row__name' },
         el('b', {}, fullNameOf(s)),
-        kind ? el('span', { class: 'unit-row__tag' }, kind) : null)),
+        kind && kind !== fullNameOf(s) ? el('span', { class: 'unit-row__tag' }, kind) : null)),
     // 第二行：护盾黄条 + HP 红条（同一根长度，护盾在正上方，左边平齐）
     el('div', { class: 'unit-row__bars' },
       el('div', { class: 'unit-row__shield', title: '护盾' }, el('i', {})),
