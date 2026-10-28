@@ -189,39 +189,59 @@ function safeCard(name, clan) {
   try { return makeCard(name, clan); } catch (e) { console.error(e); return null; }
 }
 
+function teamSizeOf(lane) { return Number(String(lane)[0]) || 1; }
+
+function syncDraft() {
+  if (!draft) return;
+  const size = teamSizeOf(draft.lane);
+  draft.names = draft.names || [];
+  while (draft.names.length < size) draft.names.push(G.randomName());
+  draft.names.length = size;
+  draft.cards = draft.names.map((n) => safeCard(n, draft.clan || '无名')).filter(Boolean);
+}
+
 function newRunSetup() {
-  if (!draft) draft = { clan: '青', name: G.randomName(), rerolls: 2, card: null, lane: '1A' };
-  if (!draft.card || draft.card.name !== draft.name || draft.card.clan !== draft.clan) {
-    draft.card = safeCard(draft.name, draft.clan);
-  }
+  if (!draft) draft = { clan: '青', lane: '1A', names: [], rerolls: 3 };
+  syncDraft();
   nav('newrun', () => UI.renderNewRun(root, state, {
     draft,
     onHome: () => { draft = null; home(); },
-    onChangeLane: (lane) => { draft.lane = lane; newRunSetup(); },
+    onChangeLane: (lane) => {
+      draft.lane = lane;
+      syncDraft();
+      newRunSetup();
+    },
     onChangeClan: (clan) => {
       const raw = String(clan || '').trim().slice(0, 18);
       // 「!」在 tswn 里是测试标记（@!），玩家不能用它当战队名
       const clean = raw.replace(/[!！]/g, '');
       if (clean !== raw) toast('战队名不能包含 !（那是引擎的测试标记）');
       draft.clan = clean;
-      draft.card = safeCard(draft.name, draft.clan || '无名');
+      syncDraft();
       newRunSetup();
     },
-    onReroll: () => {
+    onRerollRow: (i) => {
       if (draft.rerolls <= 0) return;
       draft.rerolls -= 1;
-      draft.name = G.randomName();
-      draft.card = safeCard(draft.name, draft.clan || '无名');
+      draft.names[i] = G.randomName();
+      syncDraft();
+      newRunSetup();
+    },
+    onRerollAll: () => {
+      if (draft.rerolls <= 0) return;
+      draft.rerolls -= 1;
+      draft.names = draft.names.map(() => G.randomName());
+      syncDraft();
       newRunSetup();
     },
     onStart: async () => {
-      if (!draft.card) return toast('这个名字无法构建，先重抽一个');
+      if (!draft.cards || draft.cards.length < teamSizeOf(draft.lane)) return toast('这些名字无法构建，先重抽');
       await G.startRun(state, {
         seed: Date.now() >>> 0,
         lane: draft.lane || '1A',
         clan: draft.clan || '无名',
         ladder: state.ladder,
-        starters: draft.card ? [draft.card] : [],
+        starters: draft.cards,
       });
       draft = null;
       mapScreen();
@@ -229,7 +249,6 @@ function newRunSetup() {
     },
   }));
 }
-
 // ————————————————————— 备战
 
 function prep() {

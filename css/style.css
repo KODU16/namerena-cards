@@ -339,6 +339,7 @@ button.big { font-size: 16px; padding: 9px 22px; }
 .tactics-grid { display: flex; flex-wrap: wrap; gap: 10px; }
 .tactic {
   display: flex; align-items: center; gap: 10px;
+  color: var(--ink);
   min-width: 210px;
   padding: 9px 14px 9px 10px;
   border-radius: 12px;
@@ -1163,3 +1164,9 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .fullrow-btn.is-selected .fullrow { outline: 2px solid var(--sky-2); outline-offset: 1px; }
 .fullrow-btn.is-dim { opacity: .5; filter: grayscale(.35); }
 .fullrow-btn:hover .fullrow { border-color: var(--sky-1); }
+/* 多名字列表 */
+.setup__names { display: flex; flex-direction: column; gap: 6px; }
+.setup__name-row { display: flex; align-items: center; gap: 8px; }
+.setup__name-idx { font-family: var(--mono); font-size: 11px; color: var(--muted); width: 18px; }
+.setup__name-row b { font-size: 14px; }
+.setup__name-row .ghost { margin-left: auto; font-size: 11px; padding: 2px 8px; }
