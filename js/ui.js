@@ -1,4 +1,4 @@
-﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById } from './game.js';
@@ -755,7 +755,15 @@ export function renderMap(root, state, h) {
     for (const id of n.next) {
       const a = pos.get(n.id);
       const b = pos.get(id);
-      if (a && b) edges.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="map-edge${cleared.has(n.id) ? ' is-past' : ''}" />`);
+      if (!a || !b) continue;
+      const cls = 'map-edge' + (cleared.has(n.id) ? ' is-past' : '');
+      const via = n.via && n.via[id];
+      if (via && via.length) {
+        const pts = [a, ...via.map((v) => ({ x: 60 + v.x * (W - 120), y: H - PAD - v.y * ROW })), b];
+        edges.push(`<polyline points="${pts.map((p2) => p2.x + ',' + p2.y).join(' ')}" class="${cls}" fill="none" />`);
+      } else {
+        edges.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="${cls}" />`);
+      }
     }
   }
   const iconForNode = (n) => {

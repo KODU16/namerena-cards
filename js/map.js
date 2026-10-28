@@ -188,29 +188,37 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
       const target = src.next;
       if (target.length < MAX_OUT) target.push(t.id);
     });
-  }  // 跨层连线：在已有单向边的基础上追加「跨 2 层」的长边，只在不与任何已有边相交时添加
-  const allNodes = groups.flat();
+  }  // 跨层连线：给长边加一个中间通道点（depth+1，x 取两端中点），
+  // 只有两段都不与已有线段相交时才添加 → 可以绕开节点形成编织感
   {
     const xy = (n) => ({ x: n.px, y: n.depth + (n.py || 0) / 120 });
     const segCross = (a, b, c, d) => {
       const ccw = (p, q, r) => (r.y - p.y) * (q.x - p.x) > (q.y - p.y) * (r.x - p.x);
       return ccw(a, c, d) !== ccw(b, c, d) && ccw(a, b, c) !== ccw(a, b, d);
     };
+    const allNodes = groups.flat();
     const byId2 = new Map(allNodes.map((n) => [n.id, n]));
-    const all = [];
-    for (const n of allNodes) for (const id of n.next) all.push({ from: n, to: byId2.get(id) });
+    const segs = [];   // {a:{x,y}, b:{x,y}, from, to}
+    const addSeg = (a, b, from, to) => segs.push({ a, b, from, to });
+    for (const n of allNodes) for (const id of n.next) addSeg(xy(n), xy(byId2.get(id)), n.id, id);
+    const hits = (a, b, fromId, toId) => segs.some((s2) => {
+      if (s2.from === fromId && s2.to === toId) return false;
+      if (s2.from === fromId || s2.to === toId || s2.from === toId || s2.to === fromId) return false;
+      return segCross(a, b, s2.a, s2.b);
+    });
     for (let d = 0; d <= DEPTHS - 1; d++) {
       for (const node of groups[d]) {
         if (node.next.length >= MAX_OUT) continue;
         const far = groups[d + 2] || [];
         for (const t of far) {
           if (node.next.includes(t.id)) continue;
-          const cand = { from: node, to: t };
-          const hit = all.some((e2) => e2.from.id !== node.id && e2.to.id !== t.id
-            && segCross(xy(cand.from), xy(cand.to), xy(e2.from), xy(e2.to)));
-          if (hit) continue;
+          const mid = { x: (node.px + t.px) / 2, y: d + 1 + (rng() - 0.5) * 0.1 };
+          if (hits(xy(node), mid, node.id, t.id) || hits(mid, xy(t), node.id, t.id)) continue;
           node.next.push(t.id);
-          all.push(cand);
+          node.via = node.via || {};
+          node.via[t.id] = [mid];
+          addSeg(xy(node), mid, node.id, t.id);
+          addSeg(mid, xy(t), node.id, t.id);
           break;
         }
       }
