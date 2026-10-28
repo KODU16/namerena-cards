@@ -268,15 +268,16 @@ export function renderPrep(root, state, h) {
                   title: '给这名角色换武器',
                   onchange: (ev) => {
                     const v = ev.target.value;
-                    if (!v) h.onUnequip && h.onUnequip(c.id);
+                    if (!v || v === '__equipped__') h.onUnequip && h.onUnequip(c.id);
                     else h.onEquipWeapon && h.onEquipWeapon(v, c.id);
                   },
                 },
                   el('option', { value: '' }, '无武器'),
+                  // 已装备的武器不在仓库里，单独占一项，否则会显示成「无武器」且无法卸下
+                  c.weapon ? el('option', { value: '__equipped__' }, '⚔ ' + c.weapon + '（已装备）') : null,
                   ...weapons.map((w) => el('option', { value: w.id }, '⚔ ' + w.name)),
                 );
-                const current = weapons.find((w) => w.name === c.weapon);
-                sel.value = current ? current.id : '';
+                sel.value = c.weapon ? '__equipped__' : '';
                 return sel;
               })()))
             : [el('div', { class: 'empty-slot' }, `从下方选择 ${run.teamSize} 名角色`)]),

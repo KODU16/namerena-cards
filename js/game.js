@@ -457,19 +457,18 @@ export function cardBonus(state, card) {
   }
   ensureWeaponInfo(card);
   const LABEL_KEY = { 体力: 'hp', 攻: 'atk', 防: 'def', 速: 'spd', 敏: 'agi', 魔: 'mag', 抗: 'res', 智: 'wis' };
+  const mult = card?.runMult || 1;
   for (const d of card?.weaponInfo?.deltas || []) {
     const key = LABEL_KEY[d.label];
-    if (key) bonus[key] = (bonus[key] || 0) + d.delta;
+    // 武器差值在武器构建里，所以也要跟着倍率放大
+    if (key) bonus[key] = (bonus[key] || 0) + Math.round(d.delta * mult);
   }
-  // 开局保底倍率：当前值 - （构建 + 锻造）就是这部分加成
-  const mult = card?.runMult || 1;
-  if (mult > 1 && card) {
-    const build = card.weapon ? buildWithWeapon(card.name, card.clan, card.weapon) : makeCard(card.name, card.clan);
-    if (build) {
-      const bare = applyForge(build.stats, card.forge);
-      for (const k of Object.keys(bare)) {
-        const d = Math.round((card.stats?.[k] || 0) - (bare[k] || 0));
-        if (d) bonus[k] = (bonus[k] || 0) + d;
+  if (card && mult > 1) {
+    const base = makeCard(card.name, card.clan);
+    if (base) {
+      for (const [k, v] of Object.entries(base.stats)) {
+        const extra = Math.round((v || 0) * (mult - 1));
+        if (extra) bonus[k] = (bonus[k] || 0) + extra;
       }
     }
   }
@@ -478,9 +477,10 @@ export function cardBonus(state, card) {
 
 // 构建结果再叠锻造、再套开局保底（保持与装备前一致）
 function finalStats(card, stats) {
-  const withForge = applyForge(stats, card.forge);
   const mult = card.runMult || 1;
-  return mult > 1 ? applyRunBuff({ stats: withForge }, mult).stats : withForge;
+  // 开局保底在武器之后算：先构建（本体或名字+武器），再乘倍率，最后叠锻造
+  const buffed = mult > 1 ? applyRunBuff({ stats }, mult).stats : stats;
+  return applyForge(buffed, card.forge);
 }
 
 // 锻造增量叠加在任何构建结果之上（锻造只锻基础值，不进蓝字加成）
@@ -505,7 +505,8 @@ export function equipWeapon(state, weaponId, charId) {
   const weapon = list[idx];
   const built = buildWithWeapon(card.name, card.clan, weapon.name);
   if (!built) return null;
-  const before = { ...card.stats };
+  const plain = makeCard(card.name, card.clan);
+  const before = { ...(plain ? plain.stats : card.stats) };
   const beforeSkills = new Map((card.skillList || []).map((s) => [s.id, s.lv]));
 
   if (card.weapon) {
