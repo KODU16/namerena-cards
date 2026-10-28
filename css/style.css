@@ -1080,3 +1080,8 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .codex__row b { font-size: 13.5px; margin-right: 8px; }
 .codex__row small { color: var(--muted); font-family: var(--mono); font-size: 10.5px; }
 .codex__row p { margin: 6px 0 0; font-size: 12px; line-height: 1.55; color: var(--ink-2); }
+.codex__table { display: inline-block; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-bottom: 10px; }
+.codex__trow { display: grid; grid-template-columns: repeat(7, minmax(64px, 1fr)); }
+.codex__trow span { padding: 6px 8px; font-family: var(--mono); font-size: 12px; text-align: center; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.codex__trow span:last-child { border-right: 0; }
+.codex__trow.is-head { background: #f2f8fc; font-weight: 700; color: var(--sky-3); }
