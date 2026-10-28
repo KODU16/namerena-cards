@@ -1,4 +1,4 @@
-﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById, currentOpponent } from './game.js';
@@ -46,7 +46,9 @@ export function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 
 export function statLine(card) {
   const s = card.stats;
-  return `HP ${s.hp} · 攻 ${s.atk} · 防 ${s.def} · 速 ${s.spd} · 敏 ${s.agi} · 魔 ${s.mag} · 抗 ${s.res} · 智 ${s.wis}`;
+  // 速对外始终展示折合后的值（引擎内部才是 +124 的原始值）
+  const spdShown = Math.round((s.spd ?? 0) - 124);
+  return `HP ${s.hp} · 攻 ${s.atk} · 防 ${s.def} · 速 ${spdShown} · 敏 ${s.agi} · 魔 ${s.mag} · 抗 ${s.res} · 智 ${s.wis}`;
 }
 
 export function skillTag(s, chance) {
