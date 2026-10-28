@@ -277,7 +277,12 @@ async function fight() {
     return toast(`这场对局无法开始：${e.message || e}`);
   }
   const names = new Set(team.map((c) => c.name));
-  const me = initial.initial_states.find((s) => names.has(s.id_name)) || initial.initial_states[0];
+  // 玩家永远是输入里的第一组（input_team_index === 0）；不能拿 initial_states[0] 猜，
+  // 引擎可能把 team1 排在前面，猜错就会把「对面赢」当成自己赢。
+  const me = initial.initial_states.find((s) => s.input_team_index === 0 && s.owner_id == null)
+    || initial.initial_states.find((s) => s.input_team_index === 0)
+    || initial.initial_states.find((s) => names.has(s.id_name))
+    || initial.initial_states[0];
   logEvent('fight.initial', { playerTeam: me?.team_index, states: initial.initial_states.map((s) => ({ id: s.id, name: s.id_name, team: s.team_index, hp: s.max_hp, skills: s.skills })) });
   logEvent('fight.initial', {
     playerTeam: me?.team_index,

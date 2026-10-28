@@ -1,4 +1,4 @@
-// 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
+﻿// 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
 // 前端只负责「轮到玩家单位时，从手牌里选一张写进强制队列」。
 import { el, sleep, handCardEl } from './ui.js';
 import { emojiImg } from './emoji.js';
@@ -574,9 +574,12 @@ export class DuelView {
     this.root.querySelector('.battle')?.classList.remove('is-berserk');
     const rep = this.current;
     if (window.__ncLog) window.__ncLog.push({ t: new Date().toISOString(), kind: 'duel.finish', data: { winnerTeams: rep.winner_team_indices, winnerIds: rep.winner_ids, playerTeam: this.duel.playerTeam, frames: rep.frames.length } });
-    const champ = (rep.final_states || []).find((s) => s.owner_id == null && s.team_index === this.duel.playerTeam);
-    const won = (rep.winner_team_indices || []).includes(this.duel.playerTeam)
-      || (champ ? (rep.winner_ids || []).includes(champ.id) : false);
+    // 只按「玩家队伍编号」判胜负。winner_ids 是引擎内部的实体编号，
+    // 和 state.id 不保证同一套映射，之前拿它做二次判断会把对面的胜利算成自己的。
+    const myTeam = (rep.initial_states || []).find((s) => s.input_team_index === 0)?.team_index;
+    const team = myTeam == null ? this.duel.playerTeam : myTeam;
+    const won = (rep.winner_team_indices || []).includes(team);
+    if (window.__ncLog) window.__ncLog.push({ t: new Date().toISOString(), kind: 'duel.judge', data: { myTeam: team, winnerTeams: rep.winner_team_indices, won } });
     this.onFinish({ won, replay: rep });
   }
 }
