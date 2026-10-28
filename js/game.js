@@ -12,6 +12,7 @@ export const POTIONS = [
   { id: 'res', name: '抗性药水', field: 5, stat: '抗性', color: '#3aa8a3' },
   { id: 'wis', name: '智慧药水', field: 6, stat: '智慧', color: '#d97b3a' },
   { id: 'hp', name: '生命药水', field: 8, stat: '体力', color: '#c0353a' },
+  { id: 'mp', name: '能量药水', field: 9, stat: '魔力', color: '#3a7bd5' },
 ];
 
 // 试炼敌人可能携带的武器：随机字符串，掉落进物品栏后可装备
@@ -71,6 +72,11 @@ export function loadSave(state) {
     state.customCards = (s.customCards || []).map((c) => hydrateSaved(c)).filter(Boolean);
     if (s.run && s.run.status === 'active') {
       if (!s.run.graph) s.run.status = 'lost'; // 旧存档没有地图，直接结束这一局
+      // 存档里 graph.byId 会变成普通对象，读回来必须重建 Map
+      if (s.run.graph && !(s.run.graph.byId instanceof Map)) {
+        const g = s.run.graph;
+        g.byId = new Map((g.nodes || []).map((n) => [n.id, n]));
+      }
       s.run.tacticIds = s.run.tacticIds || [];
       state.run = s.run;
     }
@@ -516,6 +522,10 @@ export function rollRewards(state, seed) {
   ];
   if (tactic) offers.push({ kind: 'tactic', tactic, power });
   offers.push({ kind: 'card', card });
+  // 药水与武器也进奖励池（武器与 @! 掉落相互独立）
+  const potionMeta = POTIONS[Math.floor(r() * POTIONS.length)];
+  offers.push({ kind: 'potion', potion: { id: potionMeta.id, n: 1 } });
+  offers.push({ kind: 'weapon', weapon: { id: 'w-rw-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
   return offers;
 }
 export function applyReward(state, offer) {
@@ -531,6 +541,14 @@ export function applyReward(state, offer) {
       state.tacticPower[id] = offer.power || 1;
       if (!(state.ownedTactics || []).includes(id)) state.ownedTactics.push(id);
     }
+  } else if (offer.kind === 'potion' && offer.potion) {
+    state.run.potions = state.run.potions || [];
+    const hit = state.run.potions.find((p) => p.id === offer.potion.id);
+    if (hit) hit.n += offer.potion.n || 1;
+    else state.run.potions.push({ id: offer.potion.id, n: offer.potion.n || 1 });
+  } else if (offer.kind === 'weapon' && offer.weapon) {
+    state.weapons = state.weapons || [];
+    state.weapons.push(offer.weapon);
   } else if (offer.card && !state.collection.some((c) => c.id === offer.card.id)) {
     state.collection.push({ ...offer.card });
   }

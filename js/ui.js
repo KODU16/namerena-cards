@@ -608,6 +608,22 @@ export function renderReward(root, state, offers, h) {
             el('p', { class: 'muted small' }, '只能在锻造里加给角色，加完消耗'),
             el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
           )
+          : o.kind === 'potion'
+          ? el('div', { class: 'offer offer--tactic' },
+            el('div', { class: 'offer__tag' }, '药水 · 立即见效'),
+            el('div', { class: 'tactic__glyph big-glyph' }, potionIcon(potionById(o.potion.id) || { color: '#8a93a0' }, 40)),
+            el('b', {}, (potionById(o.potion.id) || {}).name || '药水'),
+            el('p', { class: 'muted small' }, '放进物品栏，战斗中使用时立刻结算'),
+            el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
+          )
+          : o.kind === 'weapon'
+          ? el('div', { class: 'offer offer--tactic' },
+            el('div', { class: 'offer__tag' }, '武器 · 装备后重算属性'),
+            el('div', { class: 'tactic__glyph big-glyph' }, '⚔'),
+            el('b', {}, o.weapon.name),
+            el('p', { class: 'muted small' }, '在物品栏里装备，会显示加成了哪些属性与新技能'),
+            el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
+          )
           : el('div', { class: 'offer' },
             el('div', { class: 'offer__tag' }, `角色卡 · 费用 ${o.card.cost ?? '—'}`),
             cardEl(o.card, { size: 'big' }),
