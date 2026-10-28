@@ -1,4 +1,4 @@
-﻿// 局内状态、爬塔流程与存档。
+// 局内状态、爬塔流程与存档。
 import { makeCard, iconFor, statsWithWeapon, buildWithWeapon } from './engine.js';
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
 import { SKILLS, SKILL_IDS, skillMeta } from './skills.js';
@@ -191,7 +191,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     teamSize,
     index: 0,
     wins: 0,
-    score: 8000,
+    score: 0,
     layer: 1,
     status: 'active',
     createdAt: Date.now(),
@@ -469,16 +469,27 @@ export function destroyItem(state, kind, id) {
 
 // 终点打完 → 进入下一层；返回 true 表示整座塔通关
 // 分数：Elo 口径（K=32），对手分数取天梯榜上的 score
-// 击败天梯对手按对方分数给分：约 15%，最低 20 分
-export function eloGain(player, opp, k = 32) {
+// 天梯官方口径（Namer-Ladder/app/utils/ladder/new_update.js）：
+//   期望 E = 1 / (1 + 10^(-(我方分 - 对方分) / 50600))
+//   单场变动 = K × (1 - E)，K = 80
+// 站点一轮里每个号会打好几十场，我们一场战斗只算一次，所以乘一个局内倍率把量级拉齐
+export const LADDER_RULES = { k: 80, scale: 50600, mult: 60 };
+
+export function ladderExpected(me, opp) {
+  return 1 / (1 + Math.pow(10, -(me - opp) / LADDER_RULES.scale));
+}
+
+export function eloGain(player, opp, k) {
   const s = Number.isFinite(opp) ? opp : player;
-  return Math.max(20, Math.round(s * 0.15));
+  const e = ladderExpected(player, s);
+  const base = (k || LADDER_RULES.k) * (1 - e);
+  return Math.max(1, Math.round(base * LADDER_RULES.mult));
 }
 
 export function addScore(state, oppScore) {
   const run = state.run;
   if (!run) return 0;
-  run.score = Number.isFinite(run.score) ? run.score : 8000;
+  run.score = Number.isFinite(run.score) ? run.score : 0;
   const gain = eloGain(run.score, oppScore);
   run.score += gain;
   persist(state);
@@ -489,9 +500,9 @@ export function addScore(state, oppScore) {
 export function loseScore(state) {
   const run = state.run;
   if (!run) return 0;
-  const cur = Number.isFinite(run.score) ? run.score : 8000;
-  const loss = Math.min(300, Math.max(10, Math.round(cur * 0.03)));
-  run.score = cur - loss;
+  const cur = Number.isFinite(run.score) ? run.score : 0;
+  const loss = Math.min(300, cur) === 0 ? 0 : Math.min(300, Math.max(10, Math.round(cur * 0.03)));
+  run.score = Math.max(0, cur - loss);
   persist(state);
   return loss;
 }
@@ -499,7 +510,7 @@ export function loseScore(state) {
 export function addScorePoints(state, points) {
   const run = state.run;
   if (!run) return 0;
-  run.score = (Number.isFinite(run.score) ? run.score : 8000) + Math.round(points);
+  run.score = (Number.isFinite(run.score) ? run.score : 0) + Math.round(points);
   persist(state);
   return Math.round(points);
 }
@@ -510,30 +521,31 @@ export function rollShop(state, seed, layer = 1) {
   const run = state.run;
   const progress = Math.min(1, Math.max(0, ((layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
   const items = [];
-  const priceOf = (base) => Math.round((base * (1 + progress * 0.6)) / 10) * 10;
+  // 物价：约等于每层收入的三分之一到一半，买一两件不影响登顶
+  const priceOf = (base) => Math.round((base * (1 + progress * 0.5)) / 50) * 50;
   // 技能卡
   const skills = SKILL_IDS.filter((id) => id !== 'skldisperse');
   const sid = skills[Math.floor(r() * skills.length)];
-  items.push({ kind: 'skill', price: priceOf(450), skill: { id: sid, lv: Math.round(20 + progress * 50), uid: 'shop-' + seed + '-' + Math.floor(r() * 1e6) } });
+  items.push({ kind: 'skill', price: priceOf(1100), skill: { id: sid, lv: Math.round(20 + progress * 50), uid: 'shop-' + seed + '-' + Math.floor(r() * 1e6) } });
   // 角色卡
   const card = makeCard(randomName(r), run.clan || '青');
-  items.push({ kind: 'card', price: priceOf(1000), card });
+  items.push({ kind: 'card', price: priceOf(1800), card });
   // 武器
-  items.push({ kind: 'weapon', price: priceOf(700), weapon: { id: 'w-shop-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
+  items.push({ kind: 'weapon', price: priceOf(1400), weapon: { id: 'w-shop-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
   // 药水
   const pm = POTIONS[Math.floor(r() * POTIONS.length)];
-  items.push({ kind: 'potion', price: priceOf(250), potion: { id: pm.id, n: 2 } });
+  items.push({ kind: 'potion', price: priceOf(500), potion: { id: pm.id, n: 2 } });
   // 战术
   const pool = (state.tacticsPool || []).filter((t) => !(state.ownedTactics || []).includes(t.id));
   const tactic = pool.length ? pool[Math.floor(r() * pool.length)] : null;
-  if (tactic) items.push({ kind: 'tactic', price: priceOf(800), tactic, power: Math.round((1 + progress) * 10) / 10 });
+  if (tactic) items.push({ kind: 'tactic', price: priceOf(1500), tactic, power: Math.round((1 + progress) * 10) / 10 });
   return items;
 }
 
 export function buyShopItem(state, item) {
   const run = state.run;
   if (!run || !item) return false;
-  const score = Number.isFinite(run.score) ? run.score : 8000;
+  const score = Number.isFinite(run.score) ? run.score : 0;
   if (score < item.price) return false;
   run.score = score - item.price;
   applyReward(state, item);
