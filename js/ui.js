@@ -1,4 +1,4 @@
-// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById, currentOpponent } from './game.js';
@@ -1143,7 +1143,8 @@ export function inventorySheet(state, h = {}) {
               card.weapon ? el('span', { class: 'inv__weapon' }, '⚔ ' + card.weapon) : null,
               card.weaponInfo ? el('div', { class: 'inv__wd' },
                 el('div', {}, '加成：' + (card.weaponInfo.deltas.length ? card.weaponInfo.deltas.map((d) => d.label + (d.delta > 0 ? '+' : '') + d.delta).join('、') : '无')),
-                card.weaponInfo.added.length ? el('div', {}, '新技能：' + card.weaponInfo.added.map((a) => skillMeta(a.id).name + '(' + a.lv + ')').join('、')) : null) : null,
+                card.weaponInfo.added.length ? el('div', {}, '新技能：' + card.weaponInfo.added.map((a) => skillMeta(a.id).name + '(' + a.lv + ')').join('、')) : null,
+                (card.weaponInfo.removed || []).length ? el('div', {}, '失去技能：' + card.weaponInfo.removed.map((a) => skillMeta(a.id).name).join('、')) : null) : null,
               card.weapon ? el('button', { class: 'ghost', type: 'button', onclick: () => { h.onUnequip && h.onUnequip(card.id); paint('chars'); } }, '卸下') : null,
               inTeam ? el('span', { class: 'muted small' }, '出战中') : del('card', card.id, card.name)));
         })),

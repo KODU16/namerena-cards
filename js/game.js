@@ -407,36 +407,29 @@ export function equipWeapon(state, weaponId, charId) {
     list.push({ id: 'w-' + Date.now().toString(36) + '-old', name: card.weapon });
   }
   card.weapon = weapon.name;
+  // 与 namerena 一致：装备武器后整条构建结果都换成「名字+武器」，属性与技能一起变
   card.stats = built.stats;
+  card.skillList = built.skills.map((s) => ({
+    id: s.id,
+    lv: s.id === 'skldisperse' ? Math.min(1, s.lv) : s.lv,
+    cat: SKILLS[s.id]?.cat || 'atk',
+    fromWeapon: true,
+  }));
 
-  // 属性变化
   const deltas = [];
   for (const [key, label] of STAT_LABELS) {
     const d = Math.round((built.stats[key] || 0) - (before[key] || 0));
     if (d) deltas.push({ label, delta: d });
   }
-  // 新技能：武器带来了本体没有的技能；净化允许出现，但熟练度封顶 1
-  const added = [];
-  for (const s of built.skills) {
-    const prev = beforeSkills.get(s.id) || 0;
-    if (s.lv <= prev) continue;
-    const lv = s.id === 'skldisperse' ? Math.min(1, s.lv) : s.lv;
-    added.push({ id: s.id, lv });
-    const existing = (card.skillList || []).find((x) => x.id === s.id);
-    if (existing) existing.lv = Math.max(existing.lv, lv);
-    else {
-      card.skillList = card.skillList || [];
-      card.skillList.push({ id: s.id, lv, cat: SKILLS[s.id]?.cat || 'atk', fromWeapon: true });
-    }
-  }
-  card.skillList = (card.skillList || []).slice(0, 12);
-  card.weaponInfo = { weapon: weapon.name, deltas, added };
+  const added = card.skillList.filter((s) => !beforeSkills.has(s.id) || (beforeSkills.get(s.id) || 0) < s.lv)
+    .map((s) => ({ id: s.id, lv: s.lv }));
+  const removed = [...beforeSkills.keys()].filter((id) => !card.skillList.some((s) => s.id === id))
+    .map((id) => ({ id, lv: beforeSkills.get(id) }));
+  card.weaponInfo = { weapon: weapon.name, deltas, added, removed };
   list.splice(idx, 1);
   persist(state);
   return { ...weapon, deltas, added };
-}
-
-export function unequipWeapon(state, charId) {
+}export function unequipWeapon(state, charId) {
   const card = (state.collection || []).find((c) => c.id === charId);
   if (!card || !card.weapon) return null;
   state.weapons = state.weapons || [];
