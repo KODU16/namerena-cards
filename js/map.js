@@ -31,7 +31,7 @@ function shuffle(arr, rng) {
 }
 
 // 构造一层地图。makeFiller(teamSize) 返回若干张 @! 卡
-export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller }) {
+export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, makeElite }) {
   const ranks = layerRanks(layer);
   const byRank = new Map(entries.map((e) => [e.rank, e]));
   const ladderNodes = ranks.map((r) => byRank.get(r)).filter(Boolean);
@@ -109,6 +109,15 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller }) {
     if (!open.length) break;
     const d = open[Math.floor(rng() * open.length)];
     groups[d].push(mk('camp', null, null));
+  }
+  // 精英试炼：更强、奖励更厚，每层 1 个
+  {
+    const open = [];
+    for (let d = 1; d <= DEPTHS; d++) if (groups[d].length < MAX_PER_DEPTH) open.push(d);
+    if (open.length && makeElite) {
+      const d = open[Math.floor(rng() * open.length)];
+      groups[d].push(mk('elite', makeElite(teamSize, rng), null));
+    }
   }
   // 事件节点（?）：进入不战斗，随机给一张战术/名字/技能卡，1~2 个
   const eventCount = 1 + Math.floor(rng() * 2);

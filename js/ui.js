@@ -759,7 +759,7 @@ export function renderMap(root, state, h) {
     }
   }
   const iconForNode = (n) => {
-    if (n.kind === 'filler') return null;
+    if (n.kind === 'filler' || n.kind === 'elite') return null;
     const card = n.payload?.cards?.[0] || (n.payload?.cards ? n.payload.cards[0] : null);
     return card?.icon || null;
   };
@@ -772,13 +772,15 @@ export function renderMap(root, state, h) {
     if (isAvail) cls.push('is-avail');
     if (isCurrent) cls.push('is-current');
     if (isCleared) cls.push('is-cleared');
-    const r = n.kind === 'start' || n.kind === 'end' ? 30 : 24;
+    const r = n.kind === 'start' || n.kind === 'end' ? 30 : (n.kind === 'elite' ? 32 : 24);
     const icon = iconForNode(n);
     const art = n.kind === 'start'
       ? '<text y="6" text-anchor="middle" class="map-glyph">起</text>'
       : n.kind === 'event'
         ? '<text y="8" text-anchor="middle" class="map-question">?</text>'
-        : n.kind === 'camp'
+        : n.kind === 'elite'
+          ? '<text y="9" text-anchor="middle" class="map-elite">👾</text>'
+          : n.kind === 'camp'
           ? '<text y="8" text-anchor="middle" class="map-camp">🔥</text>'
           : n.kind === 'filler'
           ? '<text y="9" text-anchor="middle" class="map-monster">👾</text>'
@@ -788,6 +790,9 @@ export function renderMap(root, state, h) {
     const label = n.kind === 'start' ? '起点'
       : n.kind === 'end' ? `终点 #${n.rank ?? ''}`
         : n.kind === 'ladder' ? `天梯 #${n.rank ?? '?'}`
+          : n.kind === 'elite'
+          ? '<text y="9" text-anchor="middle" class="map-elite">👾</text>'
+          : n.kind === 'elite' ? '精英'
           : n.kind === 'camp' ? '篝火'
           : n.kind === 'event' ? '事件 ?'
             : '试炼';

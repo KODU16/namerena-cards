@@ -428,7 +428,7 @@ function afterBattle(won) {
     toast(`第 ${state.run.layer - 1} 层通过，进入第 ${state.run.layer} 层`, 2600);
     return mapScreen();
   }
-  const offers = G.rollRewards(state, (state.run.seed + state.run.index * 7919) >>> 0);
+  const offers = G.rollRewards(state, (state.run.seed + state.run.index * 7919) >>> 0, node?.kind === 'elite');
   nav('reward', () => UI.renderReward(root, state, offers, {
     onPickOffer: (o) => { G.applyReward(state, o); mapScreen(); },
   }));
@@ -482,10 +482,21 @@ function openInventory() {
 }
 
 // 篝火锻造：先选角色，再选技能
+const FORGE_STATS = [['hp', '体力'], ['atk', '攻'], ['def', '防'], ['spd', '速'], ['agi', '敏'], ['mag', '魔'], ['res', '抗'], ['wis', '智']];
+
 function forgeAtCamp() {
   const pick = (charId) => {
     const card = state.collection.find((c) => c.id === charId);
-    sheet(el('div', {}, el('h2', {}, '选一个技能锻造'),
+    sheet(el('div', {}, el('h2', {}, '锻造 ' + (card?.name || '')), el('div', { class: 'inv__grid' }, FORGE_STATS.map(([key, label]) => el('button', {
+      class: 'ghost inv__item',
+      type: 'button',
+      onclick: () => {
+        const res = G.campForgeStat(state, charId, key);
+        closeSheet();
+        toast(res ? label + ' ' + res.from + ' → ' + res.to + '（×1.1 基础值）' : '锻造失败', 2400);
+        mapScreen();
+      },
+    }, el('b', {}, label), el('small', {}, '基础 ' + (card?.stats?.[key] ?? '?'))))), el('h2', {}, '或者锻造一个技能'),
       el('div', { class: 'inv__grid' }, (card?.skillList || []).map((s) => el('button', {
         class: 'ghost inv__item',
         type: 'button',

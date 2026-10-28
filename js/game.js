@@ -249,11 +249,32 @@ export function buildGraphForLayer(state) {
     teamSize: run.teamSize,
     rng: r,
     makeFiller: (teamSize, rr) => makeFiller(teamSize, rr),
+    makeElite: (teamSize, rr) => makeElite(teamSize, rr),
   });
   run.nodeId = run.graph.startId;
   run.selectedId = null;
   run.cleared = [];
   return run.graph;
+}
+
+// 精英试炼：全属性翻倍的 @! 小队，或人数是出战人数两倍的 @! 群
+export function makeElite(teamSize, rng) {
+  const swarm = rng() < 0.5;
+  const count = swarm ? Math.max(2, teamSize * 2) : Math.max(1, teamSize);
+  const cards = [];
+  for (let i = 0; i < count; i++) {
+    try {
+      const card = makeCard(randomName(rng), '!');
+      if (!swarm) {
+        const s = card.stats;
+        for (const k of Object.keys(s)) s[k] = Math.round(s[k] * 2);
+      }
+      cards.push(card);
+    } catch {
+      cards.push(statlessCard(randomName(rng) + '@!'));
+    }
+  }
+  return { cards, mode: swarm ? 'swarm' : 'heavy' };
 }
 
 // 随机 @! 队名的填充队伍（TestEx），人数 = 出战人数
@@ -292,6 +313,7 @@ export function currentOpponent(state) {
   const node = currentNode(state);
   if (!node) return null;
   if (node.kind === 'ladder') return node.payload;
+  if (node.kind === 'elite') return { rank: null, score: 0, name: '精英试炼', cards: node.payload.cards, teamSize: node.payload.cards.length, elite: true };
   if (node.kind === 'filler') return { rank: null, score: 0, name: node.payload[0]?.name || '试炼对手', cards: node.payload, teamSize: node.payload.length };
   return null;
 }
@@ -463,6 +485,15 @@ export function campRest(state) {
   return true;
 }
 
+export function campForgeStat(state, charId, key) {
+  const card = (state.collection || []).find((c) => c.id === charId);
+  if (!card || !card.stats || !(key in card.stats)) return null;
+  const base = card.stats[key] || 0;
+  card.stats[key] = Math.max(1, Math.round(base * 1.1));
+  persist(state);
+  return { key, from: base, to: card.stats[key] };
+}
+
 export function campForge(state, charId, skillId) {
   const card = (state.collection || []).find((c) => c.id === charId);
   const skill = card?.skillList?.find((s) => s.id === skillId);
@@ -528,7 +559,7 @@ export function battleSeed(run) {
 }
 
 // —— 奖励：两张卡二选一 —— 随机技能卡（进锻造）或随机角色
-export function rollRewards(state, seed) {
+export function rollRewards(state, seed, elite = false) {
   const r = mulberry32(seed);
   const run = state.run;
   const progress = Math.min(1, Math.max(0, ((run.layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
@@ -541,8 +572,8 @@ export function rollRewards(state, seed) {
   // 技能卡：净化是敌人专属；排名越靠上，熟练度越高
   const skills = SKILL_IDS.filter((id) => id !== 'skldisperse');
   const skillId = skills[Math.floor(r() * skills.length)];
-  const lv = Math.round(10 + progress * 55 + r() * 25);
-  const power = Math.round((1 + progress * 0.9 + r() * 0.25) * 10) / 10;
+  const lv = Math.round((10 + progress * 55 + r() * 25) * (elite ? 1.5 : 1));
+  const power = Math.round((1 + progress * 0.9 + r() * 0.25) * (elite ? 1.5 : 1) * 10) / 10;
   const tacticPool = (state.tacticsPool || []).filter(
     (t) => !(state.ownedTactics || []).includes(t.id) || (state.tacticPower?.[t.id] || 1) < power,
   );
@@ -554,8 +585,16 @@ export function rollRewards(state, seed) {
   offers.push({ kind: 'card', card });
   // 药水与武器也进奖励池（武器与 @! 掉落相互独立）
   const potionMeta = POTIONS[Math.floor(r() * POTIONS.length)];
-  offers.push({ kind: 'potion', potion: { id: potionMeta.id, n: 1 } });
-  offers.push({ kind: 'weapon', weapon: { id: 'w-rw-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
+  offers.push({ kind: 'potion', potion: { id: potionMeta.id, n: elite ? 3 : 1 } });
+  const weaponCount = elite ? 2 : 1;
+  for (let i = 0; i < weaponCount; i++) {
+    offers.push({ kind: 'weapon', weapon: { id: 'w-rw-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
+  }
+  if (elite && card) {
+    const s = { ...card.stats };
+    for (const k of Object.keys(s)) s[k] = Math.round(s[k] * 1.5);
+    card = { ...card, stats: s };
+  }
   return offers;
 }
 export function applyReward(state, offer) {

@@ -1092,3 +1092,7 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .map-node--camp circle { fill: #fff3e0; }
 .map-node .map-camp { font-size: 20px; pointer-events: none; }
 .map-node.is-avail.map-node--camp circle { fill: #f6a23c; stroke: #b25f00; }
+/* 精英试炼：更大更红的试炼图标 */
+.map-node--elite circle { fill: #fff0f0; stroke: #c0392b; stroke-width: 3; }
+.map-node .map-elite { font-size: 26px; pointer-events: none; }
+.map-node.is-avail.map-node--elite circle { fill: #c0392b; stroke: #7d1f16; }
