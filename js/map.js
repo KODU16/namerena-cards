@@ -137,14 +137,14 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     const list = groups[d];
     const n = list.length;
     if (!n) continue;
-    const gap = 0.17;
+    const gap = 0.10;
     let xs = Array.from({ length: n }, () => rng()).sort((a, b) => a - b);
     for (let i = 1; i < n; i++) if (xs[i] - xs[i - 1] < gap) xs[i] = xs[i - 1] + gap;
     if (xs[n - 1] > 1) { const shift = xs[n - 1] - 1; xs = xs.map((v) => v - shift); }
     if (xs[0] < 0) { const shift = -xs[0]; xs = xs.map((v) => v + shift); }
     list.forEach((node, i) => {
       node.px = xs[i];
-      node.py = (rng() - 0.5) * 110;
+      node.py = (rng() - 0.5) * 40;
     });
   }  start.px = 0.5; end.px = 0.5;
   start.depth = 0; start.order = 0;
@@ -154,66 +154,41 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
   for (const d of [1, DEPTHS]) {
     while (groups[d].length < 2) groups[d].push(mk('filler', makeFiller(teamSize, rng), null));
   }
-  // 连边：每层按顺序把下一层切成连续区间，但每段长度随机（1~4）→ 出边数量不一、仍然不交叉
+  // 连边：每条边都满足「源顺序 ≤ 目标顺序」的单调关系，天然不交叉；再加交汇
   for (let d = 0; d <= DEPTHS; d++) {
     const from = groups[d];
     const to = groups[d + 1];
     if (!from.length || !to.length) continue;
     const m = from.length;
     const n = to.length;
-    // 一半的层用「滑窗」连边：相邻节点共享目标，形成密集的交汇
-    if (rng() < 0.5 && m >= 2 && n >= 2) {
-      from.forEach((node, i) => {
-        const lo = Math.floor((i * (n - 1)) / Math.max(1, m - 1));
-        const width = 2 + Math.floor(rng() * 2);
-        const hi = Math.min(n - 1, lo + width - 1);
-        node.next = to.slice(lo, hi + 1).map((t) => t.id);
-      });
-      from.forEach((node) => { if (!node.next.length) node.next = [to[n - 1].id]; });
-      to.forEach((t) => { if (!from.some((f) => f.next.includes(t.id))) from[from.length - 1].next.push(t.id); });
-      for (const node of [...from]) node.next = [...new Set(node.next)].slice(0, MAX_OUT);
-      continue;
+    const base = from.map((_, i) => Math.min(n - 1, Math.floor((i * n) / m)));
+    // 先把源按顺序映射到目标，保证每个源都有出边
+    for (let i = m - 1; i > 0; i--) if (base[i] < base[i - 1]) base[i] = base[i - 1];
+    for (let i = 1; i < m; i++) if (base[i] < base[i - 1]) base[i] = base[i - 1];
+    const edges = from.map((_, i) => new Set([base[i]]));
+    // 交汇：目标再拉一个更靠前的源
+    for (let j = 0; j < n; j++) {
+      if (rng() > 0.55) continue;
+      const owner = base.findIndex((b) => b === j);
+      if (owner > 0 && edges[owner - 1].size < MAX_OUT) edges[owner - 1].add(j);
     }
-    let cursor = 0;
+    // 分叉：源再连一个更靠后的目标
+    for (let i = 0; i < m; i++) {
+      if (rng() > 0.45) continue;
+      const t = base[i] + 1;
+      if (t < n && edges[i].size < MAX_OUT) edges[i].add(t);
+    }
     from.forEach((node, i) => {
-      if (cursor >= n) {
-        // 目标已经分完：后来者共享最后一格，保证每个节点都有出边
-        node.next = [to[n - 1].id];
-        return;
-      }
-      const leftSources = m - i - 1;
-      const leftTargets = n - cursor;
-      const maxTake = Math.max(1, Math.min(MAX_OUT, leftTargets - leftSources));
-      const take = Math.max(1, Math.min(maxTake, 1 + Math.floor(rng() * Math.min(MAX_OUT, leftTargets))));
-      node.next = to.slice(cursor, cursor + take).map((t) => t.id);
-      cursor += take;
+      node.next = [...edges[i]].sort((a, b) => a - b).slice(0, MAX_OUT).map((j) => to[j].id);
     });
-    // 交汇：把一部分边延伸到下一个节点的区间，制造多条路线汇入同一个节点
-    for (let i = 0; i + 1 < m; i++) {
-      const a = from[i];
-      const b = from[i + 1];
-      if (!a.next.length || b.next.length < 2) continue;
-      if (rng() < 0.8) {
-        const extra = rng() < 0.4 ? 2 : 1;
-        for (let k = 0; k < extra && k < b.next.length; k++) {
-          if (a.next.length >= MAX_OUT) break;
-          const t = b.next[k];
-          if (!a.next.includes(t)) a.next.push(t);
-        }
-      }
-    }
-    // 剩下的目标补到最后一个有出边的节点
-    if (cursor < n) {
-      const holder = [...from].reverse().find((x) => x.next.length);
-      if (holder) {
-        for (let k = cursor; k < n; k++) {
-          if (holder.next.length >= MAX_OUT) break;
-          holder.next.push(to[k].id);
-        }
-      }
-    }
-  }
-  // 终点汇聚：最后一层全部连到终点
+    // 兜底：确保每个目标至少有一条入边
+    to.forEach((t, j) => {
+      if (from.some((f) => f.next.includes(t.id))) return;
+      const src = from.find((_, i) => i === Math.min(m - 1, Math.floor((j * m) / n)));
+      const target = src.next;
+      if (target.length < MAX_OUT) target.push(t.id);
+    });
+  }  // 终点汇聚：最后一层全部连到终点
   for (const node of groups[DEPTHS]) {
     if (!node.next.includes(end.id)) node.next.push(end.id);
   }

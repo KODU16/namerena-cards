@@ -734,7 +734,7 @@ export function renderMap(root, state, h) {
   }
   const maxDepth = Math.max(...byDepth.keys());
   const W = 980;
-  const ROW = 178;
+  const ROW = 150;
   const PAD = 80;
   const H = (maxDepth + 1) * ROW + PAD;
   const pos = new Map();
