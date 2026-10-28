@@ -1,4 +1,4 @@
-// 天梯分层地图：每层 10 个天梯名次 + 若干 @! 填充节点，组成一张随机有向图。
+﻿// 天梯分层地图：每层 10 个天梯名次 + 若干 @! 填充节点，组成一张随机有向图。
 // 规则：
 //  - 天梯节点按名次向上排列（100 → 99 → … → 该层最好的名次），终点的名次最好；
 //  - 只能往前走（深度只增），每个节点的入边与出边合计最多 4 条；
@@ -161,7 +161,7 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     groups[d].forEach((n, i) => { n.depth = d; n.order = i; });
   }
   // 篝火节点：休息或锻造，每层 1~2 个
-  const campCount = 1 + Math.floor(rng() * 2);
+  const campCount = 2 + Math.floor(rng() * 2);
   for (let i = 0; i < campCount; i++) {
     const open = sparseDepths();
     if (!open.length) break;
@@ -174,6 +174,15 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     if (open.length && makeElite) {
       const d = open[Math.floor(rng() * open.length)];
       groups[d].push(mk('elite', makeElite(teamSize, rng), null));
+    }
+  }
+  // 商店节点：花分数买卡，每层 1 个
+  {
+    const open = [];
+    for (let d = 2; d <= DEPTHS; d++) if (groups[d].length < MAX_PER_DEPTH) open.push(d);
+    if (open.length) {
+      const d = open[Math.floor(rng() * open.length)];
+      groups[d].push(mk('shop', null, null));
     }
   }
   // 事件节点（?）：进入不战斗，随机给一张战术/名字/技能卡，1~2 个

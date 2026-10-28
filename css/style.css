@@ -1117,3 +1117,7 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
   background: #fff;
   color: var(--ink);
 }
+/* 商店节点 */
+.map-node--shop circle { fill: #eef7ee; stroke: #4f8f5a; }
+.map-node .map-shop { font-size: 20px; font-weight: 700; fill: #2f6b3a; pointer-events: none; }
+.map-node.is-avail.map-node--shop circle { fill: #4f8f5a; stroke: #2f6b3a; }

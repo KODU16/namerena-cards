@@ -1,4 +1,4 @@
-﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById, currentOpponent } from './game.js';
@@ -825,6 +825,8 @@ export function renderMap(root, state, h) {
         ? '<text y="8" text-anchor="middle" class="map-question">?</text>'
         : n.kind === 'elite'
           ? '<text y="9" text-anchor="middle" class="map-elite">👾</text>'
+          : n.kind === 'shop'
+          ? '<text y="8" text-anchor="middle" class="map-shop">$</text>'
           : n.kind === 'camp'
           ? '<text y="8" text-anchor="middle" class="map-camp">🔥</text>'
           : n.kind === 'filler'
@@ -835,12 +837,11 @@ export function renderMap(root, state, h) {
     const label = n.kind === 'start' ? '起点'
       : n.kind === 'end' ? `终点 #${n.rank ?? ''}`
         : n.kind === 'ladder' ? `天梯 #${n.rank ?? '?'}`
-          : n.kind === 'elite'
-          ? '<text y="9" text-anchor="middle" class="map-elite">👾</text>'
           : n.kind === 'elite' ? '精英'
-          : n.kind === 'camp' ? '篝火'
-          : n.kind === 'event' ? '事件 ?'
-            : '试炼';
+            : n.kind === 'shop' ? '商店'
+              : n.kind === 'camp' ? '篝火'
+                : n.kind === 'event' ? '事件 ?'
+                  : '试炼';
     return `<g class="${cls.join(' ')}" data-id="${n.id}" transform="translate(${p.x},${p.y})">
       <g class="map-node__art">
         <circle r="${r}"></circle>

@@ -422,6 +422,7 @@ function afterBattle(won) {
   duelView = null;
   if (!won) {
     const dropped = G.dropForged(state);
+    const lostScore = G.loseScore(state);
     const run = state.run;
     // 这一场出战的人全部倒下，本局不能再上
     run.downed = [...new Set([...(run.downed || []), ...(run.teamIds || [])])];
@@ -429,7 +430,7 @@ function afterBattle(won) {
     G.persist(state);
     const usable = state.collection.filter((c) => !run.downed.includes(c.id));
     if (usable.length >= (run.teamSize || 1)) {
-      toast(dropped ? `战败：掉落 ${dropped} 项锻造，换人重试` : '战败：换人重试', 2600);
+      toast((dropped ? '战败：掉落 ' + dropped + ' 项锻造，' : '战败：') + '扣 ' + lostScore + ' 分，换人重试', 2600);
       return prep();
     }
     G.advanceRun(state, false);
@@ -554,6 +555,30 @@ function mapScreen() {
     onInventory: openInventory,
     onPick: (nodeId) => {
       const node = state.run.graph.byId.get(nodeId);
+      if (node?.kind === 'shop') {
+        const openShop = () => {
+          const items = G.rollShop(state, (state.run.seed ^ (state.run.layer * 2654435761) ^ 0x51ed270b) >>> 0, state.run.layer);
+          const body = el('div', { class: 'inv__grid' }, items.map((it) => el('div', { class: 'inv__item' },
+            el('b', {}, it.kind === 'skill' ? '技能卡 ' + skillMeta(it.skill.id).name
+              : it.kind === 'card' ? '角色 ' + it.card.name + '@' + it.card.clan
+                : it.kind === 'weapon' ? '武器 ⚔ ' + it.weapon.name
+                  : it.kind === 'potion' ? '药水 ' + (G.potionById(it.potion.id) || {}).name
+                    : '战术 ' + (it.tactic?.name || '')),
+            el('small', {}, it.price + ' 分'),
+            el('button', {
+              class: 'ghost', type: 'button', disabled: (state.run.score || 0) < it.price,
+              onclick: () => {
+                if (G.buyShopItem(state, it)) { toast('购买成功：' + it.price + ' 分', 1600); openShop(); }
+                else toast('分数不够', 1400);
+              },
+            }, '购买'))));
+          sheet(el('div', {}, el('h2', {}, '商店'), el('p', { class: 'muted' }, '当前分数 ' + Math.round(state.run.score || 0)), body,
+            el('div', { class: 'result__actions' }, el('button', { class: 'primary', type: 'button', onclick: () => { closeSheet(); mapScreen(); } }, '离开'))));
+        };
+        G.enterCamp(state, nodeId);
+        openShop();
+        return;
+      }
       if (node?.kind === 'camp') {
         sheet(el('div', { class: 'result result--win' },
           el('div', { class: 'result__kicker' }, 'CAMP'),

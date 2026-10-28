@@ -191,7 +191,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     teamSize,
     index: 0,
     wins: 0,
-    score: 1000,
+    score: 8000,
     layer: 1,
     status: 'active',
     createdAt: Date.now(),
@@ -469,27 +469,76 @@ export function destroyItem(state, kind, id) {
 
 // 终点打完 → 进入下一层；返回 true 表示整座塔通关
 // 分数：Elo 口径（K=32），对手分数取天梯榜上的 score
+// 击败天梯对手按对方分数给分：约 15%，最低 20 分
 export function eloGain(player, opp, k = 32) {
-  const expected = 1 / (1 + Math.pow(10, ((opp ?? player) - player) / 400));
-  return Math.max(1, Math.round(k * (1 - expected)));
+  const s = Number.isFinite(opp) ? opp : player;
+  return Math.max(20, Math.round(s * 0.15));
 }
 
 export function addScore(state, oppScore) {
   const run = state.run;
   if (!run) return 0;
-  run.score = Number.isFinite(run.score) ? run.score : 1000;
+  run.score = Number.isFinite(run.score) ? run.score : 8000;
   const gain = eloGain(run.score, oppScore);
   run.score += gain;
   persist(state);
   return gain;
 }
 
+// 战败扣分：只扣 3%，最多 300
+export function loseScore(state) {
+  const run = state.run;
+  if (!run) return 0;
+  const cur = Number.isFinite(run.score) ? run.score : 8000;
+  const loss = Math.min(300, Math.max(10, Math.round(cur * 0.03)));
+  run.score = cur - loss;
+  persist(state);
+  return loss;
+}
+
 export function addScorePoints(state, points) {
   const run = state.run;
   if (!run) return 0;
-  run.score = (Number.isFinite(run.score) ? run.score : 1000) + Math.round(points);
+  run.score = (Number.isFinite(run.score) ? run.score : 8000) + Math.round(points);
   persist(state);
   return Math.round(points);
+}
+
+// 商店：用分数买任意类型的奖励
+export function rollShop(state, seed, layer = 1) {
+  const r = mulberry32(seed);
+  const run = state.run;
+  const progress = Math.min(1, Math.max(0, ((layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
+  const items = [];
+  const priceOf = (base) => Math.round((base * (1 + progress * 0.6)) / 10) * 10;
+  // 技能卡
+  const skills = SKILL_IDS.filter((id) => id !== 'skldisperse');
+  const sid = skills[Math.floor(r() * skills.length)];
+  items.push({ kind: 'skill', price: priceOf(450), skill: { id: sid, lv: Math.round(20 + progress * 50), uid: 'shop-' + seed + '-' + Math.floor(r() * 1e6) } });
+  // 角色卡
+  const card = makeCard(randomName(r), run.clan || '青');
+  items.push({ kind: 'card', price: priceOf(1000), card });
+  // 武器
+  items.push({ kind: 'weapon', price: priceOf(700), weapon: { id: 'w-shop-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
+  // 药水
+  const pm = POTIONS[Math.floor(r() * POTIONS.length)];
+  items.push({ kind: 'potion', price: priceOf(250), potion: { id: pm.id, n: 2 } });
+  // 战术
+  const pool = (state.tacticsPool || []).filter((t) => !(state.ownedTactics || []).includes(t.id));
+  const tactic = pool.length ? pool[Math.floor(r() * pool.length)] : null;
+  if (tactic) items.push({ kind: 'tactic', price: priceOf(800), tactic, power: Math.round((1 + progress) * 10) / 10 });
+  return items;
+}
+
+export function buyShopItem(state, item) {
+  const run = state.run;
+  if (!run || !item) return false;
+  const score = Number.isFinite(run.score) ? run.score : 8000;
+  if (score < item.price) return false;
+  run.score = score - item.price;
+  applyReward(state, item);
+  persist(state);
+  return true;
 }
 
 // 篝火：休息 → 下一场以 125% 体力开场；锻造 → 给某个角色的一个技能加工
@@ -610,7 +659,7 @@ export function rollRewards(state, seed, elite = false) {
     card = { ...card, stats: s0 };
   }
   const potionMeta = POTIONS[Math.floor(r() * POTIONS.length)];
-  const scorePoints = Math.round((25 + progress * 40 + r() * 20) * (elite ? 1.5 : 1));
+  const scorePoints = Math.round((300 + progress * 500 + r() * 200) * (elite ? 1.5 : 1));
   // 全类型奖池，洗匀后抽 3 个
   const pool = [
     { kind: 'skill', skill: { id: skillId, lv, uid: `sk-${seed}-${Math.floor(r() * 1e9)}` } },
