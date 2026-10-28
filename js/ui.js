@@ -1042,7 +1042,7 @@ export function fullCharRow(card) {
   const line = (label, key, v) => {
     const delta = key ? Math.round(bonusMap[key] || 0) : 0;
     return el('span', { class: 'fullrow__stat' }, label + ' ' + v,
-      delta ? el('i', { class: 'fullrow__plus' }, (delta > 0 ? '+' : '') + delta) : null);
+      delta ? el('i', { class: 'fullrow__plus' + (delta < 0 ? ' is-neg' : '') }, (delta > 0 ? '+' : '') + delta) : null);
   };
   const bar = (cls, label, pct) => el('div', { class: 'fullrow__bar ' + cls, title: label },
     el('i', { style: 'width:' + Math.max(0, Math.min(100, pct)) + '%' }),
