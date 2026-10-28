@@ -132,21 +132,21 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     groups[d].splice(at, 0, node);
   }
   for (let d = 1; d <= DEPTHS; d++) groups[d].forEach((n, i) => { n.depth = d; n.order = i; });
-  // 同层位置：随机散布（保持左右顺序，避免连线交叉）
+  // 同层位置：随机散布，保持左右顺序与最小间距（避免节点重叠、连线交叉）
   for (let d = 1; d <= DEPTHS; d++) {
     const list = groups[d];
     const n = list.length;
     if (!n) continue;
-    const gap = 0.16;
-    let xs = Array.from({ length: n }, () => 0.05 + rng() * 0.9).sort((a, b) => a - b);
+    const gap = 0.17;
+    let xs = Array.from({ length: n }, () => rng()).sort((a, b) => a - b);
     for (let i = 1; i < n; i++) if (xs[i] - xs[i - 1] < gap) xs[i] = xs[i - 1] + gap;
-    for (let i = n - 1; i >= 0; i--) if (xs[i] > 0.95) xs[i] = 0.95 - (n - 1 - i) * gap;
+    if (xs[n - 1] > 1) { const shift = xs[n - 1] - 1; xs = xs.map((v) => v - shift); }
+    if (xs[0] < 0) { const shift = -xs[0]; xs = xs.map((v) => v + shift); }
     list.forEach((node, i) => {
-      node.px = Math.min(0.95, Math.max(0.05, xs[i]));
-      node.py = (rng() - 0.5) * 34;
+      node.px = xs[i];
+      node.py = (rng() - 0.5) * 110;
     });
-  }
-  start.px = 0.5; end.px = 0.5;
+  }  start.px = 0.5; end.px = 0.5;
   start.depth = 0; start.order = 0;
   end.depth = DEPTHS + 1; end.order = 0;
 
