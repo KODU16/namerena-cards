@@ -998,11 +998,13 @@ export function eightSumOf(card) {
   return Math.round((s.atk || 0) + (s.def || 0) + ((s.spd || 0) - 124) + (s.agi || 0) + (s.mag || 0) + (s.res || 0) + (s.wis || 0) + (s.hp || 0));
 }
 
+// 固定路径由发布构建替换为内容指纹路径，图标修改后不会命中旧切片缓存。
+const GRADE_ICONS = [null, 'assets/grade-1.png', 'assets/grade-2.png', 'assets/grade-3.png'];
 // 八围评级图标：>692 第一枚，>672 第二枚，>652 第三枚
 export function gradeIcon(card) {
   const sum = eightSumOf(card);
   const n = sum > 692 ? 1 : sum > 672 ? 2 : sum > 652 ? 3 : 0;
-  return n ? el('img', { class: 'grade-icon', src: 'assets/grade-' + n + '.png', alt: '', title: '八围 ' + sum }) : null;
+  return n ? el('img', { class: 'grade-icon', src: GRADE_ICONS[n], width: 28, height: 28, alt: '', title: '八围 ' + sum }) : null;
 }
 
 // 可交互的完整角色行（点击/置灰/选中）

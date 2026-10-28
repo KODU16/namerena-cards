@@ -1171,7 +1171,8 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .setup__name-row b { font-size: 14px; }
 .setup__name-row .ghost { margin-left: auto; font-size: 11px; padding: 2px 8px; }
 /* 八围评级图标 */
-.grade-icon { width: 22px; height: 22px; image-rendering: pixelated; vertical-align: middle; }
+/* 独立裁切的像素图按比例显示；禁止收缩，避免长名字挤扁图标。 */
+.grade-icon { width: 28px; height: 28px; flex: 0 0 28px; object-fit: contain; image-rendering: pixelated; vertical-align: middle; }
 .fullrow__head .grade-icon { margin-left: 4px; }
 /* 电脑节点 */
 .map-node--cpu circle { fill: #eef2fb; stroke: #4a5b9a; }

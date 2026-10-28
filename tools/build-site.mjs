@@ -56,17 +56,23 @@ const bundled = await build({
     }));
   } }],
 });
-const app = bundled.outputFiles[0].contents;
+// 三枚切片使用内容指纹；保留源雪碧图供重新裁切，不发布它。
+const gradePaths = {};
+let gradeBytes = 0;
+for (const n of [1, 2, 3]) {
+  const icon = await read('assets/grade-' + n + '.png');
+  gradePaths[n] = 'assets/grade-' + n + '-' + hash(icon) + '.png';
+  await emit(gradePaths[n], icon);
+  gradeBytes += icon.length;
+}
+const app = Buffer.from(bundled.outputFiles[0].text.replace(/assets\/grade-([123])\.png/g, (_, n) => gradePaths[n]));
 const appName = 'main-' + hash(app) + '.js';
 await emit('js/' + appName, app);
 const sprite = await read('assets/emoji-sprite.png');
 const spriteName = 'emoji-sprite-' + hash(sprite) + '.png';
 await emit('assets/' + spriteName, sprite);
 await emit('assets/favicon.png', await read('assets/favicon.png'));
-// 八围评级图标（三枚），不打哈希，路径固定，方便 JS 直接引用
-for (const n of [1, 2, 3]) {
-  await emit('assets/grade-' + n + '.png', await read('assets/grade-' + n + '.png'));
-}
+// 评级图标已随应用生成指纹路径，仅复制三张独立切片。
 const cssSource = (await read('css/style.css')).toString('utf8').replace(/emoji-sprite\.png(?:\?v=\d+)?/g, spriteName);
 const css = (await transform(cssSource, { loader: 'css', minify: true, legalComments: 'none' })).code;
 const cssName = 'style-' + hash(css) + '.css';
@@ -84,6 +90,6 @@ await emit('NOTICE.md', await read('NOTICE.md'));
 // 估算可压缩文本与 wasm 的传输体积；PNG 按原始字节计，不依赖服务器一定启用 gzip。
 const assets = [Buffer.from(html), Buffer.from(app), Buffer.from(vendor), Buffer.from(css),
   Buffer.from(JSON.stringify(JSON.parse(await read('data/tactics.json'))))];
-const raw = wasmGzip.length + assets.reduce((sum, data) => sum + data.length, 0) + sprite.length + (await read('assets/favicon.png')).length;
-const gzip = wasmGzip.length + assets.reduce((sum, data) => sum + gzipSync(data, { level: 9 }).length, 0) + sprite.length + (await read('assets/favicon.png')).length;
+const raw = wasmGzip.length + gradeBytes + assets.reduce((sum, data) => sum + data.length, 0) + sprite.length + (await read('assets/favicon.png')).length;
+const gzip = wasmGzip.length + gradeBytes + assets.reduce((sum, data) => sum + gzipSync(data, { level: 9 }).length, 0) + sprite.length + (await read('assets/favicon.png')).length;
 console.log('dist ready: first-load assets ' + (raw / 1024).toFixed(1) + ' KiB raw / ' + (gzip / 1024).toFixed(1) + ' KiB gzip estimate');
