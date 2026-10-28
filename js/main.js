@@ -215,12 +215,37 @@ async function openSaves() {
             toast('已存入槽位 ' + slot + (res.source === 'server' ? '（账号）' : '（本机）'), 2000);
             paint();
           } }, '存档') : null,
+          entry ? el('button', { class: 'ghost', type: 'button', onclick: async () => {
+            const got = await Saves.load(slot);
+            if (!got) return toast('读档失败', 2000);
+            const stamp = new Date().toISOString().slice(0, 10);
+            Saves.downloadText(`namerena-slot-${slot}-${stamp}.txt`,
+              Saves.encodeFile(got.payload, got.summary || ''));
+            toast('已下载槽位 ' + slot + ' 的存档文件', 2000);
+          } }, '下载') : null,
           entry ? el('button', { class: 'ghost ghost--del', type: 'button', onclick: async () => {
             await Saves.remove(slot);
             paint();
-          } }, '删除') : null)),
-      ),
-    );
+          } }, '删除')
+            : el('button', { class: 'ghost', type: 'button', onclick: () => {
+              const pick = document.createElement('input');
+              pick.type = 'file';
+              pick.accept = '.txt,text/plain';
+              pick.onchange = async () => {
+                const file = pick.files && pick.files[0];
+                if (!file) return;
+                try {
+                  const got = Saves.decodeFile(await file.text());
+                  const res = await Saves.save(slot, got.payload, got.summary || ('导入 ' + file.name));
+                  if (res.source === 'error') return toast(res.message || '导入失败', 2200);
+                  toast('已导入到槽位 ' + slot, 2000);
+                  paint();
+                } catch (err) {
+                  toast('导入失败：' + (err && err.message ? err.message : '文件无法识别'), 2600);
+                }
+              };
+              pick.click();
+            } }, '导入 txt')))));
     sheet(el('div', {}, el('h2', {}, '存档'), body,
       el('div', { class: 'result__actions' }, el('button', { class: 'primary', type: 'button', onclick: closeSheet }, '关闭'))));
   };

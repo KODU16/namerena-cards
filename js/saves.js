@@ -1,4 +1,4 @@
-// 单账号多存档：优先存到 shenjack 账号（/api/cards/saves），
+﻿// 单账号多存档：优先存到 shenjack 账号（/api/cards/saves），
 // 后端不可用（本地 / GitHub Pages / 接口没上线）时自动退回 localStorage 的 10 个槽位。
 
 const API = '/api/cards/saves';
@@ -123,4 +123,57 @@ export async function remove(slot) {
 
 export function state() {
   return { sameOrigin: sameOrigin(), serverOk, hasCsrf: !!csrf };
+}
+
+// ———————————————— 存档文件（加密 txt，跨设备用）
+// 说明：文件以固定口令做 XOR 混淆 + base64，能挡住随手改名/改内容，
+// 但口令在代码里，不构成对逆向的防护。
+
+const FILE_KEY = 'namerena-slot-2026-5f3d';
+const FILE_HEAD = 'NAMERENA-SLOT-1';
+
+function xorText(text, key) {
+  let out = '';
+  for (let i = 0; i < text.length; i++) out += String.fromCharCode(text.charCodeAt(i) ^ key.charCodeAt(i % key.length));
+  return out;
+}
+
+function toB64(str) {
+  return btoa(unescape(encodeURIComponent(str)));
+}
+
+function fromB64(b64) {
+  return decodeURIComponent(escape(atob(b64)));
+}
+
+export function encodeFile(payload, summary) {
+  const body = JSON.stringify({ summary: summary || '', at: Date.now(), payload });
+  return FILE_HEAD + '\n' + toB64(xorText(body, FILE_KEY)) + '\n';
+}
+
+export function decodeFile(text) {
+  const lines = String(text || '').split(/\r?\n/).map((s) => s.trim()).filter(Boolean);
+  if (!lines.length || !lines[0].startsWith(FILE_HEAD)) throw new Error('这不是存档文件');
+  let data;
+  try {
+    data = JSON.parse(xorText(fromB64(lines[1] || ''), FILE_KEY));
+  } catch {
+    throw new Error('存档文件已损坏');
+  }
+  if (!data || !data.payload) throw new Error('存档内容为空');
+  return { payload: data.payload, summary: data.summary || '', at: data.at || 0 };
+}
+
+export function downloadText(filename, text) {
+  const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
+    URL.revokeObjectURL(url);
+    a.remove();
+  }, 0);
 }
