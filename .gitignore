@@ -10,3 +10,10 @@ docs/*.png
 
 # 压缩发布目录，由 build:site 生成
 dist/
+
+# cards 后端本地数据
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+__pycache__/
+
