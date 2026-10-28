@@ -111,7 +111,7 @@ export function persist(state) {
       id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
       cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
       // 装备与武器信息也要存，否则刷新后武器就「消失」了
-      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, forge: c.forge || null, maxMp: c.maxMp, shield: c.shield,
+      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, forge: c.forge || null, runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
     });
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       v: 1,
@@ -235,7 +235,10 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     }
     if (used.has(card.id)) card = makeCard(randomName(r), ['青', '赤', '玄', '白'][Math.floor(r() * 4)]);
     used.add(card.id);
-    collection.push({ ...card });
+    // 开局保底：第一局全属性 ×2，之后每局 -0.1，最低 1.0；加成记在卡上以便显示
+    const mult = runMultiplier(state.records?.length || 0);
+    const buffed = applyRunBuff(card, mult);
+    collection.push({ ...buffed, runMult: mult });
   }
   state.collection = collection;
   state.run.teamIds = collection.slice(0, teamSize).map((c) => c.id);
@@ -440,6 +443,18 @@ export function cardBonus(state, card) {
   for (const d of card?.weaponInfo?.deltas || []) {
     const key = LABEL_KEY[d.label];
     if (key) bonus[key] = (bonus[key] || 0) + d.delta;
+  }
+  // 开局保底倍率：当前值 - （构建 + 锻造）就是这部分加成
+  const mult = card?.runMult || 1;
+  if (mult > 1 && card) {
+    const build = card.weapon ? buildWithWeapon(card.name, card.clan, card.weapon) : makeCard(card.name, card.clan);
+    if (build) {
+      const bare = applyForge(build.stats, card.forge);
+      for (const k of Object.keys(bare)) {
+        const d = Math.round((card.stats?.[k] || 0) - (bare[k] || 0));
+        if (d) bonus[k] = (bonus[k] || 0) + d;
+      }
+    }
   }
   return bonus;
 }
