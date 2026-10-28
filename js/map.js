@@ -1,15 +1,71 @@
-﻿// 天梯分层地图：每层 10 个天梯名次 + 若干 @! 填充节点，组成一张随机有向图。
+// 天梯分层地图：每层 10 个天梯名次 + 若干 @! 填充节点，组成一张随机有向图。
 // 规则：
 //  - 天梯节点按名次向上排列（100 → 99 → … → 该层最好的名次），终点的名次最好；
-//  - 只能往前走（深度只增），每个节点最多 4 条出边；
-//  - 同层节点按从左到右排序，出边在下一层取连续区间，保证线与线不交叉；
+//  - 只能往前走（深度只增），每个节点的入边与出边合计最多 4 条；
+//  - 节点均匀分布并保留随机偏移，只连接相邻深度且保持左右顺序；
+//  - 连线避让节点圆形边界及 8 像素余量，共用节点处的夹角至少 25°；
 //  - 所有节点可达，所有路径最终汇聚到终点。
 export const LAYER_COUNT = 10;
 export const DEPTHS = 9;          // 战斗层深度（1..DEPTHS），终点在 DEPTHS+1（每层最多 4 个节点）
 export const MIN_NODES = 30;
 export const MAX_NODES = 35;
-export const MAX_OUT = 4;
+// 总连接数上限；保留 MAX_OUT 供已有调用使用。
+export const MAX_CONNECTIONS = 4;
+export const MAX_OUT = MAX_CONNECTIONS;
 export const MAX_PER_DEPTH = 4;
+// 生成与绘制共用尺寸；间距包含描边及悬停放大的余量。
+export const MAP_LAYOUT = { width: 980, row: 150, pad: 80, inset: 60 };
+export const NODE_CLEARANCE = 8;
+export const MIN_EDGE_ANGLE = 25;
+export function mapNodeRadius(node) {
+  return node.kind === 'start' || node.kind === 'end' ? 30 : (node.kind === 'elite' ? 32 : 24);
+}
+
+function mapPoint(node) {
+  return { x: MAP_LAYOUT.inset + node.px * (MAP_LAYOUT.width - 2 * MAP_LAYOUT.inset),
+    y: -node.depth * MAP_LAYOUT.row + (node.py || 0) };
+}
+
+// 投影到有限线段，检测连线是否侵入其他节点的圆形范围。
+function segmentDistance(p, a, b) {
+  const dx = b.x - a.x, dy = b.y - a.y;
+  const length2 = dx * dx + dy * dy;
+  const t = length2 ? Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / length2)) : 0;
+  return Math.hypot(p.x - a.x - t * dx, p.y - a.y - t * dy);
+}
+
+function angleOk(origin, a, b) {
+  const ax = a.x - origin.x, ay = a.y - origin.y;
+  const bx = b.x - origin.x, by = b.y - origin.y;
+  const lengths = Math.hypot(ax, ay) * Math.hypot(bx, by);
+  return lengths > 0 && (ax * bx + ay * by) / lengths <= Math.cos(MIN_EDGE_ANGLE * Math.PI / 180) + 1e-9;
+}
+
+// 同时校验入边和出边的端点切向；旧地图的折线路径也参与检查。
+function geometryRules(nodes, byId) {
+  const ports = new Map(nodes.map((n) => [n.id, []]));
+  let nodeClearanceOk = true;
+  for (const from of nodes) for (const id of from.next) {
+    const to = byId.get(id);
+    if (!to) continue;
+    const points = [mapPoint(from), ...(from.via?.[id] || []).map((p) => ({
+      x: MAP_LAYOUT.inset + p.x * (MAP_LAYOUT.width - 2 * MAP_LAYOUT.inset), y: -p.y * MAP_LAYOUT.row,
+    })), mapPoint(to)];
+    ports.get(from.id).push(points[1]);
+    ports.get(to.id).push(points[points.length - 2]);
+    for (const node of nodes) {
+      if (node.id === from.id || node.id === to.id) continue;
+      for (let i = 1; i < points.length; i++) {
+        if (segmentDistance(mapPoint(node), points[i - 1], points[i]) < mapNodeRadius(node) + NODE_CLEARANCE) nodeClearanceOk = false;
+      }
+    }
+  }
+  const minAngleOk = nodes.every((node) => {
+    const directions = ports.get(node.id);
+    return directions.every((p, i) => directions.slice(i + 1).every((q) => angleOk(mapPoint(node), p, q)));
+  });
+  return { nodeClearanceOk, minAngleOk };
+}
 
 // 第 layer 层（1..10）对应的 10 个天梯名次：第 1 层是 91~100，第 10 层是 1~10
 export function layerRanks(layer) {
@@ -54,7 +110,6 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     payload,
     depth: 0,
     order: 0,
-    jitter: (rng() - 0.5) * 26,
     next: [],
   });
 
@@ -74,18 +129,20 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
       if (e) groups[d].push(mk('ladder', e, e.rank));
     }
   }
-  // 试炼节点：先给每层补 1 个，再把剩下的随机撒（每层最多 4 个）
-  const fillersPool = Array.from({ length: fillerCount }, () => makeFiller(teamSize, rng));
-  const capOf = (d) => (d === 1 ? 3 : MAX_PER_DEPTH);
-  const spaceLeft = (d) => capOf(d) - groups[d].length;
-  for (let d = 1; d <= DEPTHS && fillersPool.length; d++) {
-    if (spaceLeft(d) > 0) groups[d].push(mk('filler', fillersPool.pop(), null));
-  }
-  let guard = 0;
-  while (fillersPool.length && guard++ < 200) {
-    const d = 1 + Math.floor(rng() * DEPTHS);
-    if (spaceLeft(d) <= 0) continue;
-    groups[d].push(mk('filler', fillersPool.pop(), null));
+  // 优先补到节点最少的深度，同样稀疏的行随机选择，避免节点聚集。
+  const sparseDepths = () => {
+    const sizes = groups.slice(1, DEPTHS + 1).map((list) => list.length);
+    const min = Math.min(...sizes);
+    return sizes.flatMap((size, i) => size === min && size < MAX_PER_DEPTH ? [i + 1] : []);
+  };
+  const pickSparseDepth = () => {
+    const open = sparseDepths();
+    return open[Math.floor(rng() * open.length)];
+  };
+  for (let i = 0; i < fillerCount; i++) {
+    const d = pickSparseDepth();
+    if (d === undefined) break;
+    groups[d].push(mk('filler', makeFiller(teamSize, rng), null));
   }
   // 同层内交替摆放（天梯/试炼交错），让每条路径都能遇到两种节点
   for (let d = 1; d <= DEPTHS; d++) {
@@ -102,19 +159,18 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     }
     groups[d] = mixed;
     groups[d].forEach((n, i) => { n.depth = d; n.order = i; });
-  }  // 篝火节点：休息或锻造，每层 1~2 个
+  }
+  // 篝火节点：休息或锻造，每层 1~2 个
   const campCount = 1 + Math.floor(rng() * 2);
   for (let i = 0; i < campCount; i++) {
-    const open = [];
-    for (let d = 1; d <= DEPTHS; d++) if (groups[d].length < MAX_PER_DEPTH) open.push(d);
+    const open = sparseDepths();
     if (!open.length) break;
     const d = open[Math.floor(rng() * open.length)];
     groups[d].push(mk('camp', null, null));
   }
   // 精英试炼：更强、奖励更厚，每层 1 个
   {
-    const open = [];
-    for (let d = 1; d <= DEPTHS; d++) if (groups[d].length < MAX_PER_DEPTH) open.push(d);
+    const open = sparseDepths();
     if (open.length && makeElite) {
       const d = open[Math.floor(rng() * open.length)];
       groups[d].push(mk('elite', makeElite(teamSize, rng), null));
@@ -123,113 +179,85 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
   // 事件节点（?）：进入不战斗，随机给一张战术/名字/技能卡，1~2 个
   const eventCount = 1 + Math.floor(rng() * 2);
   for (let i = 0; i < eventCount; i++) {
-    const open = [];
-    for (let d = 1; d <= DEPTHS; d++) if (groups[d].length < MAX_PER_DEPTH) open.push(d);
+    const open = sparseDepths();
     if (!open.length) break;
     const d = open[Math.floor(rng() * open.length)];
     const node = mk('event', null, null);
     const at = Math.floor(rng() * (groups[d].length + 1));
     groups[d].splice(at, 0, node);
   }
-  for (let d = 1; d <= DEPTHS; d++) groups[d].forEach((n, i) => { n.depth = d; n.order = i; });
-  // 同层位置：随机散布，保持左右顺序与最小间距（避免节点重叠、连线交叉）
+  // 先补齐每个深度，再统一赋位置，避免补出的节点缺少坐标。
   for (let d = 1; d <= DEPTHS; d++) {
-    const list = groups[d];
-    const n = list.length;
-    if (!n) continue;
-    const gap = 0.10;
-    let xs = Array.from({ length: n }, () => rng()).sort((a, b) => a - b);
-    for (let i = 1; i < n; i++) if (xs[i] - xs[i - 1] < gap) xs[i] = xs[i - 1] + gap;
-    if (xs[n - 1] > 1) { const shift = xs[n - 1] - 1; xs = xs.map((v) => v - shift); }
-    if (xs[0] < 0) { const shift = -xs[0]; xs = xs.map((v) => v + shift); }
-    list.forEach((node, i) => {
-      node.px = xs[i];
-      node.py = (rng() - 0.5) * 40;
-    });
-  }  start.px = 0.5; end.px = 0.5;
-  start.depth = 0; start.order = 0;
-  end.depth = DEPTHS + 1; end.order = 0;
-
-  // 保证首尾两层各有 2~4 个节点
-  for (const d of [1, DEPTHS]) {
     while (groups[d].length < 2) groups[d].push(mk('filler', makeFiller(teamSize, rng), null));
   }
-  // 连边：每条边都满足「源顺序 ≤ 目标顺序」的单调关系，天然不交叉；再加交汇
+  // 随机布局失败时重排；最后使用经过相同几何检查的均匀布局。
+  const placeNodes = (randomize) => {
+    for (let d = 0; d < groups.length; d++) {
+      const list = groups[d];
+      const rowOffset = randomize && d > 0 && d <= DEPTHS ? (rng() - 0.5) * 32 : 0;
+      list.forEach((node, i) => {
+        node.depth = d;
+        node.order = i;
+        node.px = list.length === 1 ? 0.5 : (i + 0.5 + (randomize ? (rng() - 0.5) * 0.36 : 0)) / list.length;
+        node.py = rowOffset;
+      });
+    }
+  };
+  const nodes = groups.flat();
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const neighbors = new Map(nodes.map((n) => [n.id, []]));
+  const degree = new Map(groups.flat().map((node) => [node.id, 0]));
+  const connect = (from, to) => {
+    from.next.push(to.id);
+    neighbors.get(from.id).push(to);
+    neighbors.get(to.id).push(from);
+    degree.set(from.id, degree.get(from.id) + 1);
+    degree.set(to.id, degree.get(to.id) + 1);
+  };
+  // 按等宽区间的重叠关系构建骨架：每个节点都有前后通路，边的次序不会反转。
+  // 中间行各有 2~4 个节点，因此骨架的每侧至多两条边，总度数不会超过 4。
   for (let d = 0; d <= DEPTHS; d++) {
     const from = groups[d];
     const to = groups[d + 1];
-    if (!from.length || !to.length) continue;
-    const m = from.length;
-    const n = to.length;
-    const base = from.map((_, i) => Math.min(n - 1, Math.floor((i * n) / m)));
-    // 先把源按顺序映射到目标，保证每个源都有出边
-    for (let i = m - 1; i > 0; i--) if (base[i] < base[i - 1]) base[i] = base[i - 1];
-    for (let i = 1; i < m; i++) if (base[i] < base[i - 1]) base[i] = base[i - 1];
-    const edges = from.map((_, i) => new Set([base[i]]));
-    // 交汇：目标再拉一个更靠前的源
-    for (let j = 0; j < n; j++) {
-      if (rng() > 0.55) continue;
-      const owner = base.findIndex((b) => b === j);
-      if (owner > 0 && edges[owner - 1].size < MAX_OUT) edges[owner - 1].add(j);
-    }
-    // 分叉：源再连一个更靠后的目标
-    for (let i = 0; i < m; i++) {
-      if (rng() > 0.45) continue;
-      const t = base[i] + 1;
-      if (t < n && edges[i].size < MAX_OUT) edges[i].add(t);
-    }
     from.forEach((node, i) => {
-      node.next = [...edges[i]].sort((a, b) => a - b).slice(0, MAX_OUT).map((j) => to[j].id);
-    });
-    // 兜底：确保每个目标至少有一条入边
-    to.forEach((t, j) => {
-      if (from.some((f) => f.next.includes(t.id))) return;
-      const src = from.find((_, i) => i === Math.min(m - 1, Math.floor((j * m) / n)));
-      const target = src.next;
-      if (target.length < MAX_OUT) target.push(t.id);
-    });
-  }  // 跨层连线：给长边加一个中间通道点（depth+1，x 取两端中点），
-  // 只有两段都不与已有线段相交时才添加 → 可以绕开节点形成编织感
-  {
-    const xy = (n) => ({ x: n.px, y: n.depth + (n.py || 0) / 120 });
-    const segCross = (a, b, c, d) => {
-      const ccw = (p, q, r) => (r.y - p.y) * (q.x - p.x) > (q.y - p.y) * (r.x - p.x);
-      return ccw(a, c, d) !== ccw(b, c, d) && ccw(a, b, c) !== ccw(a, b, d);
-    };
-    const allNodes = groups.flat();
-    const byId2 = new Map(allNodes.map((n) => [n.id, n]));
-    const segs = [];   // {a:{x,y}, b:{x,y}, from, to}
-    const addSeg = (a, b, from, to) => segs.push({ a, b, from, to });
-    for (const n of allNodes) for (const id of n.next) addSeg(xy(n), xy(byId2.get(id)), n.id, id);
-    const hits = (a, b, fromId, toId) => segs.some((s2) => {
-      if (s2.from === fromId && s2.to === toId) return false;
-      if (s2.from === fromId || s2.to === toId || s2.from === toId || s2.to === fromId) return false;
-      return segCross(a, b, s2.a, s2.b);
-    });
-    for (let d = 0; d <= DEPTHS - 1; d++) {
-      for (const node of groups[d]) {
-        if (node.next.length >= MAX_OUT) continue;
-        const far = groups[d + 2] || [];
-        for (const t of far) {
-          if (node.next.includes(t.id)) continue;
-          const mid = { x: (node.px + t.px) / 2, y: d + 1 + (rng() - 0.5) * 0.1 };
-          if (hits(xy(node), mid, node.id, t.id) || hits(mid, xy(t), node.id, t.id)) continue;
-          node.next.push(t.id);
-          node.via = node.via || {};
-          node.via[t.id] = [mid];
-          addSeg(xy(node), mid, node.id, t.id);
-          addSeg(mid, xy(t), node.id, t.id);
-          break;
+      to.forEach((target, j) => {
+        if (i * to.length < (j + 1) * from.length && j * from.length < (i + 1) * to.length) {
+          connect(node, target);
         }
-      }
+      });
+    });
+  }
+  let placed = false;
+  for (let attempt = 0; attempt <= 64; attempt++) {
+    placeNodes(attempt < 64);
+    const geometry = geometryRules(nodes, byId);
+    if (geometry.nodeClearanceOk && geometry.minAngleOk) { placed = true; break; }
+  }
+  if (!placed) throw new Error('地图布局无法满足节点避让及最小夹角要求');
+  // 加边时检查两端夹角及沿途节点，不通过则保留已有连通骨架。
+  const edgeFits = (from, to) => {
+    const a = mapPoint(from), b = mapPoint(to);
+    return nodes.every((n) => n === from || n === to
+      || segmentDistance(mapPoint(n), a, b) >= mapNodeRadius(n) + NODE_CLEARANCE)
+      && neighbors.get(from.id).every((n) => angleOk(a, b, mapPoint(n)))
+      && neighbors.get(to.id).every((n) => angleOk(b, a, mapPoint(n)));
+  };
+  // 所有骨架边完成后再随机加分支，为下一行保留的连接数也计入限制。
+  for (let d = 1; d < DEPTHS; d++) {
+    const from = groups[d];
+    const to = groups[d + 1];
+    const candidates = shuffle(from.flatMap((node) => to.map((target) => [node, target])), rng);
+    for (const [node, target] of candidates) {
+      if (node.next.includes(target.id) || rng() >= 0.4) continue;
+      if (degree.get(node.id) >= MAX_CONNECTIONS || degree.get(target.id) >= MAX_CONNECTIONS) continue;
+      const crosses = from.some((source) => source.next.some((id) => {
+        const dest = to.find((candidate) => candidate.id === id);
+        return (source.order - node.order) * (dest.order - target.order) < 0;
+      }));
+      if (!crosses && edgeFits(node, target)) connect(node, target);
     }
-  }  // 终点汇聚：最后一层全部连到终点
-  for (const node of groups[DEPTHS]) {
-    if (!node.next.includes(end.id)) node.next.push(end.id);
   }
 
-  const nodes = groups.flat();
-  const byId = new Map(nodes.map((n) => [n.id, n]));
   return {
     layer,
     nodes,
@@ -249,7 +277,7 @@ export function nextNodes(graph, nodeId) {
   return node.next.map((id) => graph.byId.get(id)).filter(Boolean);
 }
 
-// 校验：全可达、全汇聚、只向前、出边 ≤4、战斗节点 20~25
+// 校验：全可达、全汇聚、只向前、总连接数 ≤4、无交叉及战斗节点数量。
 export function validateGraph(graph) {
   const { nodes, startId, endId, byId } = graph;
   const seen = new Set();
@@ -271,18 +299,44 @@ export function validateGraph(graph) {
   }
   let monotonic = true;
   let maxOut = 0;
+  const degree = new Map(nodes.map((n) => [n.id, n.next.length]));
+  const edges = [];
   for (const n of nodes) {
     maxOut = Math.max(maxOut, n.next.length);
     for (const id of n.next) {
       const t = byId.get(id);
       if (!t || t.depth <= n.depth) monotonic = false;
+      if (t) {
+        degree.set(id, degree.get(id) + 1);
+        edges.push([n, t]);
+      }
     }
   }
+  // 使用与 SVG 一致的坐标检查线段，包括旧地图保存的折线路径。
+  const point = mapPoint;
+  const segments = edges.flatMap(([a, b]) => {
+    const points = [point(a), ...(a.via?.[b.id] || []).map((p) => ({ x: MAP_LAYOUT.inset + p.x * (MAP_LAYOUT.width - 2 * MAP_LAYOUT.inset), y: -p.y * MAP_LAYOUT.row })), point(b)];
+    return points.slice(1).map((p, i) => ({ a, b, p: points[i], q: p }));
+  });
+  const orient = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+  const onSegment = (a, b, p) => Math.abs(orient(a, b, p)) < 1e-9
+    && p.x >= Math.min(a.x, b.x) && p.x <= Math.max(a.x, b.x)
+    && p.y >= Math.min(a.y, b.y) && p.y <= Math.max(a.y, b.y);
+  const noCrossings = segments.every((edge, i) => segments.slice(i + 1).every((other) => {
+    if ([edge.a.id, edge.b.id].some((id) => id === other.a.id || id === other.b.id)) return true;
+    const { p: a, q: b } = edge;
+    const { p: c, q: d } = other;
+    return !(orient(a, b, c) * orient(a, b, d) < 0 && orient(c, d, a) * orient(c, d, b) < 0)
+      && !onSegment(a, b, c) && !onSegment(a, b, d) && !onSegment(c, d, a) && !onSegment(c, d, b);
+  }));
   return {
     allReachable: seen.size === nodes.length,
     allConverge: canReachEnd.size === nodes.length,
     monotonic,
     maxOutOk: maxOut <= MAX_OUT,
+    maxDegreeOk: [...degree.values()].every((count) => count <= MAX_CONNECTIONS),
+    noCrossings,
+    ...geometryRules(nodes, byId),
     nonEmpty: graph.battleCount >= MIN_NODES && graph.battleCount <= MAX_NODES,
   };
 }

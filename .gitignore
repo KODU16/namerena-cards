@@ -7,3 +7,6 @@ Thumbs.db
 # 本地草稿
 _site_backup/
 docs/*.png
+
+# 压缩发布目录，由 build:site 生成
+dist/

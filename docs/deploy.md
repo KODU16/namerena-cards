@@ -1,5 +1,14 @@
 # 部署到 GitHub Pages
 
+## 压缩发布
+
+先运行 `npm ci` 和 `npm run build:site`，再把生成的 `dist/` 内容作为 Pages 的发布根目录。若使用 GitHub Actions，上传 Pages artifact 的 `path` 应指向 `dist`；若使用分支发布，将 `dist/` 内容同步到所选发布分支的根目录。不要把开发源码直接覆盖成压缩文件。
+
+`dist/` 可用 `python -m http.server 8123 --directory dist` 本地预览，支持仓库子路径。体积与兼容性说明见 [流量与压缩发布](bandwidth.md)。
+
+本仓库通过 `.github/workflows/pages.yml` 自动构建发布；Pages 来源应设置为 GitHub Actions。
+
+
 ## 1. 推仓库
 
 ```powershell
@@ -18,8 +27,8 @@ git push -u origin main
 
 GitHub → 仓库 **Settings → Pages**：
 
-- Source: `Deploy from a branch`
-- Branch: `main`，目录 `/ (root)`
+- Source: `GitHub Actions`
+- 工作流：`.github/workflows/pages.yml`，推送 `main` 或手动运行时构建并发布 `dist/`
 - 保存后等 Actions 跑完，地址是 `https://<you>.github.io/namerena-cards/`
 
 打开后应当是首页；如果显示 404，检查是否把项目放在子目录（所有资源都是相对路径，子目录部署是支持的）。

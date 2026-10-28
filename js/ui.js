@@ -3,6 +3,8 @@ import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById } from './game.js';
 import { emojiImg } from './emoji.js';
+// 生成和绘制共用尺寸，保持节点半径和几何约束一致。
+import { MAP_LAYOUT, mapNodeRadius } from './map.js';
 // 抽牌概率：被动不进牌堆，权重随熟练度线性增长（原先在 combat.js，那里已废弃）
 const PASSIVE_IDS = new Set(['sklcounter', 'sklreflect', 'sklreraise']);
 const drawWeight = (lv) => 1 + lv / 6;
@@ -733,15 +735,13 @@ export function renderMap(root, state, h) {
     byDepth.get(n.depth).push(n);
   }
   const maxDepth = Math.max(...byDepth.keys());
-  const W = 980;
-  const ROW = 150;
-  const PAD = 80;
+  const { width: W, row: ROW, pad: PAD, inset: INSET } = MAP_LAYOUT;
   const H = (maxDepth + 1) * ROW + PAD;
   const pos = new Map();
   for (const [d, list] of byDepth) {
     list.forEach((n, i) => {
       const px = typeof n.px === 'number' ? n.px : (i + 0.5) / Math.max(1, list.length);
-      const x = 60 + px * (W - 120);
+      const x = INSET + px * (W - 2 * INSET);
       const y = H - PAD - d * ROW + (n.py || 0);   // 玩家在下方，终点在上方
       pos.set(n.id, { x, y });
     });
@@ -753,13 +753,24 @@ export function renderMap(root, state, h) {
   const edges = [];
   for (const n of g.nodes) {
     for (const id of n.next) {
-      const a = pos.get(n.id);
-      const b = pos.get(id);
+      let a = pos.get(n.id);
+      let b = pos.get(id);
       if (!a || !b) continue;
       const cls = 'map-edge' + (cleared.has(n.id) ? ' is-past' : '');
       const via = n.via && n.via[id];
+      // 将线端裁到圆外；折线采用端点相邻线段的方向。
+      const waypoint = (v) => ({ x: INSET + v.x * (W - 2 * INSET), y: H - PAD - v.y * ROW });
+      const trim = (center, toward, radius) => {
+        const length = Math.hypot(toward.x - center.x, toward.y - center.y);
+        const scale = length ? Math.min(1, (radius + 2) / length) : 0;
+        return { x: center.x + (toward.x - center.x) * scale, y: center.y + (toward.y - center.y) * scale };
+      };
+      const first = trim(a, via?.length ? waypoint(via[0]) : b, mapNodeRadius(n));
+      const last = trim(b, via?.length ? waypoint(via[via.length - 1]) : a, mapNodeRadius(g.byId.get(id)));
+      a = first;
+      b = last;
       if (via && via.length) {
-        const pts = [a, ...via.map((v) => ({ x: 60 + v.x * (W - 120), y: H - PAD - v.y * ROW })), b];
+        const pts = [a, ...via.map((v) => ({ x: INSET + v.x * (W - 2 * INSET), y: H - PAD - v.y * ROW })), b];
         edges.push(`<polyline points="${pts.map((p2) => p2.x + ',' + p2.y).join(' ')}" class="${cls}" fill="none" />`);
       } else {
         edges.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="${cls}" />`);
@@ -780,7 +791,7 @@ export function renderMap(root, state, h) {
     if (isAvail) cls.push('is-avail');
     if (isCurrent) cls.push('is-current');
     if (isCleared) cls.push('is-cleared');
-    const r = n.kind === 'start' || n.kind === 'end' ? 30 : (n.kind === 'elite' ? 32 : 24);
+    const r = mapNodeRadius(n);
     const icon = iconForNode(n);
     const art = n.kind === 'start'
       ? '<text y="6" text-anchor="middle" class="map-glyph">起</text>'
