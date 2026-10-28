@@ -1,4 +1,4 @@
-// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, skillMeta } from './skills.js';
 import { potionById } from './game.js';
 import { emojiImg } from './emoji.js';
@@ -792,6 +792,15 @@ export function renderMap(root, state, h) {
           el('div', { class: 'home__kicker' }, `LAYER ${run.layer || 1} / 10`),
           el('h2', {}, `第 ${run.layer || 1} 层 · 天梯 ${run.lane}`),
           el('div', { class: 'muted' }, '从下往上走：天梯名次一路变好，最后汇聚到本层名次最高的选手')),
+        el('div', { class: 'map__tools' }, 
+          (() => { const end = g.byId.get(g.endId); const icon = end?.payload?.cards?.[0]?.icon; return el('div', { class: 'map__boss', title: '本层终点：名次最高的天梯选手' },
+            icon ? el('img', { class: 'map__boss-icon', src: icon, alt: '' }) : null,
+            el('div', {}, el('small', {}, '本层终点'), el('b', {}, end?.payload?.cards?.[0]?.name ? end.payload.cards[0].name + '@' + end.payload.cards[0].clan : '—')),
+            el('span', { class: 'map__rank' }, '#' + (end?.rank ?? '?'))); })(),
+          el('div', { class: 'map__layers', title: '已经通过的层数' },
+            el('small', {}, '已攀爬'), el('b', {}, (run.layer - 1) + ' / 10 层')),
+          el('button', { class: 'ghost map__bag', type: 'button', onclick: () => h.onInventory && h.onInventory() }, '物品栏'),
+        ),
         el('div', { class: 'map__legend' },
           el('span', { class: 'map-legend map-legend--avail' }, '可前往'),
           el('span', { class: 'map-legend map-legend--ladder' }, '天梯'),
@@ -842,6 +851,59 @@ export function renderMap(root, state, h) {
     });
   }
 }
+// ————————————————————— 物品栏
+
+export function inventorySheet(state) {
+  const run = state.run || {};
+  const tabs = [
+    { id: 'chars', name: '角色库' },
+    { id: 'forge', name: '锻造卡' },
+    { id: 'tactics', name: '战术卡' },
+    { id: 'potions', name: '药水' },
+  ];
+  const body = el('div', { class: 'inv__body' });
+  const tabBar = el('div', { class: 'inv__tabs' });
+  const paint = (id) => {
+    [...tabBar.children].forEach((b) => b.classList.toggle('is-active', b.dataset.tab === id));
+    if (id === 'chars') {
+      body.replaceChildren(...(state.collection || []).map((card) => {
+        const node = cardEl(card, { size: 'row' });
+        return el('div', { class: 'inv__char' }, node);
+      }), el('p', { class: 'muted small' }, '点击角色卡可看完整技能与八围（悬停有提示）'));
+    } else if (id === 'forge') {
+      const list = (run.skillCards || []);
+      body.replaceChildren(list.length
+        ? el('div', { class: 'inv__grid' }, list.map((s) => el('div', { class: 'inv__item', title: skillMeta(s.id).desc },
+          el('b', {}, skillMeta(s.id).name), el('small', {}, '熟练度 ' + s.lv))))
+        : el('p', { class: 'muted' }, '还没有锻造卡'));
+    } else if (id === 'tactics') {
+      const ids = state.ownedTactics || [];
+      const pool = Array.isArray(state.tacticsPool) ? state.tacticsPool : [];
+      body.replaceChildren(ids.length
+        ? el('div', { class: 'inv__grid' }, ids.map((id) => {
+          const t = pool.find((x) => x.id === id);
+          const power = (state.tacticPower || {})[id] || 1;
+          return el('div', { class: 'inv__item' }, el('b', {}, t?.name || id), el('small', {}, '强度 ×' + power));
+        }))
+        : el('p', { class: 'muted' }, '还没有战术卡'));
+    } else {
+      const list = (run.potions || []).filter((p) => p.n > 0);
+      body.replaceChildren(list.length
+        ? el('div', { class: 'inv__grid' }, list.map((p) => {
+          const meta = potionById(p.id);
+          return meta ? el('div', { class: 'inv__item', title: potionDesc(meta) }, el('b', {}, meta.name), el('small', {}, '×' + p.n)) : null;
+        }))
+        : el('p', { class: 'muted' }, '药水用完了'));
+    }
+  };
+  for (const t of tabs) {
+    tabBar.append(el('button', { class: 'ghost inv__tab', type: 'button', 'data-tab': t.id, onclick: () => paint(t.id) }, t.name));
+  }
+  const sheet = el('div', { class: 'inv' }, el('h2', {}, '物品栏'), tabBar, body);
+  paint('chars');
+  return sheet;
+}
+
 // ————————————————————— 药水
 
 export function potionIcon(p, size = 22) {

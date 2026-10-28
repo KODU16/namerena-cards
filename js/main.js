@@ -404,6 +404,7 @@ function mapScreen() {
   UI.renderPotionDock(state, null);
   nav('map', () => UI.renderMap(root, state, {
     onHome: home,
+    onInventory: () => sheet(UI.inventorySheet(state)),
     onPick: (nodeId) => {
       const node = state.run.graph.byId.get(nodeId);
       if (node?.kind === 'event') {

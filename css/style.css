@@ -1005,3 +1005,22 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
   72% { opacity: 1; }
   100% { opacity: 0; translate: 0 -4px; }
 }
+/* 地图工具区：本层终点 / 层数 / 物品栏 */
+.map__tools { display: flex; align-items: center; gap: 10px; }
+.map__boss { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.map__boss small { display: block; font-size: 10px; color: var(--muted); letter-spacing: .12em; }
+.map__boss b { font-size: 13px; color: var(--ink); }
+.map__boss-icon { width: 24px; height: 24px; image-rendering: pixelated; border-radius: 6px; }
+.map__rank { font-family: var(--mono); font-size: 12px; color: #c0392b; }
+.map__layers { padding: 6px 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.map__layers small { display: block; font-size: 10px; color: var(--muted); letter-spacing: .12em; }
+.map__layers b { font-size: 13px; }
+.map__bag { white-space: nowrap; }
+.inv__tabs { display: flex; gap: 6px; margin: 10px 0; }
+.inv__tab.is-active { background: var(--sky-2); color: #fff; }
+.inv__body { max-height: 56vh; overflow: auto; }
+.inv__char { margin-bottom: 8px; }
+.inv__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.inv__item { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; background: #fff; }
+.inv__item b { display: block; font-size: 13px; }
+.inv__item small { color: var(--muted); font-size: 11px; }
