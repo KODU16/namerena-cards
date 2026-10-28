@@ -933,6 +933,19 @@ const CODEX_PLAYER = [
 
 const CAT_NAMES = { atk: '物理', magic: '法术', ctrl: '控制', def: '防御', heal: '回复', summon: '召唤' };
 
+const CODEX_MATH = [
+  ['普攻 / 物理技能伤害', 'atp = a × b × 倍率；伤害 = ceil( atp / (对方防御 + 64) )。法术版把「攻击」换成「魔力」、「防御」换成「抗性」。'],
+  ['a 的取法', 'a = 中位数( 随机0~127, 随机0~127, 随机0~127, 攻击+64, 攻击 ) —— 五个数里取中间那个，所以 atp 会有明显上下浮动。'],
+  ['b 的取法', 'b = 中位数( 随机0~127+64, 随机0~127+64, 攻击+64 ) —— 三个数取中间，又一个浮动层。'],
+  ['倍率', '蓄力：下一次攻击 ×3（引擎 at_boost 抬到 3.0）；狂暴/被附体：每次攻击 ×1.2；聚气等永久加成也叠在这一层。'],
+  ['闪避判定', '命中 = 攻(或魔) + 敏；闪避值 = 对方防(或抗) + 敏；temp = 24 + 闪避值 − 命中，temp<7 取 7，temp>64 取 temp/4+48；再掷一个 0~255 的随机数，≤ 这个值就闪避。'],
+  ['治愈魔法', '回复 = clamp( ceil(atp / 60), 1, 缺失体力 )，atp 按法术口径（用魔力）算。'],
+  ['苏生术', '复活时体力 = clamp( ceil(atp / 75), 1, 最大体力 )。'],
+  ['技能触发概率', '引擎按 1 + 熟练度/6 加权随机挑技能，熟练度越高越容易在自动回合里被选中；卡牌玩法则由抽牌决定。'],
+  ['护盾', '先扣护盾再扣体力；护盾按回合叠加，不会溢出到体力。'],
+  ['药水数值', '属性药水：该属性 +25%（至少 +8）；生命药水：+25% 最大体力（封顶）；能量药水：+40 MP（上限 100）。'],
+];
+
 export function codexSheet(state) {
   const tabBar = el('div', { class: 'inv__tabs' });
   const body = el('div', { class: 'inv__body codex' });
@@ -951,12 +964,15 @@ export function codexSheet(state) {
           el('h3', {}, CAT_NAMES[cat] || cat),
           el('div', { class: 'codex__list' }, list.map((s) => el('div', { class: 'codex__row' },
             el('b', {}, s.name), el('small', {}, s.id), el('p', {}, s.desc)))))));
+    } else if (id === 'math') {
+      body.replaceChildren(el('div', { class: 'codex__list' }, CODEX_MATH.map(([name, desc]) =>
+        el('div', { class: 'codex__row' }, el('b', {}, name), el('p', {}, desc)))));
     } else {
       body.replaceChildren(el('div', { class: 'codex__list' }, CODEX_PLAYER.map(([name, desc]) =>
         el('div', { class: 'codex__row' }, el('b', {}, name), el('p', {}, desc)))));
     }
   };
-  for (const t of [{ id: 'stats', n: '属性' }, { id: 'skills', n: '技能' }, { id: 'player', n: '玩家手操差异' }]) {
+  for (const t of [{ id: 'stats', n: '属性' }, { id: 'skills', n: '技能' }, { id: 'math', n: '伤害与数值' }, { id: 'player', n: '玩家手操差异' }]) {
     tabBar.append(el('button', { class: 'ghost inv__tab', type: 'button', 'data-tab': t.id, onclick: () => paint(t.id) }, t.n));
   }
   const wrap = el('div', { class: 'inv' }, el('h2', {}, '百科'), tabBar, body);
