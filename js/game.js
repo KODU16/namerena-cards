@@ -69,6 +69,7 @@ export function loadSave(state) {
     state.collection = (s.collection || []).map((c) => hydrateSaved(c)).filter(Boolean);
     state.ownedTactics = (s.ownedTactics || []);
     state.tacticPower = s.tacticPower || {};
+    state.weapons = Array.isArray(s.weapons) ? s.weapons : [];
     state.customCards = (s.customCards || []).map((c) => hydrateSaved(c)).filter(Boolean);
     if (s.run && s.run.status === 'active') {
       if (!s.run.graph) s.run.status = 'lost'; // 旧存档没有地图，直接结束这一局
@@ -106,7 +107,12 @@ function hydrateSaved(c) {
 
 export function persist(state) {
   try {
-    const slim = (c) => ({ id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon, cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom });
+    const slim = (c) => ({
+      id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
+      cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
+      // 装备与武器信息也要存，否则刷新后武器就「消失」了
+      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, maxMp: c.maxMp, shield: c.shield,
+    });
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       v: 1,
       best: state.best,
@@ -115,6 +121,7 @@ export function persist(state) {
       ownedTactics: state.ownedTactics,
       tacticPower: state.tacticPower || {},
       customCards: state.customCards.map(slim),
+      weapons: state.weapons || [],
       run: state.run,
     }));
   } catch { /* 存储满时静默失败 */ }
@@ -890,6 +897,8 @@ export function importSaveText(text, state) {
   state.collection = (data.collection || []).map(hydrateSaved).filter(Boolean);
   state.customCards = (data.customCards || []).map(hydrateSaved).filter(Boolean);
   state.ownedTactics = data.ownedTactics || [];
+  state.weapons = Array.isArray(data.weapons) ? data.weapons : [];
+  state.tacticPower = data.tacticPower || {};
   state.run = data.run || null;
   persist(state);
   return true;
