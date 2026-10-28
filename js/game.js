@@ -436,8 +436,11 @@ export function equipWeapon(state, weaponId, charId) {
   const weapon = card.weapon;
   state.weapons.push({ id: 'w-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e6).toString(36), name: weapon });
   card.weapon = '';
+  // 卸下后恢复本体构建：属性和技能都要回来
   const base = makeCard(card.name, card.clan);
   card.stats = base.stats;
+  card.skillList = base.skillList;
+  card.weaponInfo = null;
   persist(state);
   return weapon;
 }
