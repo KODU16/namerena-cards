@@ -1143,7 +1143,7 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .rank-me-line b { font-family: var(--mono); font-size: 15px; color: var(--sky-3); }
 .rank-row .rank-score { min-width: 44px; text-align: right; }
 /* 角色库：完整角色行（仿战斗单位行，全文字） */
-.fullrow { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: #fff; display: flex; flex-direction: column; gap: 6px; }
+.fullrow { border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: #fff; display: flex; flex-direction: column; gap: 6px; max-width: 340px; }
 .fullrow__head { display: flex; align-items: center; gap: 8px; }
 .fullrow__icon { width: 22px; height: 22px; image-rendering: pixelated; border-radius: 4px; }
 .fullrow__head b { font-size: 13px; }
