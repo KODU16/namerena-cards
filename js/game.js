@@ -476,6 +476,13 @@ export function cardBonus(state, card) {
   return bonus;
 }
 
+// 构建结果再叠锻造、再套开局保底（保持与装备前一致）
+function finalStats(card, stats) {
+  const withForge = applyForge(stats, card.forge);
+  const mult = card.runMult || 1;
+  return mult > 1 ? applyRunBuff({ stats: withForge }, mult).stats : withForge;
+}
+
 // 锻造增量叠加在任何构建结果之上（锻造只锻基础值，不进蓝字加成）
 export function applyForge(stats, forge) {
   if (!stats) return stats;
@@ -506,7 +513,7 @@ export function equipWeapon(state, weaponId, charId) {
   }
   card.weapon = weapon.name;
   // 与 namerena 一致：装备武器后整条构建结果都换成「名字+武器」，属性与技能一起变
-  card.stats = applyForge(built.stats, card.forge);
+  card.stats = finalStats(card, built.stats);
   card.skillList = built.skills.map((s) => ({
     id: s.id,
     lv: s.id === 'skldisperse' ? Math.min(1, s.lv) : s.lv,
@@ -536,7 +543,7 @@ export function equipWeapon(state, weaponId, charId) {
   card.weapon = '';
   // 卸下后恢复本体构建：属性和技能都要回来
   const base = makeCard(card.name, card.clan);
-  card.stats = applyForge(base.stats, card.forge);
+  card.stats = finalStats(card, base.stats);
   card.skillList = base.skillList;
   card.weaponInfo = null;
   persist(state);
@@ -719,7 +726,7 @@ export function campForgeStat(state, charId, key) {
   const cur = (buildStats[key] || 0) + (card.forge[key] || 0);
   const gain = Math.max(1, Math.round(cur * 0.1));
   card.forge[key] = (card.forge[key] || 0) + gain;
-  card.stats = applyForge(buildStats, card.forge);
+  card.stats = finalStats(card, buildStats);
   persist(state);
   const fold = (v) => Math.round(v);
   return { key, from: fold(cur), to: fold(card.stats[key]), raw: [cur, card.stats[key]] };

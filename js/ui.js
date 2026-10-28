@@ -260,7 +260,7 @@ export function renderPrep(root, state, h) {
           el('h3', { class: 'col-title' }, `你的出战队伍 ${team.length}/${run.teamSize}`),
           el('div', { class: 'roster-grid' }, team.length
             ? team.map((c) => el('div', { class: 'team-slot' },
-              charRowEl(c),
+              charRowEl(c, { bonus: h.cardBonus ? h.cardBonus(c) : null }),
               (() => {
                 const weapons = state.weapons || [];
                 const sel = el('select', {
