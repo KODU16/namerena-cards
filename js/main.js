@@ -264,20 +264,7 @@ function newRunSetup() {
 function prep() {
   nav('prep', () => UI.renderPrep(root, state, {
     tacticsByIds: (s, ids) => G.tacticsByIds(s, ids),
-    bonusOf: (card) => {
-      const bonus = {};
-      const tactics = G.tacticsByIds(state, state.run.tacticIds);
-      for (const t of tactics) {
-        for (const eff of (t.effects || [])) {
-          if (eff.stat) bonus[eff.stat] = (bonus[eff.stat] || 0) + eff.value;
-        }
-      }
-      for (const d of (card.weaponInfo?.deltas || [])) {
-        const key = { 体力: 'hp', 攻: 'atk', 防: 'def', 速: 'spd', 敏: 'agi', 魔: 'mag', 抗: 'res', 智: 'wis' }[d.label];
-        if (key) bonus[key] = (bonus[key] || 0) + d.delta;
-      }
-      return bonus;
-    },
+    bonusOf: (card) => G.cardBonus(state, card),
     ownedTacticObjects: (s) => G.ownedTacticObjects(s),
     forgeSelected: forgeSel,
     onPickSkillCard: (uid) => { forgeSel = forgeSel === uid ? null : uid; prep(); },
@@ -511,6 +498,7 @@ function afterBattle(won) {
 function openInventory() {
   const reopen = () => {
     sheet(UI.inventorySheet(state, {
+      cardBonus: (cc) => G.cardBonus(state, cc),
       onDestroy: (kind, id, label) => {
         const ok = G.destroyItem(state, kind, id);
         toast(ok ? '已销毁 ' + (label || '') : '不能销毁（出战中的角色/无效对象）', 1800);
@@ -531,6 +519,7 @@ function openInventory() {
   };
   const render = () => {
     const inv = UI.inventorySheet(state, {
+      cardBonus: (cc) => G.cardBonus(state, cc),
       onDestroy: (kind, id, label) => {
         const ok = G.destroyItem(state, kind, id);
         toast(ok ? '已销毁 ' + (label || '') : '不能销毁（出战中的角色/无效对象）', 1800);

@@ -388,6 +388,23 @@ export function maybeDropWeapon(state, node, rng) {
   return item;
 }
 
+// 角色当前的净加成（武器重建差 + 战术卡），用于界面上蓝/红字
+export function cardBonus(state, card) {
+  const bonus = {};
+  const ids = state?.run?.tacticIds || [];
+  for (const t of tacticsByIds(state, ids)) {
+    for (const eff of t.effects || []) {
+      if (eff.stat) bonus[eff.stat] = (bonus[eff.stat] || 0) + eff.value;
+    }
+  }
+  const LABEL_KEY = { 体力: 'hp', 攻: 'atk', 防: 'def', 速: 'spd', 敏: 'agi', 魔: 'mag', 抗: 'res', 智: 'wis' };
+  for (const d of card?.weaponInfo?.deltas || []) {
+    const key = LABEL_KEY[d.label];
+    if (key) bonus[key] = (bonus[key] || 0) + d.delta;
+  }
+  return bonus;
+}
+
 // 锻造增量叠加在任何构建结果之上（锻造只锻基础值，不进蓝字加成）
 export function applyForge(stats, forge) {
   if (!stats) return stats;

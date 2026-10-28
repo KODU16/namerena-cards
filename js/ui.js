@@ -656,7 +656,7 @@ export function renderReward(root, state, offers, h) {
           )
           : el('div', { class: 'offer' },
             el('div', { class: 'offer__tag' }, `角色卡 · 费用 ${o.card.cost ?? '—'}`),
-            charRowEl(o.card),
+            charRowEl(o.card, { bonus: h.cardBonus ? h.cardBonus(o.card) : null }),
             el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
           ),
       )),
@@ -1180,7 +1180,7 @@ export function inventorySheet(state, h = {}) {
         el('div', { class: 'inv__chars' }, (state.collection || []).map((card) => {
           const inTeam = (run.teamIds || []).includes(card.id);
           return el('div', { class: 'inv__char' },
-            fullCharRow(card),
+            fullCharRow(card, h.cardBonus ? h.cardBonus(card) : null),
             el('div', { class: 'inv__ops' },
               card.weapon ? el('span', { class: 'inv__weapon' }, '⚔ ' + card.weapon) : null,
               card.weaponInfo ? el('div', { class: 'inv__wd' },
