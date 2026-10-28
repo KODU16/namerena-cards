@@ -241,7 +241,8 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     }
     if (used.has(card.id)) card = makeCard(randomName(r), ['青', '赤', '玄', '白'][Math.floor(r() * 4)]);
     used.add(card.id);
-    collection.push(withRunBuff(card, state.records?.length || 0));
+    // 预览阶段（syncDraft）可能已经套过保底倍率，这里只补一次，避免被乘两遍
+    collection.push(card.runMult ? { ...card } : withRunBuff(card, state.records?.length || 0));
   }
   state.collection = collection;
   state.run.teamIds = collection.slice(0, teamSize).map((c) => c.id);
