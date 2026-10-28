@@ -348,6 +348,9 @@ function usePotion(id) {
   if (duelView.pendingPotion) return toast('这回合已经喝过药水了');
   item.n -= 1;
   duelView.duel.pendingPotion = potionCode(id);
+  // 立刻在界面上结算（血条/蓝条），引擎会在这一手出牌时应用同一数值
+  const metaNow = G.potionById(id);
+  if (metaNow) duelView.previewPotion(metaNow, duelView.waitingState);
   duelView.pendingPotion = potionCode(id);
   G.persist(state);
   UI.renderPotionDock(state, usePotion);

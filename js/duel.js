@@ -525,8 +525,25 @@ export class DuelView {
     return (f && f.round_index) || 1;
   }
 
+  // 喝药后立刻把界面上的血条/蓝条改掉；引擎会在这一手出牌时结算同样的数值
+  previewPotion(meta, state) {
+    if (!state || !meta) return null;
+    const next = { ...state };
+    if (meta.id === 'hp') {
+      next.hp = Math.min(state.max_hp, (state.hp || 0) + Math.max(10, Math.round((state.max_hp || 0) * 0.25)));
+    } else if (meta.id === 'mp') {
+      next.magic_point = Math.min(100, (state.magic_point || 0) + 40);
+    } else {
+      return next;
+    }
+    this.patchUnit(next);
+    this.waitingState = next;
+    return next;
+  }
+
   askCard(decision, state) {
     if (this.berserkTimer) { clearTimeout(this.berserkTimer); this.berserkTimer = null; }
+    this.waitingState = state;
     this.turnBanner('player', this.roundOf(decision));
     const mp = Math.max(0, state.magic_point || 0);
     // 狂暴（含被附体）：四张牌全部是「狂暴攻击」，自动随机打出一张，结果交给引擎
