@@ -161,6 +161,19 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     if (!from.length || !to.length) continue;
     const m = from.length;
     const n = to.length;
+    // 一半的层用「滑窗」连边：相邻节点共享目标，形成密集的交汇
+    if (rng() < 0.5 && m >= 2 && n >= 2) {
+      from.forEach((node, i) => {
+        const lo = Math.floor((i * (n - 1)) / Math.max(1, m - 1));
+        const width = 2 + Math.floor(rng() * 2);
+        const hi = Math.min(n - 1, lo + width - 1);
+        node.next = to.slice(lo, hi + 1).map((t) => t.id);
+      });
+      from.forEach((node) => { if (!node.next.length) node.next = [to[n - 1].id]; });
+      to.forEach((t) => { if (!from.some((f) => f.next.includes(t.id))) from[from.length - 1].next.push(t.id); });
+      for (const node of [...from]) node.next = [...new Set(node.next)].slice(0, MAX_OUT);
+      continue;
+    }
     let cursor = 0;
     from.forEach((node, i) => {
       if (cursor >= n) {
@@ -175,6 +188,20 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
       node.next = to.slice(cursor, cursor + take).map((t) => t.id);
       cursor += take;
     });
+    // 交汇：把一部分边延伸到下一个节点的区间，制造多条路线汇入同一个节点
+    for (let i = 0; i + 1 < m; i++) {
+      const a = from[i];
+      const b = from[i + 1];
+      if (!a.next.length || b.next.length < 2) continue;
+      if (rng() < 0.8) {
+        const extra = rng() < 0.4 ? 2 : 1;
+        for (let k = 0; k < extra && k < b.next.length; k++) {
+          if (a.next.length >= MAX_OUT) break;
+          const t = b.next[k];
+          if (!a.next.includes(t)) a.next.push(t);
+        }
+      }
+    }
     // 剩下的目标补到最后一个有出边的节点
     if (cursor < n) {
       const holder = [...from].reverse().find((x) => x.next.length);
