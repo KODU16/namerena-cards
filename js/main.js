@@ -276,7 +276,7 @@ function syncDraft() {
   draft.names = draft.names || [];
   while (draft.names.length < size) draft.names.push(G.randomName());
   draft.names.length = size;
-  const played = (state.records || []).length;
+  const played = 0; // 新一局从 2 倍开始，随后按已走过的节点衰减。
   draft.cards = draft.names.map((n) => {
     const card = n ? safeCard(n, draft.clan || '无名') : null;
     return card ? G.withRunBuff(card, played) : null;
@@ -672,6 +672,7 @@ function forgeAtCamp() {
 function skillMetaName(id) { return skillMeta(id).name; }
 
 function mapScreen() {
+  G.refreshRunBuff(state);
   const run = state.run;
   if (!run?.graph) return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
   nav('map', () => UI.renderMap(root, state, {

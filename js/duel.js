@@ -365,8 +365,7 @@ export class DuelView {
         else if (clip.tone === 'knockout') line.classList.add('tone-knockout');
         else if (clip.tone === 'status_exit') line.classList.add('tone-status_exit');
       });
-      const caster = row.clips.flatMap((cl) => cl.parts).find((pt) => pt.kind === 'player');
-      if (caster && caster.player_id != null) this.flash(caster.player_id, 'is-acting');
+
       for (const cl of row.clips) {
         if (cl.tone === 'damage' || cl.tone === 'knockout') {
           for (const t of cl.target_ids || []) this.flash(t, 'is-hit');
@@ -375,6 +374,12 @@ export class DuelView {
       this.logEl.append(line);
     });    this.logEl.scrollTop = this.logEl.scrollHeight;
     for (const state of frame.states || []) this.patchUnit(state);
+    // 一帧后续状态行可能先提到被动触发者；只高亮主行动行的施法实体。
+    for (const node of this.units.values()) node.classList.remove('is-acting');
+    const actionRow = rows.find((row) => !row.indent) || rows[0];
+    const clip = actionRow?.clips?.find((cl) => cl.caster_ids?.length);
+    const actor = clip?.caster_ids[0] ?? actionRow?.clips?.flatMap((cl) => cl.parts).find((pt) => pt.kind === 'player')?.player_id;
+    if (actor != null) this.flash(actor, 'is-acting');
     // 回放包含使魔和队友状态；全屏狂暴效果只由当前出牌单位控制。
     this.root.querySelector('.battle')?.classList.remove('is-berserk');
   }
@@ -412,7 +417,12 @@ export class DuelView {
 
   // 正在等玩家出牌的单位：常亮高亮，直到选完牌
   markWaiting(uid) {
-    for (const [id, node] of this.units) node.classList.toggle('is-waiting', id === uid);
+    // 等待出牌的高亮独占当前实体，清掉上一行动留下的短暂闪光。
+    for (const [id, node] of this.units) {
+      clearTimeout(node['_t_is-acting']);
+      node.classList.remove('is-acting');
+      node.classList.toggle('is-waiting', id === uid);
+    }
   }
 
   clearWaiting() {

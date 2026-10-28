@@ -3,14 +3,26 @@ import { makeCard, iconFor, statsWithWeapon, buildWithWeapon, applyRunBuff, runM
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
 
 // 给一张卡套上开局保底倍率，并把倍率记在卡上供界面显示加成
-export function withRunBuff(card, playedCount) {
-  const mult = runMultiplier(playedCount || 0);
+export function withRunBuff(card, nodeCount) {
+  const mult = runMultiplier(nodeCount || 0);
   // 幂等：记住第一次套保底前的数值，之后无论套多少次都从这份底值重算，绝不会叠乘
   const base = card.statsBase || { ...card.stats };
   const scaled = applyRunBuff({ ...card, stats: base }, mult);
   return { ...scaled, statsBase: base, runMult: mult };
 }
 import { SKILLS, SKILL_IDS, skillMeta } from './skills.js';
+// 每个地图节点后从天然构建重算倍率，武器随构建变化，永久锻造最后叠加。
+export function refreshRunBuff(state) {
+  if (!state.run) return;
+  const mult = runMultiplier(state.run.index || 0);
+  for (const card of state.collection || []) {
+    const natural = card.weapon ? buildWithWeapon(card.name, card.clan, card.weapon)?.stats : makeCard(card.name, card.clan)?.stats;
+    if (!natural) continue;
+    card.statsBase = { ...natural };
+    card.runMult = mult;
+    card.stats = applyForge(applyRunBuff({ stats: natural }, mult).stats, card.forge);
+  }
+}
 
 export const POTIONS = [
   { id: 'atk', name: '力量药水', field: 0, stat: '攻击', color: '#d94b3a' },
@@ -125,6 +137,7 @@ export function loadSave(state) {
       }
       s.run.tacticIds = s.run.tacticIds || [];
       state.run = s.run;
+      refreshRunBuff(state);
     }
   } catch { /* 忽略损坏存档 */ }
 }
@@ -186,6 +199,7 @@ export function restoreSnapshot(state, data) {
     run.graph.byId = new Map((run.graph.nodes || []).map((n) => [n.id, n]));
   }
   state.run = run;
+  refreshRunBuff(state);
   persist(state);
   return true;
 }
@@ -320,10 +334,11 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     }
     if (used.has(card.id)) card = makeCard(randomName(r), ['青', '赤', '玄', '白'][Math.floor(r() * 4)]);
     used.add(card.id);
-    // 预览阶段（syncDraft）可能已经套过保底倍率，这里只补一次，避免被乘两遍
-    collection.push(card.runMult ? { ...card } : withRunBuff(card, state.records?.length || 0));
+    // 新一局从零节点重新计算，随后统一重建天然属性，避免沿用旧局倍率。
+    collection.push(withRunBuff(card, 0));
   }
   state.collection = collection;
+  refreshRunBuff(state);
   state.run.teamIds = collection.slice(0, teamSize).map((c) => c.id);
   state.ownedTactics = shuffle(state.tacticsPool, r).slice(0, 3).map((t) => t.id);
   state.run.potions = shuffle(POTIONS, r).slice(0, 3).map((p) => ({ id: p.id, n: 1 }));
@@ -457,6 +472,7 @@ export function clearNode(state) {
   run.cleared.push(run.selectedId);
   run.selectedId = null;
   run.index += 1;
+  refreshRunBuff(state);
   // 所有战斗节点都计入胜场；事件和篝火不计入。
   if (node && ['ladder', 'filler', 'elite', 'end'].includes(node.kind)) run.wins += 1;
   persist(state);
@@ -512,12 +528,12 @@ export function ensureWeaponInfo(card) {
   return card;
 }
 
-// 获得角色：前 10 局内一律套当前保底倍率（开局保底对之后拿到的角色同样生效）
+// 获得角色也使用当前节点进度的保底倍率。
 export function grantCard(state, card) {
   if (!card) return null;
-  const played = (state.records || []).length;
-  const ready = card.runMult ? card : (played < 10 ? withRunBuff(card, played) : { ...card });
+  const ready = withRunBuff(card, state.run?.index || 0);
   state.collection.push(ready);
+  refreshRunBuff(state);
   persist(state);
   return ready;
 }
@@ -588,6 +604,7 @@ function skillsForBuild(state, card, natural) {
 
 // 开战前也恢复旧存档里被换武器覆盖、但仍有锻造记录的技能。
 export function prepareBattleCard(state, card) {
+  refreshRunBuff(state);
   rememberSkillTraining(state, card);
   const hasForge = (state.run?.forged || []).some((f) => f.charId === card.id);
   if (hasForge || Object.keys(card.skillTraining).length) {

@@ -134,7 +134,7 @@ export function applyTactics(card, tactics) {
     skillList: [...skills.entries()].map(([id, lv]) => ({ id, lv, cat: card.skillList?.find((s) => s.id === id)?.cat })),
   };
 }
-// 开局保底：全属性 × 倍率（每过一局 -0.1，最低 1.0）
+// 开局保底：除体力外每经过一个地图节点减 0.1 倍，第十个节点恢复 1 倍。
 export function applyRunBuff(card, mult) {
   if (!card || Math.abs(mult - 1) < 1e-6) return card;
   const s = card.stats;
