@@ -1,6 +1,12 @@
 ﻿// 局内状态、爬塔流程与存档。
 import { makeCard, iconFor, statsWithWeapon, buildWithWeapon, applyRunBuff, runMultiplier } from './engine.js';
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
+
+// 给一张卡套上开局保底倍率，并把倍率记在卡上供界面显示加成
+export function withRunBuff(card, playedCount) {
+  const mult = runMultiplier(playedCount || 0);
+  return { ...applyRunBuff(card, mult), runMult: mult };
+}
 import { SKILLS, SKILL_IDS, skillMeta } from './skills.js';
 
 export const POTIONS = [
