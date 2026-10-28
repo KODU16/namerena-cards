@@ -428,23 +428,31 @@ export class DuelView {
   }
 
   playCardEffect(node, card) {
-    // 直接把这张手牌搬到屏幕中间，而不是复制一张新的
+    // 把这张手牌从它自己的位置搬到屏幕中间（用 Web Animations，避免重排导致动画重播）
     const rect = node.getBoundingClientRect();
     const meta = skillMeta(card.id);
     const cat = card.id === 'normal' ? 'atk' : meta.cat;
+    node.classList.remove('is-dealt', 'is-discarding', 'is-playing');
     node.classList.add('card-flying', 'fx-' + cat);
+    node.style.animation = 'none';
     node.style.left = rect.left + 'px';
     node.style.top = rect.top + 'px';
     node.style.width = rect.width + 'px';
     node.style.height = rect.height + 'px';
+    node.style.transform = 'translate(0, 0) scale(1) rotate(0deg)';
     document.body.append(node);
     playSkillFX(card.id === 'normal' ? 'normal' : card.id);
-    requestAnimationFrame(() => {
+    try {
+      node.animate([
+        { left: rect.left + 'px', top: rect.top + 'px', transform: 'translate(0,0) scale(1) rotate(0deg)', opacity: 1 },
+        { left: '50%', top: '50%', transform: 'translate(-50%, -50%) scale(1.18) rotate(0deg)', opacity: 0 },
+      ], { duration: 520, easing: 'cubic-bezier(.2,.85,.3,1)', fill: 'forwards' });
+    } catch {
       node.style.left = '50%';
       node.style.top = '50%';
-      node.style.transform = 'translate(-50%, -50%) scale(1.18) rotate(0deg)';
+      node.style.transform = 'translate(-50%, -50%) scale(1.18)';
       node.style.opacity = '0';
-    });
+    }
     setTimeout(() => { node.remove(); }, 620);
   }
   enemyWiped(frame) {
