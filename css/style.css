@@ -974,7 +974,7 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
 #potion-dock {
   position: fixed;
   left: 16px;
-  top: 74px;
+  top: 122px;
   display: flex;
   gap: 8px;
   z-index: 130;
@@ -1096,3 +1096,13 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .map-node--elite circle { fill: #fff0f0; stroke: #c0392b; stroke-width: 3; }
 .map-node .map-elite { font-size: 26px; pointer-events: none; }
 .map-node.is-avail.map-node--elite circle { fill: #c0392b; stroke: #7d1f16; }
+/* 分数徽标：左上角 */
+#score-badge {
+  position: fixed; left: 16px; top: 74px; z-index: 125;
+  display: flex; align-items: baseline; gap: 6px;
+  padding: 6px 12px; border-radius: 12px;
+  background: rgba(255,255,255,.92); border: 1px solid var(--line);
+  box-shadow: 0 10px 24px -18px rgba(18,58,84,.5);
+}
+.score-badge__k { font-size: 10.5px; letter-spacing: .16em; color: var(--muted); }
+.score-badge__v { font-family: var(--mono); font-size: 17px; font-weight: 700; color: var(--sky-3); }

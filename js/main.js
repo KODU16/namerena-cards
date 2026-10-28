@@ -50,6 +50,7 @@ function nav(screen, render) {
   // 药水只在战斗里显示
   const dock = document.getElementById('potion-dock');
   if (dock) dock.style.display = screen === 'battle' ? 'flex' : 'none';
+  UI.renderScoreBadge(state, screen === 'map' || screen === 'battle');
 }
 
 function sheet(...kids) {
@@ -421,6 +422,10 @@ function afterBattle(won) {
   }
   // 赢下这个节点：位置推进过去
   const node = G.clearNode(state);
+  if (node && node.kind === 'ladder') {
+    const gain = G.addScore(state, node.payload?.score);
+    if (gain) toast('天梯 +' + gain + ' 分', 1800);
+  }
   if (node) {
     const dropRng = G.mulberry32((state.run.seed ^ (state.run.index * 7919)) >>> 0);
     const dropped = G.maybeDropWeapon(state, node, dropRng);

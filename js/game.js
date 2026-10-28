@@ -191,6 +191,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     teamSize,
     index: 0,
     wins: 0,
+    score: 1000,
     layer: 1,
     status: 'active',
     createdAt: Date.now(),
@@ -467,6 +468,30 @@ export function destroyItem(state, kind, id) {
 }
 
 // 终点打完 → 进入下一层；返回 true 表示整座塔通关
+// 分数：Elo 口径（K=32），对手分数取天梯榜上的 score
+export function eloGain(player, opp, k = 32) {
+  const expected = 1 / (1 + Math.pow(10, ((opp ?? player) - player) / 400));
+  return Math.max(1, Math.round(k * (1 - expected)));
+}
+
+export function addScore(state, oppScore) {
+  const run = state.run;
+  if (!run) return 0;
+  run.score = Number.isFinite(run.score) ? run.score : 1000;
+  const gain = eloGain(run.score, oppScore);
+  run.score += gain;
+  persist(state);
+  return gain;
+}
+
+export function addScorePoints(state, points) {
+  const run = state.run;
+  if (!run) return 0;
+  run.score = (Number.isFinite(run.score) ? run.score : 1000) + Math.round(points);
+  persist(state);
+  return Math.round(points);
+}
+
 // 篝火：休息 → 下一场以 125% 体力开场；锻造 → 给某个角色的一个技能加工
 export function enterCamp(state, nodeId) {
   const run = state.run;
@@ -565,13 +590,12 @@ export function rollRewards(state, seed, elite = false) {
   const r = mulberry32(seed);
   const run = state.run;
   const progress = Math.min(1, Math.max(0, ((run.layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
-  // 角色：必须是本战队（开局选的战队名）
+  // 角色：必须是本战队
   let card = null;
   for (let i = 0; i < 20; i++) {
     const candidate = makeCard(randomName(r), run.clan || '青');
     if (!state.collection.some((c) => c.id === candidate.id)) { card = candidate; break; }
   }
-  // 技能卡：净化是敌人专属；排名越靠上，熟练度越高
   const skills = SKILL_IDS.filter((id) => id !== 'skldisperse');
   const skillId = skills[Math.floor(r() * skills.length)];
   const lv = Math.round((10 + progress * 55 + r() * 25) * (elite ? 1.5 : 1));
@@ -580,23 +604,27 @@ export function rollRewards(state, seed, elite = false) {
     (t) => !(state.ownedTactics || []).includes(t.id) || (state.tacticPower?.[t.id] || 1) < power,
   );
   const tactic = tacticPool.length ? tacticPool[Math.floor(r() * tacticPool.length)] : null;
-  const offers = [
-    { kind: 'skill', skill: { id: skillId, lv, uid: `sk-${seed}-${Math.floor(r() * 1e9)}` } },
-  ];
-  if (tactic) offers.push({ kind: 'tactic', tactic, power });
-  offers.push({ kind: 'card', card });
-  // 药水与武器也进奖励池（武器与 @! 掉落相互独立）
-  const potionMeta = POTIONS[Math.floor(r() * POTIONS.length)];
-  offers.push({ kind: 'potion', potion: { id: potionMeta.id, n: elite ? 3 : 1 } });
-  const weaponCount = elite ? 2 : 1;
-  for (let i = 0; i < weaponCount; i++) {
-    offers.push({ kind: 'weapon', weapon: { id: 'w-rw-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
-  }
   if (elite && card) {
-    const s = { ...card.stats };
-    for (const k of Object.keys(s)) s[k] = Math.round(s[k] * 1.5);
-    card = { ...card, stats: s };
+    const s0 = { ...card.stats };
+    for (const k of Object.keys(s0)) s0[k] = Math.round(s0[k] * 1.5);
+    card = { ...card, stats: s0 };
   }
+  const potionMeta = POTIONS[Math.floor(r() * POTIONS.length)];
+  const scorePoints = Math.round((25 + progress * 40 + r() * 20) * (elite ? 1.5 : 1));
+  // 全类型奖池，洗匀后抽 3 个
+  const pool = [
+    { kind: 'skill', skill: { id: skillId, lv, uid: `sk-${seed}-${Math.floor(r() * 1e9)}` } },
+    { kind: 'card', card },
+    { kind: 'potion', potion: { id: potionMeta.id, n: elite ? 3 : 1 } },
+    { kind: 'weapon', weapon: { id: 'w-rw-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } },
+    { kind: 'score', points: scorePoints },
+  ];
+  if (tactic) pool.push({ kind: 'tactic', tactic, power });
+  if (elite) {
+    pool.push({ kind: 'weapon', weapon: { id: 'w-rw-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
+    pool.push({ kind: 'score', points: Math.round(scorePoints * 0.6) });
+  }
+  const offers = shuffle(pool, r).slice(0, 3);
   return offers;
 }
 export function applyReward(state, offer) {
@@ -612,6 +640,8 @@ export function applyReward(state, offer) {
       state.tacticPower[id] = offer.power || 1;
       if (!(state.ownedTactics || []).includes(id)) state.ownedTactics.push(id);
     }
+  } else if (offer.kind === 'score' && offer.points) {
+    addScorePoints(state, offer.points);
   } else if (offer.kind === 'potion' && offer.potion) {
     state.run.potions = state.run.potions || [];
     const hit = state.run.potions.find((p) => p.id === offer.potion.id);

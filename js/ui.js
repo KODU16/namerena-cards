@@ -1,4 +1,4 @@
-// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById, currentOpponent } from './game.js';
@@ -609,6 +609,14 @@ export function renderReward(root, state, offers, h) {
             el('p', { class: 'muted small' }, '放进物品栏，战斗中使用时立刻结算'),
             el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
           )
+          : o.kind === 'score'
+          ? el('div', { class: 'offer offer--tactic' },
+            el('div', { class: 'offer__tag' }, '分数 · 直接入账'),
+            el('div', { class: 'tactic__glyph big-glyph' }, '+'),
+            el('b', {}, '天梯分数 +' + o.points),
+            el('p', { class: 'muted small' }, '试炼不给分，这里换成分数'),
+            el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
+          )
           : o.kind === 'weapon'
           ? el('div', { class: 'offer offer--tactic' },
             el('div', { class: 'offer__tag' }, '武器 · 装备后重算属性'),
@@ -921,6 +929,23 @@ function colorFromIcon(src) {
     iconColorCache.set(src, color);
     return color;
   } catch { return ''; }
+}
+
+// ————————————————————— 分数徽标
+
+export function renderScoreBadge(state, visible) {
+  let node = document.getElementById('score-badge');
+  if (!node) {
+    node = el('div', { id: 'score-badge' });
+    document.body.appendChild(node);
+  }
+  node.style.display = visible ? 'flex' : 'none';
+  const run = state.run;
+  const score = run && Number.isFinite(run.score) ? Math.round(run.score) : null;
+  node.replaceChildren(
+    el('span', { class: 'score-badge__k' }, '分数'),
+    el('span', { class: 'score-badge__v' }, score == null ? '—' : String(score)),
+  );
 }
 
 // ————————————————————— 百科
