@@ -114,6 +114,45 @@ function hydrateSaved(c) {
   };
 }
 
+// 整局快照（给存档槽位用）：与 localStorage 相同的瘦身格式
+export function snapshot(state) {
+  const slim = (c) => ({
+    id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
+    cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
+    weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, forge: c.forge || null,
+    runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
+  });
+  return {
+    v: 1,
+    best: state.best,
+    records: state.records || [],
+    collection: (state.collection || []).map(slim),
+    ownedTactics: state.ownedTactics,
+    tacticPower: state.tacticPower || {},
+    customCards: (state.customCards || []).map(slim),
+    weapons: state.weapons || [],
+    run: state.run,
+  };
+}
+
+export function restoreSnapshot(state, data) {
+  if (!data || data.v !== 1) return false;
+  state.records = data.records || [];
+  if (Array.isArray(data.best)) state.best = data.best;
+  state.collection = (data.collection || []).map((c) => hydrateSaved(c)).filter(Boolean);
+  state.ownedTactics = data.ownedTactics || [];
+  state.tacticPower = data.tacticPower || {};
+  state.customCards = (data.customCards || []).map((c) => hydrateSaved(c)).filter(Boolean);
+  state.weapons = Array.isArray(data.weapons) ? data.weapons : [];
+  const run = data.run || null;
+  if (run && run.graph && !(run.graph.byId instanceof Map)) {
+    run.graph.byId = new Map((run.graph.nodes || []).map((n) => [n.id, n]));
+  }
+  state.run = run;
+  persist(state);
+  return true;
+}
+
 export function persist(state) {
   try {
     const slim = (c) => ({

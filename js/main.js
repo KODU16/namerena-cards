@@ -1,8 +1,9 @@
-﻿// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
+// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
 import { loadEngine, makeCard, hydrateCard, buildLine, applyTactics, applyRunBuff, runMultiplier, engineWasm, iconFor } from './engine.js';
 import { Duel, DuelView } from './duel.js';
 import * as G from './game.js';
 import * as Tracking from './player-data.js';
+import * as Saves from './saves.js';
 import * as UI from './ui.js';
 import { el, cardEl, renderBattleShell, sleep, statLine } from './ui.js';
 import { skillMeta } from './skills.js';
@@ -174,11 +175,63 @@ async function loadSayTitle() {
 // 首页停留期间每分钟自动换一句（每 10 秒检查一次是否过期）
 setInterval(() => { loadSayTitle(); }, 10 * 1000);
 
+// ————————————————————— 存档槽位（每账号 10 个，优先存服务器）
+
+function runSummary(st) {
+  const run = st?.run;
+  if (!run || run.status !== 'active') return '';
+  const team = (st.collection || []).filter((c) => (run.teamIds || []).includes(c.id)).map((c) => c.name).join('/');
+  return `第 ${run.layer || 1} 层 · ${run.index || 0} 战 · ${team || '无队伍'}`;
+}
+
+async function openSaves() {
+  const paint = async () => {
+    const info = await Saves.list();
+    const slots = [];
+    const bySlot = new Map((info.slots || []).map((s) => [s.slot, s]));
+    for (let i = 1; i <= (info.maxSlots || 10); i++) slots.push({ slot: i, entry: bySlot.get(i) || null });
+    const hasRun = state.run && state.run.status === 'active';
+    const body = el('div', { class: 'save-list' },
+      el('p', { class: 'muted small' }, (info.source === 'server'
+        ? (info.loggedIn ? '存档保存在账号里，换设备也能读。' : '未登录：临时存在本机浏览器。')
+        : '本机存档（服务器存档未启用）。') + ' 每账号最多 ' + (info.maxSlots || 10) + ' 个。'),
+      el('div', { class: 'muted small' }, hasRun ? '当前：' + runSummary(state) : '当前没有进行中的局'),
+      ...slots.map(({ slot, entry }) => el('div', { class: 'save-row' + (entry ? '' : ' is-empty') },
+        el('span', { class: 'save-slot' }, '槽位 ' + slot),
+        el('div', { class: 'save-info' },
+          el('b', {}, entry ? entry.summary || '（无描述）' : '空'),
+          entry ? el('small', {}, new Date(entry.updated_at).toLocaleString()) : null),
+        el('div', { class: 'save-ops' },
+          entry ? el('button', { class: 'ghost', type: 'button', onclick: async () => {
+            const got = await Saves.load(slot);
+            if (!got || !G.restoreSnapshot(state, got.payload)) return toast('读档失败', 2000);
+            closeSheet();
+            toast('已读取槽位 ' + slot, 2000);
+            if (state.run && state.run.status === 'active') mapScreen(); else home();
+          } }, '读取') : null,
+          hasRun ? el('button', { class: 'ghost', type: 'button', onclick: async () => {
+            const res = await Saves.save(slot, G.snapshot(state), runSummary(state));
+            if (res.source === 'error') return toast(res.message || '存档失败', 2200);
+            toast('已存入槽位 ' + slot + (res.source === 'server' ? '（账号）' : '（本机）'), 2000);
+            paint();
+          } }, '存档') : null,
+          entry ? el('button', { class: 'ghost ghost--del', type: 'button', onclick: async () => {
+            await Saves.remove(slot);
+            paint();
+          } }, '删除') : null)),
+      ),
+    );
+    sheet(el('div', {}, el('h2', {}, '存档'), body,
+      el('div', { class: 'result__actions' }, el('button', { class: 'primary', type: 'button', onclick: closeSheet }, '关闭'))));
+  };
+  await paint();
+}
 function home() {
   duelView = null;
   nav('home', () => UI.renderHome(root, state, {
     versions: { wasm: state.wasm || '0.5.6', core: state.core || '0.7.0' },
     onNewRun: newRunSetup,
+    onSaves: openSaves,
     onContinue: () => (state.run?.selectedId ? prep() : mapScreen()),
     onForge: forgeScreen,
   }));

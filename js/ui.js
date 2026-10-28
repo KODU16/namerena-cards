@@ -1,4 +1,4 @@
-﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById, currentOpponent } from './game.js';
@@ -158,7 +158,7 @@ export function renderHome(root, state, h) {
         el('h1', { class: 'home__title', id: 'home-title' }, '名字，就是你的牌组'),
         el('div', { class: 'home__actions' },
           el('button', { class: 'primary big', type: 'button', onclick: h.onNewRun }, hasRun ? '重新开始爬塔' : '开始爬塔'),
-          hasRun ? el('button', { class: 'secondary big', type: 'button', onclick: h.onContinue }, `继续（第 ${state.run.index + 1} 战）`) : null,
+          el('button', { class: 'secondary big', type: 'button', onclick: h.onSaves }, hasRun ? `存档 · 第 ${state.run.index + 1} 战进行中` : '选择存档'),
           el('button', { class: 'ghost big', type: 'button', onclick: h.onForge }, '名字工坊'),
         ),
         el('div', { class: 'home__facts' },

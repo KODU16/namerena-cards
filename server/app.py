@@ -90,6 +90,15 @@ CREATE TABLE IF NOT EXISTS cards_run (
     duration_seconds INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_cards_run_user ON cards_run (user_key, status);
+
+CREATE TABLE IF NOT EXISTS cards_slot (
+    user_key   TEXT    NOT NULL,
+    slot       INTEGER NOT NULL,
+    summary    TEXT    NOT NULL DEFAULT '',
+    payload    TEXT    NOT NULL DEFAULT '',
+    updated_at TEXT    NOT NULL,
+    PRIMARY KEY (user_key, slot)
+);
 """
 
 
@@ -359,6 +368,88 @@ def api_finish_run(run_id: int):
         'csrf_token': csrf_for(user['user_key']),
     })
 
+
+# ———————————————————————————————— 存档槽位（每账号 10 个）
+
+MAX_SLOTS = 10
+MAX_PAYLOAD = 300_000  # 约 300 KB，够放整局状态
+
+
+def slot_brief(row) -> dict:
+    return {'slot': row['slot'], 'summary': row['summary'], 'updated_at': row['updated_at']}
+
+
+@app.get('/api/cards/saves')
+def api_list_saves():
+    rate_limit(RATE_READ)
+    user = current_user()
+    if not user:
+        return ok({'logged_in': False, 'slots': [], 'max_slots': MAX_SLOTS})
+    rows = db().execute(
+        'SELECT slot, summary, updated_at FROM cards_slot WHERE user_key=? ORDER BY slot',
+        (user['user_key'],),
+    ).fetchall()
+    return ok({
+        'logged_in': True,
+        'teamname': user['teamname'],
+        'max_slots': MAX_SLOTS,
+        'slots': [slot_brief(r) for r in rows],
+        'csrf_token': csrf_for(user['user_key']),
+    })
+
+
+@app.get('/api/cards/saves/<int:slot>')
+def api_load_save(slot: int):
+    rate_limit(RATE_READ)
+    user = require_user()
+    if not 1 <= slot <= MAX_SLOTS:
+        raise ApiError(400, 'invalid_body', f'槽位必须在 1~{MAX_SLOTS} 之间。')
+    row = db().execute('SELECT * FROM cards_slot WHERE user_key=? AND slot=?',
+                       (user['user_key'], slot)).fetchone()
+    if row is None:
+        raise ApiError(404, 'slot_not_found', '这个槽位还没有存档。')
+    return ok({'slot': row['slot'], 'summary': row['summary'],
+               'updated_at': row['updated_at'], 'payload': json.loads(row['payload'] or '{}')})
+
+
+@app.put('/api/cards/saves/<int:slot>')
+def api_save_slot(slot: int):
+    rate_limit(RATE_WRITE)
+    user = require_user()
+    check_csrf(user['user_key'])
+    if not 1 <= slot <= MAX_SLOTS:
+        raise ApiError(400, 'invalid_body', f'槽位必须在 1~{MAX_SLOTS} 之间。')
+    body = json_body()
+    payload = body.get('payload')
+    if not isinstance(payload, dict):
+        raise ApiError(400, 'invalid_body', 'payload 必须是对象。')
+    raw = json.dumps(payload, ensure_ascii=False)
+    if len(raw.encode('utf-8')) > MAX_PAYLOAD:
+        raise ApiError(400, 'payload_too_large', '存档体积过大。')
+    summary = str(body.get('summary', '') or '')[:120]
+    conn = db()
+    conn.execute(
+        'INSERT INTO cards_slot (user_key, slot, summary, payload, updated_at) VALUES (?, ?, ?, ?, ?)'
+        ' ON CONFLICT(user_key, slot) DO UPDATE SET summary=excluded.summary,'
+        ' payload=excluded.payload, updated_at=excluded.updated_at',
+        (user['user_key'], slot, summary, raw, now_iso()),
+    )
+    conn.commit()
+    return ok({'slot': slot, 'summary': summary, 'updated_at': now_iso(),
+               'csrf_token': csrf_for(user['user_key'])})
+
+
+@app.delete('/api/cards/saves/<int:slot>')
+def api_delete_slot(slot: int):
+    rate_limit(RATE_WRITE)
+    user = require_user()
+    check_csrf(user['user_key'])
+    conn = db()
+    cur = conn.execute('DELETE FROM cards_slot WHERE user_key=? AND slot=?', (user['user_key'], slot))
+    conn.commit()
+    if cur.rowcount == 0:
+        raise ApiError(404, 'slot_not_found', '这个槽位没有存档。')
+    return ok({'slot': slot, 'deleted': True, 'csrf_token': csrf_for(user['user_key'])})
 
 # ———————————————————————————————— 部署钩子（可选）
 
