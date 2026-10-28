@@ -284,6 +284,8 @@ function prep() {
     },
     onToggleTeam: (id) => {
       if ((state.run.downed || []).includes(id)) return toast('这名角色已经倒下，本局不能再出战');
+      const picked = (state.collection || []).find((c) => c.id === id);
+      if (picked && state.run.clan && picked.clan !== state.run.clan) return toast('战队不同：本局只能用 @' + state.run.clan + ' 的角色', 2200);
       const ids = state.run.teamIds;
       const i = ids.indexOf(id);
       if (i >= 0) ids.splice(i, 1);

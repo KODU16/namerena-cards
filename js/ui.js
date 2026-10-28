@@ -291,8 +291,10 @@ export function renderPrep(root, state, h) {
         el('div', { class: 'roster-grid' }, state.collection.map((c) => el('div', { class: 'roster-item' },
           (() => {
             const downed = (run.downed || []).includes(c.id);
-            const node = charRowEl(c, { dim: downed, selected: (run.teamIds || []).includes(c.id), onClick: () => (h.forgeSelected ? h.onPickChampion(c.id) : h.onToggleTeam(c.id)) });
+            const foreign = !!run.clan && c.clan !== run.clan;
+            const node = charRowEl(c, { dim: downed || foreign, selected: (run.teamIds || []).includes(c.id), onClick: () => (h.forgeSelected ? h.onPickChampion(c.id) : h.onToggleTeam(c.id)) });
             if (downed) node.title = (node.title || '') + '\n已倒下：本局不能再出战';
+            if (foreign) node.title = (node.title || '') + '\n战队不同（@' + c.clan + '）：本局只能用 @' + run.clan + ' 的角色';
             if (h.forgeSelected && h.onForgeHover) {
               node.addEventListener('mouseenter', (ev) => h.onForgeHover(c.id, ev));
               node.addEventListener('mousemove', (ev) => h.onForgeHover(c.id, ev));
