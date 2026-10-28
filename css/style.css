@@ -1024,3 +1024,18 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
 .inv__item { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; background: #fff; }
 .inv__item b { display: block; font-size: 13px; }
 .inv__item small { color: var(--muted); font-size: 11px; }
+/* 物品栏：占满大半个屏幕 */
+.sheet--full {
+  width: min(1420px, 94vw);
+  max-width: 94vw;
+  height: 86vh;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+}
+.sheet--full .inv { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.sheet--full .inv__body { flex: 1; min-height: 0; max-height: none; overflow: auto; padding-right: 4px; }
+.inv__chars { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+.inv__grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+/* 弹窗打开时收起药水栏，避免盖住标题 */
+body:has(#overlay:not(.hidden)) #potion-dock { display: none; }

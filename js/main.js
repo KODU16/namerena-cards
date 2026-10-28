@@ -404,7 +404,10 @@ function mapScreen() {
   UI.renderPotionDock(state, null);
   nav('map', () => UI.renderMap(root, state, {
     onHome: home,
-    onInventory: () => sheet(UI.inventorySheet(state)),
+    onInventory: () => {
+      sheet(UI.inventorySheet(state));
+      document.querySelector('.sheet')?.classList.add('sheet--full');
+    },
     onPick: (nodeId) => {
       const node = state.run.graph.byId.get(nodeId);
       if (node?.kind === 'event') {

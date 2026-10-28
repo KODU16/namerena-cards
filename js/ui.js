@@ -866,10 +866,9 @@ export function inventorySheet(state) {
   const paint = (id) => {
     [...tabBar.children].forEach((b) => b.classList.toggle('is-active', b.dataset.tab === id));
     if (id === 'chars') {
-      body.replaceChildren(...(state.collection || []).map((card) => {
-        const node = cardEl(card, { size: 'row' });
-        return el('div', { class: 'inv__char' }, node);
-      }), el('p', { class: 'muted small' }, '点击角色卡可看完整技能与八围（悬停有提示）'));
+      body.replaceChildren(
+        el('div', { class: 'inv__chars' }, (state.collection || []).map((card) => el('div', { class: 'inv__char' }, cardEl(card, { size: 'grid' })))),
+        el('p', { class: 'muted small' }, '悬停角色卡可看完整技能与八围'));
     } else if (id === 'forge') {
       const list = (run.skillCards || []);
       body.replaceChildren(list.length
