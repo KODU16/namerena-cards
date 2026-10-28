@@ -923,3 +923,24 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
 .map-node.is-current circle { fill: #fff6d8; stroke: #e0a800; stroke-width: 3; }
 .map-node.is-cleared circle { opacity: .45; }
 .map__foot { margin-top: 14px; }
+/* 地图：竖版、可拖动 */
+.map__body { position: relative; max-height: 70vh; overflow: auto; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 6px; cursor: grab; }
+.map__body.is-dragging { cursor: grabbing; }
+.map__body .map-svg { display: block; }
+.map-edge { stroke: #c9d9e4; stroke-width: 2; }
+.map-edge.is-past { stroke: #7cc6f2; }
+.map-node circle { fill: #f7fafc; stroke: #c2d5e2; stroke-width: 1.5; transition: .15s ease; }
+.map-node image { pointer-events: none; image-rendering: pixelated; }
+.map-node .map-label { font-size: 10px; fill: #48606d; font-family: var(--mono); pointer-events: none; }
+.map-node .map-glyph { font-size: 15px; fill: #33515f; pointer-events: none; }
+.map-node .map-monster { font-size: 22px; pointer-events: none; }
+.map-node--filler circle { fill: #f4f0fb; stroke: #c6b8e6; }
+.map-node--ladder circle { fill: #eef7fd; stroke: #9fc4dc; }
+.map-node--end circle { fill: #ffeceb; stroke: #c0392b; }
+.map-node--start circle { fill: #fff6d8; stroke: #e0a800; }
+.map-node.is-avail { cursor: pointer; }
+.map-node.is-avail circle { fill: #2f8ec9; stroke: #1c6f9e; stroke-width: 2.5; }
+.map-node.is-avail .map-label { fill: #14618b; font-weight: 700; }
+.map-node.is-avail:hover circle { fill: #1c6f9e; }
+.map-node.is-current circle { stroke: #e0a800; stroke-width: 3; }
+.map-node.is-cleared circle { opacity: .4; }

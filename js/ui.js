@@ -720,15 +720,17 @@ export function renderMap(root, state, h) {
     if (!byDepth.has(n.depth)) byDepth.set(n.depth, []);
     byDepth.get(n.depth).push(n);
   }
-  const depths = [...byDepth.keys()].sort((a, b) => a - b);
-  const W = 40 + depths.length * 150;
-  const H = 60 + Math.max(...depths.map((d) => byDepth.get(d).length)) * 64;
+  const maxDepth = Math.max(...byDepth.keys());
+  const W = 980;
+  const ROW = 132;
+  const PAD = 80;
+  const H = (maxDepth + 1) * ROW + PAD;
   const pos = new Map();
-  for (const d of depths) {
-    const list = byDepth.get(d);
-    const x = 70 + d * 150;
+  for (const [d, list] of byDepth) {
+    const gap = (W - 180) / Math.max(1, list.length);
     list.forEach((n, i) => {
-      const y = 50 + (i + 0.5) * ((H - 100) / Math.max(1, list.length));
+      const x = 90 + gap * (i + 0.5) + Math.max(-gap * 0.28, Math.min(gap * 0.28, n.jitter || 0));
+      const y = H - PAD - d * ROW;   // 玩家在下方，终点在上方
       pos.set(n.id, { x, y });
     });
   }
@@ -744,6 +746,11 @@ export function renderMap(root, state, h) {
       if (a && b) edges.push(`<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" class="map-edge${cleared.has(n.id) ? ' is-past' : ''}" />`);
     }
   }
+  const iconForNode = (n) => {
+    if (n.kind === 'filler') return null;
+    const card = n.payload?.cards?.[0] || (n.payload?.cards ? n.payload.cards[0] : null);
+    return card?.icon || null;
+  };
   const nodeHtml = g.nodes.map((n) => {
     const p = pos.get(n.id) || { x: 0, y: 0 };
     const isAvail = available.has(n.id);
@@ -753,38 +760,81 @@ export function renderMap(root, state, h) {
     if (isAvail) cls.push('is-avail');
     if (isCurrent) cls.push('is-current');
     if (isCleared) cls.push('is-cleared');
+    const r = n.kind === 'start' || n.kind === 'end' ? 30 : 24;
+    const icon = iconForNode(n);
+    const art = n.kind === 'start'
+      ? '<text y="6" text-anchor="middle" class="map-glyph">起</text>'
+      : n.kind === 'filler'
+        ? '<text y="9" text-anchor="middle" class="map-monster">👾</text>'
+        : icon
+          ? `<image href="${icon}" x="-16" y="-16" width="32" height="32" />`
+          : '<text y="6" text-anchor="middle" class="map-glyph">战</text>';
     const label = n.kind === 'start' ? '起点'
       : n.kind === 'end' ? `终点 #${n.rank ?? ''}`
         : n.kind === 'ladder' ? `天梯 #${n.rank ?? '?'}`
-          : '试炼 @!';
-    const r = n.kind === 'start' || n.kind === 'end' ? 24 : 18;
+          : '试炼';
     return `<g class="${cls.join(' ')}" data-id="${n.id}" transform="translate(${p.x},${p.y})">
       <circle r="${r}"></circle>
-      <text y="4" text-anchor="middle">${label}</text>
+      ${art}
+      <text y="${r + 16}" text-anchor="middle" class="map-label">${label}</text>
     </g>`;
   }).join('');
 
-  const svg = `<svg class="map-svg" viewBox="0 0 ${W} ${H}" width="100%" height="${Math.min(720, H)}">${edges.join('')}${nodeHtml}</svg>`;
+  const svg = `<svg class="map-svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">${edges.join('')}${nodeHtml}</svg>`;
   root.replaceChildren(
     el('section', { class: 'map' },
       el('div', { class: 'map__head' },
         el('div', {},
           el('div', { class: 'home__kicker' }, `LAYER ${run.layer || 1} / 10`),
           el('h2', {}, `第 ${run.layer || 1} 层 · 天梯 ${run.lane}`),
-          el('div', { class: 'muted' }, `本层已过 ${run.cleared?.length || 0} 关 · 终点是该层名次最高的天梯选手`)),
+          el('div', { class: 'muted' }, '从下往上走：天梯名次一路变好，最后汇聚到本层名次最高的选手')),
         el('div', { class: 'map__legend' },
           el('span', { class: 'map-legend map-legend--avail' }, '可前往'),
           el('span', { class: 'map-legend map-legend--ladder' }, '天梯'),
-          el('span', { class: 'map-legend map-legend--filler' }, '试炼 @!'),
-          el('span', { class: 'map-legend map-legend--end' }, '终点')),
-      ),
+          el('span', { class: 'map-legend map-legend--filler' }, '试炼'),
+          el('span', { class: 'map-legend map-legend--end' }, '终点'))),
       el('div', { class: 'map__body' }),
-      el('div', { class: 'map__foot' }, el('button', { class: 'ghost', type: 'button', onclick: h.onHome }, '返回首页')),
+      el('div', { class: 'map__foot' },
+        el('span', { class: 'muted small' }, '按住拖动可以平移地图'),
+        el('button', { class: 'ghost', type: 'button', onclick: h.onHome }, '返回首页')),
     ),
   );
-  const bodyEl = root.querySelector('.map__body');
-  if (bodyEl) bodyEl.innerHTML = svg;
-  root.querySelectorAll('.map-node.is-avail').forEach((nodeEl) => {
-    nodeEl.addEventListener('click', () => h.onPick(nodeEl.dataset.id));
-  });
+  const body = root.querySelector('.map__body');
+  if (body) {
+    body.innerHTML = svg;
+    body.scrollTop = body.scrollHeight;
+    body.scrollLeft = (body.scrollWidth - body.clientWidth) / 2;
+    let dragging = false;
+    let moved = 0;
+    let sx = 0;
+    let sy = 0;
+    let sl = 0;
+    let st = 0;
+    body.addEventListener('pointerdown', (e) => {
+      dragging = true;
+      moved = 0;
+      sx = e.clientX;
+      sy = e.clientY;
+      sl = body.scrollLeft;
+      st = body.scrollTop;
+      body.classList.add('is-dragging');
+    });
+    body.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const dx = e.clientX - sx;
+      const dy = e.clientY - sy;
+      moved = Math.max(moved, Math.abs(dx) + Math.abs(dy));
+      body.scrollLeft = sl - dx;
+      body.scrollTop = st - dy;
+    });
+    const stop = () => { dragging = false; body.classList.remove('is-dragging'); };
+    body.addEventListener('pointerup', stop);
+    body.addEventListener('pointerleave', stop);
+    root.querySelectorAll('.map-node.is-avail').forEach((nodeEl) => {
+      nodeEl.addEventListener('click', () => {
+        if (moved > 6) return;
+        h.onPick(nodeEl.dataset.id);
+      });
+    });
+  }
 }
