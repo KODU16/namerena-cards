@@ -2,6 +2,7 @@
 import { loadEngine, makeCard, hydrateCard, buildLine, applyTactics, applyRunBuff, runMultiplier, engineWasm, iconFor } from './engine.js';
 import { Duel, DuelView } from './duel.js';
 import * as G from './game.js';
+import * as Tracking from './player-data.js';
 import * as UI from './ui.js';
 import { el, cardEl, renderBattleShell, sleep, statLine } from './ui.js';
 import { skillMeta } from './skills.js';
@@ -261,6 +262,7 @@ function newRunSetup() {
       draft = null;
       mapScreen();
       toast('新的一局：先选一条路');
+      Tracking.startRun(state);
     },
   }));
 }
@@ -472,6 +474,7 @@ function afterBattle(won) {
       return prep();
     }
     G.advanceRun(state, false);
+    Tracking.finishRun(state, false);
     return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
   }
   // 赢下这个节点：位置推进过去
@@ -488,6 +491,7 @@ function afterBattle(won) {
   if (node && node.kind === 'end') {
     const finished = G.advanceLayer(state);
     if (finished) {
+      Tracking.finishRun(state, true);
       return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
     }
     toast(`第 ${state.run.layer - 1} 层通过，进入第 ${state.run.layer} 层`, 2600);
@@ -734,6 +738,7 @@ function buildForgeCard() {
 
 async function boot() {
   document.getElementById('app').classList.add('is-loading');
+  Tracking.init(state);
   try {
     // 卡池已改为按名字现算，不再下载 cards.json；天梯快照也改成按需下载
     const tacticsRes = await fetch('data/tactics.json', { cache: 'no-cache' }).then((r) => r.json());
