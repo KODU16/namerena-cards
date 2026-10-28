@@ -574,12 +574,15 @@ export class DuelView {
     this.root.querySelector('.battle')?.classList.remove('is-berserk');
     const rep = this.current;
     if (window.__ncLog) window.__ncLog.push({ t: new Date().toISOString(), kind: 'duel.finish', data: { winnerTeams: rep.winner_team_indices, winnerIds: rep.winner_ids, playerTeam: this.duel.playerTeam, frames: rep.frames.length } });
-    // 只按「玩家队伍编号」判胜负。winner_ids 是引擎内部的实体编号，
-    // 和 state.id 不保证同一套映射，之前拿它做二次判断会把对面的胜利算成自己的。
-    const myTeam = (rep.initial_states || []).find((s) => s.input_team_index === 0)?.team_index;
-    const team = myTeam == null ? this.duel.playerTeam : myTeam;
-    const won = (rep.winner_team_indices || []).includes(team);
-    if (window.__ncLog) window.__ncLog.push({ t: new Date().toISOString(), kind: 'duel.judge', data: { myTeam: team, winnerTeams: rep.winner_team_indices, won } });
+    // 判胜：winnerIds 是实体 id，winnerTeams 用的是「输入组」编号（0 = 我方），
+    // 两者都不是运行期 team_index，不能拿 state.team_index 去比。
+    const mine = (rep.final_states || rep.initial_states || []).filter((s) => s.input_team_index === 0).map((s) => s.id);
+    const winnerIds = rep.winner_ids || [];
+    const winnerTeams = rep.winner_team_indices || [];
+    const won = winnerIds.length
+      ? winnerIds.some((id) => mine.includes(id))
+      : winnerTeams.includes(0);
+    if (window.__ncLog) window.__ncLog.push({ t: new Date().toISOString(), kind: 'duel.judge', data: { mine, winnerIds, winnerTeams, won } });
     this.onFinish({ won, replay: rep });
   }
 }
