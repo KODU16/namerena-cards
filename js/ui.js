@@ -184,7 +184,7 @@ export function renderHome(root, state, h) {
 
 export function renderNewRun(root, state, h) {
   const d = h.draft;
-  const card = d.card;
+  const cards = d.cards || [];
   root.replaceChildren(
     el('section', { class: 'setup' },
       el('div', { class: 'setup__head' },
@@ -217,12 +217,7 @@ export function renderNewRun(root, state, h) {
           el('p', { class: 'muted small' }, '重抽只换名字，不换战队名。'),
         ),
         el('div', { class: 'setup__preview' },
-          card ? charRowEl(card) : el('div', { class: 'boot-error' }, '这个名字无法构建，换一个'),
-          card ? el('div', { class: 'setup__detail' },
-            el('div', { class: 'muted' }, statLine(card)),
-            el('div', { class: 'skills-full' }, (card.skillList || []).map((s) =>
-              el('span', { class: `skill-tag cat-${s.cat}`, title: skillMeta(s.id).desc }, emojiImg(s.id, 'emoji emoji--xs'), `${skillMeta(s.id).name} 熟练度${s.lv}`))),
-          ) : null,
+          ...(cards.length ? cards.map((c2) => charRowEl(c2)) : [el('div', { class: 'boot-error' }, '这些名字无法构建，换一个')]),
         ),
       ),
       el('button', { class: 'ghost setup__back', type: 'button', onclick: h.onHome }, '返回首页'),
