@@ -73,7 +73,8 @@ function firstDiff(a, b) {
 export class Duel {
   constructor(engine, { input, playerTeam, champion, team }) {
     this.engine = engine;
-    this.baseStats = new Map((team || []).map((c) => [c.name, c.stats]));
+    // 基线使用未套保底/武器/战术的显示属性，保留永久锻造。
+    this.baseStats = new Map((team || []).map((c) => [c.name, c.battleBase || c.stats]));
     this.wasm = engine.wasm;
     this.input = input;
     this.playerTeam = playerTeam;
@@ -209,7 +210,7 @@ function statsLineFor(state, base) {
   return STAT_KEYS.map(([label, field, key]) => {
     const offset = DISPLAY_OFFSET[field] || 0;
     const shown = state[field] + offset;
-    const baseShown = base ? base[key] + offset : null;
+    const baseShown = base ? base[key] : null; // 卡牌基线已是显示口径，不再加引擎偏移。
     const bonus = baseShown != null && shown > baseShown ? shown - baseShown : 0;
     return el('span', { class: 'unit-row__stat' },
       `${label} ${shown}`,
@@ -314,6 +315,8 @@ export class DuelView {
       if (fill) fill.style.width = mp + '%';
       if (num) num.textContent = '魔力 ' + (state.magic_point || 0);
     }
+    // 属性变化和加成蓝字随当前帧更新，避免只保留开战时的值。
+    node.querySelector('.unit-row__stats')?.replaceChildren(...statsLineFor(state, this.duel.baseFor(state)));
     const box = node.querySelector('.statuses');
     if (box) {
       box.replaceChildren(...(state.status_labels || []).map((name) =>

@@ -927,6 +927,7 @@ export function renderMap(root, state, h) {
     let sl = 0;
     let st = 0;
     body.addEventListener('pointerdown', (e) => {
+      if (e.button !== 0) return; // 仅主键平移，右键不能改变地图交互状态。
       dragging = true;
       moved = 0;
       sx = e.clientX;

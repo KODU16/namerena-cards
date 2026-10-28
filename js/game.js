@@ -430,7 +430,7 @@ export function makeFiller(teamSize, rng) {
 }
 
 function statlessCard(line) {
-  return { id: line, name: line, clan: '', stats: { hp: 200, atk: 20, def: 20, spd: 100, agi: 20, mag: 20, res: 20, wis: 20 }, skillList: [], icon: '' };
+return { id: line, name: line, clan: '', stats: { hp: 200, atk: 20, def: 20, spd: 100, agi: 20, mag: 20, res: 20, wis: 20 }, skillList: [], icon: iconFor(line, '') };
 }
 
 // 当前正在准备/进行的战斗节点
@@ -445,6 +445,9 @@ export function currentNode(state) {
 export function currentOpponent(state) {
   const node = currentNode(state);
   if (!node) return null;
+  // 旧存档中的试炼头像也按名字修复，不沿用「!」生成的缓存头像。
+  const cards = Array.isArray(node.payload) ? node.payload : (node.payload?.cards || []);
+  for (const card of cards) if (card.clan === '!' || card.name?.endsWith('@!')) card.icon = iconFor(card.name, card.clan);
   // 层级终点与普通天梯节点共用对手结构，必须一起进入战斗。
   if (node.kind === 'ladder' || node.kind === 'end') return node.payload;
   if (node.kind === 'elite') return { rank: null, score: 0, name: '精英试炼', cards: node.payload.cards, teamSize: node.payload.cards.length, elite: true };

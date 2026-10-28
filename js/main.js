@@ -65,7 +65,15 @@ function closeSheet() {
   overlay.replaceChildren();
 }
 
-overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSheet(); });
+// 右键只拦截，不允许它触发弹窗关闭或地图拖动。
+for (const type of ['contextmenu', 'auxclick', 'pointerdown', 'mousedown', 'mouseup']) {
+  document.addEventListener(type, (e) => {
+    if (type !== 'contextmenu' && e.button !== 2) return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
+  }, true);
+}
+overlay.addEventListener('click', (e) => { if (e.button === 0 && e.target === overlay) closeSheet(); });
 
 // ————————————————————— 页头
 
@@ -465,7 +473,9 @@ async function fight() {
     teamNames: team.map((c) => c.name),
     states: initial.initial_states.map((s) => ({ id: s.id, name: s.id_name, team: s.team_index, hp: s.max_hp, skills: s.skills })),
   });
-  const duel = new Duel({ wasm, iconFor }, { input, playerTeam: me.team_index, champion: team[0], team });
+  // 战斗蓝字以天然属性 + 永久锻造为基线，实际值已包含武器、保底与战术。
+  const battleTeam = team.map((c) => ({ ...c, battleBase: G.applyForge(makeCard(c.name, c.clan).stats, c.forge) }));
+  const duel = new Duel({ wasm, iconFor }, { input, playerTeam: me.team_index, champion: team[0], team: battleTeam });
   nav('battle', () => {
     renderBattleShell(root, state, null, {
       onSpeed: (x) => {
