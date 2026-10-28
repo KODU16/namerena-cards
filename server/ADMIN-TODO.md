@@ -138,6 +138,8 @@ https://shenjack.top/api/cards/session
 
 ## 六、上线后查验
 
+自动更新与跨设备存档：见 server/AUTO-UPDATE.md。
+
 装完请按 server/DEPLOY-CHECK.md 逐段核对（进程、nginx 路由、版本哈希、自动部署链路、登录徽标、落库、故障对照表）。
 
 ## 七、自动部署（让「本地推送 → 线上生效」无需人工）
