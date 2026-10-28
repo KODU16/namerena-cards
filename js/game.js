@@ -1,7 +1,7 @@
-﻿// 局内状态、爬塔流程与存档。
+// 局内状态、爬塔流程与存档。
 import { makeCard, iconFor } from './engine.js';
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
-import { SKILLS, SKILL_IDS } from './skills.js';
+import { SKILLS, SKILL_IDS, skillMeta } from './skills.js';
 
 const SAVE_KEY = 'namerena-cards/v1';
 const MAX_ENCOUNTERS = 8;
@@ -279,9 +279,30 @@ export function clearNode(state) {
   run.cleared.push(run.selectedId);
   run.selectedId = null;
   run.index += 1;
-  run.wins += 1;
+  if (node && (node.kind === 'ladder' || node.kind === 'filler')) run.wins += 1;
   persist(state);
   return node;
+}
+
+// 事件节点（?）：不战斗，随机拿一张战术/名字/技能卡，自动生效
+export function enterEvent(state, nodeId) {
+  const run = state.run;
+  if (!run?.graph) return null;
+  const from = run.graph.byId.get(run.nodeId);
+  if (!from?.next.includes(nodeId)) return null;
+  run.selectedId = nodeId;
+  clearNode(state);
+  const r = mulberry32((run.seed ^ (run.index * 40503) ^ 0x5f3759df) >>> 0);
+  const offers = rollRewards(state, (run.seed ^ (run.index * 2654435761)) >>> 0);
+  const pick = offers[Math.floor(r() * offers.length)];
+  applyReward(state, pick);
+  // 结果文案
+  let label = '一件补给';
+  if (pick.kind === 'skill') label = '技能卡「' + skillMeta(pick.skill.id).name + '」熟练度' + pick.skill.lv;
+  else if (pick.kind === 'tactic') label = '战术卡「' + pick.tactic.name + '」';
+  else if (pick.card) label = '角色卡「' + pick.card.name + '@' + pick.card.clan + '」';
+  persist(state);
+  return { kind: pick.kind, label };
 }
 
 // 终点打完 → 进入下一层；返回 true 表示整座塔通关

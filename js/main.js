@@ -1,4 +1,4 @@
-﻿// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
+// 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
 import { loadEngine, makeCard, hydrateCard, buildLine, applyTactics, applyRunBuff, runMultiplier, engineWasm, iconFor } from './engine.js';
 import { Duel, DuelView } from './duel.js';
 import * as G from './game.js';
@@ -382,6 +382,22 @@ function mapScreen() {
   nav('map', () => UI.renderMap(root, state, {
     onHome: home,
     onPick: (nodeId) => {
+      const node = state.run.graph.byId.get(nodeId);
+      if (node?.kind === 'event') {
+        const res = G.enterEvent(state, nodeId);
+        if (!res) return;
+        sheet(
+          el('div', { class: 'result result--win' },
+            el('div', { class: 'result__kicker' }, 'EVENT'),
+            el('h2', {}, '发现补给'),
+            el('p', { class: 'muted' }, `获得 ${res.label}（自动生效，无需选择）`),
+          ),
+          el('div', { class: 'result__actions' },
+            el('button', { class: 'primary', type: 'button', onclick: () => { closeSheet(); mapScreen(); } }, '继续前进'),
+          ),
+        );
+        return;
+      }
       if (!G.selectNode(state, nodeId)) return;
       prep();
     },

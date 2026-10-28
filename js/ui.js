@@ -1,4 +1,4 @@
-﻿// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
+// 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, skillMeta } from './skills.js';
 import { emojiImg } from './emoji.js';
 // 抽牌概率：被动不进牌堆，权重随熟练度线性增长（原先在 combat.js，那里已废弃）
@@ -59,7 +59,7 @@ export function skillTag(s, chance) {
 }
 
 export function cardTooltip(card) {
-  const skills = (card.skillList || []).slice(0, 6).map((s) => `${skillMeta(s.id).name} ${s.lv}`).join('、') || '无技能';
+  const skills = (card.skillList || []).slice(0, 6).map((s) => `${skillMeta(s.id).name} 熟练度${s.lv}`).join('、') || '无技能';
   return `${card.name} @${card.clan}\n${statLine(card)}\n${skills}`;
 }
 
@@ -220,7 +220,7 @@ export function renderNewRun(root, state, h) {
           card ? el('div', { class: 'setup__detail' },
             el('div', { class: 'muted' }, statLine(card)),
             el('div', { class: 'skills-full' }, (card.skillList || []).map((s) =>
-              el('span', { class: `skill-tag cat-${s.cat}`, title: skillMeta(s.id).desc }, emojiImg(s.id, 'emoji emoji--xs'), `${skillMeta(s.id).name} ${s.lv}`))),
+              el('span', { class: `skill-tag cat-${s.cat}`, title: skillMeta(s.id).desc }, emojiImg(s.id, 'emoji emoji--xs'), `${skillMeta(s.id).name} 熟练度${s.lv}`))),
           ) : null,
         ),
       ),
@@ -764,15 +764,18 @@ export function renderMap(root, state, h) {
     const icon = iconForNode(n);
     const art = n.kind === 'start'
       ? '<text y="6" text-anchor="middle" class="map-glyph">起</text>'
-      : n.kind === 'filler'
-        ? '<text y="9" text-anchor="middle" class="map-monster">👾</text>'
-        : icon
-          ? `<image href="${icon}" x="-16" y="-16" width="32" height="32" />`
-          : '<text y="6" text-anchor="middle" class="map-glyph">战</text>';
+      : n.kind === 'event'
+        ? '<text y="8" text-anchor="middle" class="map-question">?</text>'
+        : n.kind === 'filler'
+          ? '<text y="9" text-anchor="middle" class="map-monster">👾</text>'
+          : icon
+            ? `<image href="${icon}" x="-16" y="-16" width="32" height="32" />`
+            : '<text y="6" text-anchor="middle" class="map-glyph">战</text>';
     const label = n.kind === 'start' ? '起点'
       : n.kind === 'end' ? `终点 #${n.rank ?? ''}`
         : n.kind === 'ladder' ? `天梯 #${n.rank ?? '?'}`
-          : '试炼';
+          : n.kind === 'event' ? '事件 ?'
+            : '试炼';
     return `<g class="${cls.join(' ')}" data-id="${n.id}" transform="translate(${p.x},${p.y})">
       <circle r="${r}"></circle>
       ${art}

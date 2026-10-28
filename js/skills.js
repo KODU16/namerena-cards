@@ -32,7 +32,7 @@ export const SKILLS = {
   skliron: { name: '铁壁', cat: 'def', glyph: '壁', desc: '防御大幅上升，持续 2 回合。' },
   sklcharge: { name: '蓄力', cat: 'atk', glyph: '蓄', desc: '蓄力：下一次攻击伤害翻倍以上。' },
   sklaccumulate: { name: '聚气', cat: 'atk', glyph: '聚', desc: '每次使用永久提高自身攻击。' },
-  sklassassinate: { name: '潜行', cat: 'ctrl', glyph: '潜', desc: '闪避上升，且下一次攻击伤害提高。' },
+  sklassassinate: { name: '背刺', cat: 'ctrl', glyph: '背', desc: '先后进入潜行再伺机背刺：潜行提高闪避，背刺造成高额伤害；也可能被识破。' },
   sklsummon: { name: '血祭', cat: 'summon', glyph: '祭', desc: '召唤一只使魔，替你攻击。' },
   sklclone: { name: '分身', cat: 'summon', glyph: '分', desc: '制造一个分身，拥有本体五成属性。' },
   sklshadow: { name: '幻术', cat: 'summon', glyph: '幻', desc: '召唤幻影，属性较低但会吸引火力。' },
@@ -46,12 +46,27 @@ export const SKILLS = {
   sklzombie: { name: '召唤亡灵', cat: 'summon', glyph: '尸', desc: '召唤一只丧尸，攻击力尚可但很脆。' },
   sklupgrade: { name: '垂死抗争', cat: 'atk', glyph: '垂', desc: '体力低于 30% 时全属性上升，持续 2 回合。' },
   sklhide: { name: '隐匿', cat: 'ctrl', glyph: '隐', desc: '闪避大幅上升，持续 2 回合。' },
+  sklexplode: { name: '自爆', cat: 'atk', glyph: '爆', desc: '牺牲自身对敌方造成大范围伤害。' },
+  sklpossess: { name: '附体', cat: 'ctrl', glyph: '附', desc: '附身目标，扰乱其行动。' },
 };
 
 export const SKILL_IDS = Object.keys(SKILLS);
 
+// 兼容引擎写法：core.skill.assassinate / sklassassinate / Assassinate → sklassassinate
+export function normalizeSkillId(id) {
+  if (!id) return '';
+  let key = String(id).trim();
+  if (key.toLowerCase().startsWith('core.skill.')) key = 'skl' + key.slice('core.skill.'.length);
+  key = key.toLowerCase();
+  if (SKILLS[key]) return key;
+  if (!key.startsWith('skl')) key = 'skl' + key;
+  if (SKILLS[key]) return key;
+  return key;
+}
+
 export function skillMeta(id) {
-  return SKILLS[id] || { name: id, cat: 'atk', glyph: '?', desc: '' };
+  const key = normalizeSkillId(id);
+  return SKILLS[key] || { name: key.replace(/^skl/, ''), cat: 'atk', glyph: '?', desc: '' };
 }
 
 // 把 ol overlay 里的技能值转成生效等级："40+30" → 70，"2*46" → 92

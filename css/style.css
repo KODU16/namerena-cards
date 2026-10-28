@@ -944,3 +944,8 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
 .map-node.is-avail:hover circle { fill: #1c6f9e; }
 .map-node.is-current circle { stroke: #e0a800; stroke-width: 3; }
 .map-node.is-cleared circle { opacity: .4; }
+/* 事件节点：问号 */
+.map-node--event circle { fill: #fff7e6; stroke: #e0a800; }
+.map-node .map-question { font-size: 19px; font-weight: 700; fill: #b07d00; pointer-events: none; }
+.map-node.is-avail.map-node--event circle { fill: #f6c945; stroke: #b07d00; }
+.map-node.is-avail.map-node--event .map-question { fill: #4a3400; }

@@ -101,7 +101,19 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller }) {
     }
     groups[d] = mixed;
     groups[d].forEach((n, i) => { n.depth = d; n.order = i; });
-  }  start.depth = 0; start.order = 0;
+  }  // 事件节点（?）：进入不战斗，随机给一张战术/名字/技能卡，1~2 个
+  const eventCount = 1 + Math.floor(rng() * 2);
+  for (let i = 0; i < eventCount; i++) {
+    const open = [];
+    for (let d = 1; d <= DEPTHS; d++) if (groups[d].length < MAX_PER_DEPTH) open.push(d);
+    if (!open.length) break;
+    const d = open[Math.floor(rng() * open.length)];
+    const node = mk('event', null, null);
+    const at = Math.floor(rng() * (groups[d].length + 1));
+    groups[d].splice(at, 0, node);
+  }
+  for (let d = 1; d <= DEPTHS; d++) groups[d].forEach((n, i) => { n.depth = d; n.order = i; });
+  start.depth = 0; start.order = 0;
   end.depth = DEPTHS + 1; end.order = 0;
 
   // 连边：上一层按顺序切分下一层为「连续区间」，区间单调不减 → 线不会交叉
