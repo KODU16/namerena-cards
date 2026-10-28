@@ -891,7 +891,7 @@ export function renderMap(root, state, h) {
           const slice = rows.slice(Math.max(0, mineIdx - 5), mineIdx + 6);
           return el('aside', { class: 'map__rank' },
             el('h4', {}, '天梯排名'),
-            el('p', { class: 'rank-me-line' }, el('span', {}, '你的分数'), el('b', {}, String(Math.round(mine))), el('span', { class: 'muted' }, '第 ' + (above + 1) + ' 名')),
+            el('p', { class: 'rank-me-line' }, el('span', {}, '你的分数'), el('b', {}, String(Math.round(mine)))),
             el('div', { class: 'rank-list' }, slice.map((r) => {
               if (r.me) return el('div', { class: 'rank-row rank-row--me' }, el('span', { class: 'rank-pos' }, '#' + r.pos), el('b', {}, '你'), el('span', { class: 'rank-score' }, Math.round(mine)));
               const e2 = r.entry;
