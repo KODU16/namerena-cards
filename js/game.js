@@ -1,4 +1,4 @@
-// 局内状态、爬塔流程与存档。
+﻿// 局内状态、爬塔流程与存档。
 import { makeCard, iconFor, statsWithWeapon, buildWithWeapon } from './engine.js';
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
 import { SKILLS, SKILL_IDS, skillMeta } from './skills.js';
@@ -579,7 +579,9 @@ export function campForgeStat(state, charId, key) {
   const base = card.stats[key] || 0;
   card.stats[key] = Math.max(1, Math.round(base * 1.1));
   persist(state);
-  return { key, from: base, to: card.stats[key] };
+  // 速在界面上按「折合后」显示（-124），锻造本身作用在原始值上
+  const fold = (v) => (key === 'spd' ? Math.round(v - 124) : Math.round(v));
+  return { key, from: fold(base), to: fold(card.stats[key]), raw: [base, card.stats[key]] };
 }
 
 export function campForge(state, charId, skillId) {

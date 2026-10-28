@@ -1013,7 +1013,7 @@ export function fullCharRow(card) {
     bar('fullrow__bar--mp', '魔力 ' + mp, mp),
     shield > 0 ? bar('fullrow__bar--shield', '护盾 ' + shield, (shield / hp) * 100) : null,
     el('div', { class: 'fullrow__stats' },
-      line('攻', s.atk ?? 0), line('防', s.def ?? 0), line('速', s.spd ?? 0), line('敏', s.agi ?? 0),
+      line('攻', s.atk ?? 0), line('防', s.def ?? 0), line('速', Math.round((s.spd ?? 0) - 124)), line('敏', s.agi ?? 0),
       line('魔', s.mag ?? 0), line('抗', s.res ?? 0), line('智', s.wis ?? 0)),
     el('div', { class: 'fullrow__skills' }, (card.skillList || []).length
       ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: skillMeta(sk.id).desc }, skillMeta(sk.id).name + ' ' + sk.lv))
