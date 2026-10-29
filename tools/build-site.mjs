@@ -70,7 +70,16 @@ for (const n of [1, 2, 3]) {
 // JS 和 CSS 使用同一张带内容指纹的图，不额外请求旧雪碧图。
 const iconSprite = await read('assets/icons-32.png');
 const iconSpriteName = 'icons-32-' + hash(iconSprite) + '.png';
-const app = Buffer.from(bundled.outputFiles[0].text.replace(/assets\/grade-([123])\.png/g, (_, n) => gradePaths[n])
+// 英雄立绘按需请求，独立内容指纹缓存，不计入游戏首屏下载。
+let appSource = bundled.outputFiles[0].text;
+for (const name of (await readdir(join(root, 'assets/heroes'))).sort()) {
+  if (!name.endsWith('.webp')) continue;
+  const art = await read('assets/heroes/' + name);
+  const target = 'assets/heroes/' + name.slice(0, -5) + '-' + hash(art) + '.webp';
+  await emit(target, art);
+  appSource = appSource.replaceAll('assets/heroes/' + name, target);
+}
+const app = Buffer.from(appSource.replace(/assets\/grade-([123])\.png/g, (_, n) => gradePaths[n])
   .replaceAll('assets/icons-32.png', 'assets/' + iconSpriteName));
 const appName = 'main-' + hash(app) + '.js';
 await emit('js/' + appName, app);

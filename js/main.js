@@ -7,6 +7,8 @@ import * as Saves from './saves.js';
 import * as UI from './ui.js';
 import { el, cardEl, renderBattleShell, sleep, statLine } from './ui.js';
 import { skillMeta } from './skills.js';
+import { workshopAccount, workshopNameValid } from './workshop.js';
+import { HEROES } from './heroes.js';
 
 const LOG = [];
 function logEvent(kind, data) {
@@ -267,6 +269,7 @@ function home() {
     onSaves: openSaves,
     onContinue: () => (state.run?.selectedId ? prep() : mapScreen()),
     onForge: forgeScreen,
+    onHeroes: heroesScreen,
   }));
   // 每次回到首页都换一句随机 Say
   loadSayTitle();
@@ -801,37 +804,66 @@ function mapScreen() {
 }
 // ————————————————————— 工坊
 
-function forgeScreen() {
-  nav('forge', () => UI.renderForge(root, state, {
-    onHome: home,
-    onForgeBuild: buildForgeCard,
-  }));
+// 每次进入与生成时都重新确认会话，不把可编辑的队伍文本当成授权。
+let forgeAccount = { allowed: false, teams: [] };
+let forgeRequest = 0;
+async function forgeScreen() {
+  const requestId = ++forgeRequest;
+  forgeAccount = { allowed: false, teams: [] };
+  const render = (loading = false) => UI.renderForge(root, state, {
+    account: forgeAccount, loading, onHome: home, onForgeBuild: buildForgeCard, onRetry: forgeScreen,
+  });
+  nav('forge', () => render(true));
+  const account = await workshopAccount();
+  if (current !== 'forge' || requestId !== forgeRequest) return;
+  forgeAccount = account;
+  render();
 }
 
-function buildForgeCard() {
+async function buildForgeCard(event) {
   const nameEl = document.getElementById('forge-name');
   const clanEl = document.getElementById('forge-clan');
   const box = document.getElementById('forge-result');
-  const name = nameEl.value.trim();
-  const clan = clanEl.value.trim() || '无名';
-  if (!name) return toast('先写一个名字');
+  if (!forgeAccount.allowed || !nameEl || !clanEl || !box) return;
+  const name = nameEl.value.trim(), clan = clanEl.value;
+  if (!workshopNameValid(name)) return toast('请输入不含 @队伍、换行或覆盖指令的角色名字');
+  const button = event?.currentTarget;
+  if (button) button.disabled = true;
   try {
-    const card = makeCard(name, clan);
-    box.replaceChildren(
-      UI.charRowEl(card),
+    const account = await workshopAccount();
+    if (current !== 'forge' || !box.isConnected) return;
+    if (!account.allowed || !account.teams.includes(clan)) {
+      await forgeScreen(); return toast('请登录拥有该队伍的主站账号');
+    }
+    forgeAccount = account;
+    // 只使用会话确认的队伍，不能通过手动修改选项生成其它队伍的角色。
+    const card = makeCard(name, account.teams.find((team) => team === clan));
+    box.replaceChildren(UI.charRowEl(card),
       el('div', { class: 'forge__meta' },
         el('div', { class: 'muted' }, statLine(card)),
         el('div', { class: 'skills-full' }, (card.skillList || []).map((s) =>
-          el('span', { class: `skill-tag cat-${s.cat}`, title: skillMeta(s.id).desc }, `${skillMeta(s.id).name} ${s.lv}`))),
-        el('button', { class: 'primary', type: 'button', onclick: () => {
-          const ok = G.addCustomCard(state, card);
-          toast(ok ? '已加入卡组' : '卡组里已经有它了');
-        } }, '加入卡组'),
-      ),
-    );
+          el('span', { class: 'skill-tag cat-' + s.cat, title: skillMeta(s.id).desc }, skillMeta(s.id).name + ' ' + s.lv))),
+        el('button', { class: 'primary', type: 'button', onclick: async (addEvent) => {
+          const addButton = addEvent.currentTarget; addButton.disabled = true;
+          try {
+            const latest = await workshopAccount();
+            if (current !== 'forge' || !box.isConnected) return;
+            if (!latest.allowed || !latest.teams.includes(card.clan)) {
+              await forgeScreen(); return toast('账号已变化，请重新确认所属队伍');
+            }
+            const ok = G.addCustomCard(state, card);
+            toast(ok ? '已加入卡组' : '卡组里已经有它了');
+          } finally { if (addButton.isConnected) addButton.disabled = false; }
+        } }, '加入卡组')));
   } catch (e) {
-    box.replaceChildren(el('p', { class: 'error' }, `这个名字没能成型：${e.message || e}`));
-  }
+    if (box.isConnected) box.replaceChildren(el('p', { class: 'error' }, '这个名字没能成型：' + (e.message || e)));
+  } finally { if (button?.isConnected) button.disabled = false; }
+}
+
+// 英雄区按配置名单现算卡牌，不增加初始启动时的图片请求。
+function heroesScreen() {
+  const heroes = HEROES.map((hero) => ({ ...hero, card: makeCard(hero.name, hero.clan) }));
+  nav('heroes', () => UI.renderHeroes(root, heroes, { onHome: home }));
 }
 
 // ————————————————————— 启动

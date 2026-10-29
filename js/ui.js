@@ -160,6 +160,7 @@ export function renderHome(root, state, h) {
           el('button', { class: 'primary big', type: 'button', onclick: h.onNewRun }, hasRun ? '重新开始爬塔' : '开始爬塔'),
           el('button', { class: 'secondary big', type: 'button', onclick: h.onSaves }, hasRun ? `存档 · 第 ${state.run.index + 1} 战进行中` : '选择存档'),
           el('button', { class: 'ghost big', type: 'button', onclick: h.onForge }, '名字工坊'),
+          el('button', { class: 'ghost big', type: 'button', onclick: h.onHeroes }, '英雄角色'),
         ),
         el('div', { class: 'home__facts' },
           el('div', { class: 'fact' }, el('b', {}, String(state.pool.length)), el('span', {}, '张名字卡')),
@@ -686,25 +687,79 @@ export function renderEnd(root, state, h) {
   );
 }
 
+// 会话未确认或账号未注册队伍时，不创建可输入的工坊表单。
 export function renderForge(root, state, h) {
-  root.replaceChildren(
-    el('section', { class: 'forge' },
-      el('div', { class: 'forge__head' },
-        el('div', { class: 'home__kicker' }, 'NAME FORGE'),
-        el('h1', {}, '名字工坊'),
-        el('p', { class: 'muted' }, '任意名字都能在这里变成一张真实的卡：八围、技能、头像全部由 tswn_core 现算。'),
-      ),
-      el('div', { class: 'forge__form' },
-        el('label', {}, el('span', {}, '名字'), el('input', { id: 'forge-name', placeholder: '例如：林深见鹿 / alice / 打工人', maxlength: '48', autocomplete: 'off' })),
-        el('label', {}, el('span', {}, '阵营'), el('input', { id: 'forge-clan', placeholder: '例如：青', maxlength: '18', autocomplete: 'off' })),
-        el('button', { class: 'primary', type: 'button', onclick: () => h.onForgeBuild() }, '生成卡牌'),
-        el('button', { class: 'ghost', type: 'button', onclick: h.onHome }, '返回'),
-      ),
-      el('div', { class: 'forge__result', id: 'forge-result' },
-        el('p', { class: 'muted' }, '生成后会在这里显示卡面；可以把它加入本局卡组。'),
-      ),
-    ),
-  );
+  const account = h.account || { allowed: false, teams: [] };
+  const message = h.loading ? '正在确认主站账号…' : account.unavailable
+    ? '暂时无法确认主站账号，请稍后重试。' : '请先登录已注册队伍的 shenjack 账号，再使用名字工坊。';
+  root.replaceChildren(el('section', { class: 'forge' },
+    el('div', { class: 'forge__head' },
+      el('div', { class: 'home__kicker' }, 'NAME FORGE'), el('h1', {}, '名字工坊'),
+      el('p', { class: 'muted' }, '定制账号所属队伍的角色卡，八围、技能与表情由名字生成。')),
+    account.allowed ? el('div', { class: 'forge__form' },
+      el('label', {}, el('span', {}, '名字'), el('input', { id: 'forge-name', placeholder: '角色名字（不含 @队伍）', maxlength: '48', autocomplete: 'off' })),
+      el('label', {}, el('span', {}, '所属队伍'), el('select', { id: 'forge-clan', onchange: () => document.getElementById('forge-result').replaceChildren() },
+        account.teams.map((team) => el('option', { value: team }, team)))),
+      el('button', { class: 'primary', type: 'button', onclick: h.onForgeBuild }, '生成卡牌'),
+      el('button', { class: 'ghost', type: 'button', onclick: h.onHome }, '返回'))
+      : el('div', { class: 'forge__locked', role: 'status' }, el('p', {}, message),
+        !h.loading ? el('button', { class: 'primary', type: 'button', onclick: h.onRetry }, '重新确认账号') : null,
+        el('button', { class: 'ghost', type: 'button', onclick: h.onHome }, '返回')),
+    el('div', { class: 'forge__result', id: 'forge-result' }, account.allowed
+      ? el('p', { class: 'muted' }, '生成后可以将角色加入卡组。') : null)));
+}
+
+// 英雄卡保持宽高 0.618；多卡横向排列，纵向滚轮用于横向浏览。
+export function renderHeroes(root, heroes, h) {
+  const labels = { hp: '血', atk: '攻', def: '防', spd: '速', agi: '敏', mag: '魔', res: '抗', wis: '智' };
+  const scoreLabels = [['pp', '普评'], ['qp', '强评'], ['qd', '强单'], ['pd', '普单']];
+  const rail = el('div', { class: 'heroes__rail', tabindex: '0', 'aria-label': '英雄角色卡，横向滚动浏览' },
+    heroes.map((hero) => {
+      const card = hero.card;
+      return el('article', { class: 'hero-card', 'aria-label': hero.name + '@' + hero.clan },
+        el('div', { class: 'hero-card__portrait' }, el('img', { src: hero.portrait, alt: hero.name + ' 英雄立绘', loading: 'lazy', decoding: 'async', width: '640', height: '640' })),
+        el('div', { class: 'hero-card__body' },
+          el('p', { class: 'hero-card__description' }, hero.description),
+          el('div', { class: 'hero-card__identity' },
+            el('span', { class: 'hero-card__badge' }, gradeIcon(card) || emojiImg('star', 'emoji emoji--sm')),
+            el('div', { class: 'hero-card__names', title: card.id },
+              el('b', { class: 'hero-card__name' }, card.name),
+              el('span', { class: 'hero-card__clan' }, '@' + card.clan)),
+            el('img', { class: 'hero-card__expression', src: card.icon, alt: '名字表情' })),
+          el('dl', { class: 'hero-card__stats' }, Object.entries(labels).map(([key, label]) =>
+            el('div', {}, el('dt', {}, label), el('dd', {}, Math.round(card.stats[key] || 0))))),
+          el('div', { class: 'hero-card__skills', tabindex: '0', 'aria-label': '技能熟练度' }, card.skillList.length
+            ? card.skillList.map((skill) => el('span', { title: skillMeta(skill.id).desc }, emojiImg(skill.id, 'emoji emoji--xs'), skillMeta(skill.id).name, el('b', {}, skill.lv)))
+            : el('span', { class: 'muted' }, '无技能')),
+          el('dl', { class: 'hero-card__scores' }, scoreLabels.map(([key, label]) =>
+            el('div', {}, el('dt', {}, label), el('dd', {}, Number.isFinite(hero.scores?.[key]) ? hero.scores[key] : '—'))))));
+    }));
+  rail.addEventListener('wheel', (event) => {
+    if (event.ctrlKey || event.target.closest('.hero-card__skills') || rail.scrollWidth <= rail.clientWidth || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+    const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rail.clientWidth : 1);
+    if ((delta < 0 && rail.scrollLeft <= 0) || (delta > 0 && rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 1)) return;
+    event.preventDefault(); rail.scrollLeft += delta;
+  }, { passive: false });
+  root.replaceChildren(el('section', { class: 'heroes' },
+    el('header', { class: 'heroes__head' }, el('div', {}, el('div', { class: 'home__kicker' }, 'HERO GALLERY'), el('h1', {}, '英雄角色')),
+      el('button', { class: 'ghost', type: 'button', onclick: h.onHome }, '返回')),
+    rail));
+  // 两行分别自适应字号，完整显示名字与队伍，不折行、不省略。
+  const fitNames = () => {
+    for (const line of rail.querySelectorAll('.hero-card__name, .hero-card__clan')) {
+      let size = line.classList.contains('hero-card__name') ? 14 : 11;
+      line.style.fontSize = size + 'px';
+      if (line.clientWidth && line.scrollWidth > line.clientWidth) {
+        size *= line.clientWidth / line.scrollWidth;
+        line.style.fontSize = size + 'px';
+        while (line.scrollWidth > line.clientWidth && size > 1) { size -= .1; line.style.fontSize = size + 'px'; }
+      }
+    }
+  };
+  fitNames();
+  const observer = new ResizeObserver(() => { if (!rail.isConnected) observer.disconnect(); else fitNames(); });
+  observer.observe(rail);
+  document.fonts.ready.then(() => { if (rail.isConnected) fitNames(); });
 }
 
 // ————————————————————— 悬浮提示（技能名 + 说明）
