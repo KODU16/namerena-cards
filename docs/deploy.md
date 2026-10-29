@@ -9,7 +9,7 @@ npm ci
 npm run build:site
 ```
 
-构建使用 `tools/build-icons.mjs` 生成 16×16 像素图标，再将压缩运行资源输出到 `dist/`。开发源码和 SVG 图标源文件不作为运行资源发布。
+构建使用 `tools/build-icons.mjs` 将 `assets/icons32/` 下的 71 张独立 32×32 图标合并为共享调色板图集，再将压缩运行资源输出到 `dist/`。开发源码、独立图标文件和高清原稿不作为运行资源发布。
 
 服务器更新方式与管理员检查项见 [自动更新](../server/AUTO-UPDATE.md) 和 [部署检查](../server/DEPLOY-CHECK.md)。服务器定时拉取是当前正式发布方式；GitHub Actions 的 `deploy-cards.yml` 也能构建，并在配置部署密钥时通过 SSH 上传。
 

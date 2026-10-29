@@ -100,9 +100,9 @@ button.ghost { background: #a9bcc8; border-color: #fff; }
 button.ghost:hover:not(:disabled) { background: linear-gradient(0deg, #a9bcc8 0%, #bcccd5 100%); }
 button.big { font-size: 16px; padding: 9px 22px; }
 
-/* ——— 自绘 16×16 像素图标，使用独立单元边界 */
+/* ——— 透明 32×32 像素图标，使用独立单元边界 */
 .emoji {
-  --cell: 16px;
+  --cell: 20px;
   display: inline-block;
   width: 1.15em;
   height: 1.15em;
@@ -110,11 +110,11 @@ button.big { font-size: 16px; padding: 9px 22px; }
   object-fit: contain;
   flex: none;
 }
-.emoji--xs { --cell: 16px; width: 16px; height: 16px; vertical-align: -3px; }
-.emoji--sm { --cell: 16px; width: 16px; height: 16px; vertical-align: -3px; }
-.emoji--lg { --cell: 16px; width: 16px; height: 16px; }
-.emoji--xl { --cell: 16px; width: 16px; height: 16px; }
-.emoji--xxl { --cell: 16px; width: 16px; height: 16px; }
+.emoji--xs { --cell: 20px; width: 20px; height: 20px; vertical-align: -4px; }
+.emoji--sm { --cell: 20px; width: 20px; height: 20px; vertical-align: -3px; }
+.emoji--lg { --cell: 24px; width: 24px; height: 24px; }
+.emoji--xl { --cell: 28px; width: 28px; height: 28px; }
+.emoji--xxl { --cell: 32px; width: 32px; height: 32px; }
 
 /* ——— 顶栏 */
 .topbar {
@@ -817,11 +817,11 @@ body, .app { background: #ffffff; }
 .unit-row__hp, .unit-row__mp { flex: none; height: 11px; min-width: 0; }
 .unit-row__stats { flex: none; }
 .unit-row .statuses { flex: none; }
-/* 雪碧图：一张 10x8 的图代替 74 个 img 请求 */
+/* 雪碧图：71 张独立图标合并请求，每格保留两像素透明边距 */
 .emoji-sprite {
-  background-image: url('../assets/icons-16.png?v=1');
+  background-image: url('../assets/icons-32.png?v=1');
   background-repeat: no-repeat;
-  background-size: calc(var(--cell) * var(--icon-cols, 10)) calc(var(--cell) * var(--icon-rows, 10));
+  background-size: calc(var(--cell) * var(--icon-cols, 8)) calc(var(--cell) * var(--icon-rows, 9));
   background-position: calc(var(--col, 0) * var(--cell) * -1) calc(var(--row, 0) * var(--cell) * -1);
   width: var(--cell);
   height: var(--cell);
@@ -1195,4 +1195,11 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .save-info small { color: var(--muted); font-size: 10.5px; }
 .save-ops { display: flex; gap: 6px; }
 .save-ops .ghost { font-size: 11px; padding: 2px 10px; }
+
+
+/* 战术卡复用技能/属性图标，羊皮纸由独立底层绘制，不重复下载图片。 */
+.emoji--tactic { position: relative; isolation: isolate; overflow: visible; }
+/* 图案放到纸张上层，避免底层伪元素盖住背景雪碧图。 */
+.emoji--tactic::after { content: ""; position: absolute; inset: 0; background: inherit; pointer-events: none; }
+.emoji--tactic::before { content: ""; position: absolute; z-index: -1; inset: -2px; border: 1px solid #9b7549; border-radius: 2px; background: linear-gradient(90deg, #d6b47d, #fff0ce 18%, #f6dfad 78%, #c99c60); box-shadow: inset 0 1px #fff8e3, inset 0 -2px #b78c50; }
 

@@ -17,3 +17,7 @@ dist/
 *.sqlite3-shm
 __pycache__/
 
+
+# 云端生成的高清原稿与本地预览不参与发布
+output/
+

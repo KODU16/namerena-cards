@@ -1232,8 +1232,8 @@ export function inventorySheet(state, h = {}) {
 }
 // ————————————————————— 药水
 
-// 药瓶与技能共用 16×16 像素设计，奖励预览仅做最近邻等比放大。
-export function potionIcon(p, size = 16) {
+// 药瓶与技能共用 32px 图集，小型入口按 20px 展示。
+export function potionIcon(p, size = 20) {
   const icon = emojiImg('potion-' + (p.id || 'hp'), 'emoji potion-icon');
   icon.style.setProperty('--cell', size + 'px');
   return icon;

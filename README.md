@@ -36,7 +36,7 @@ python -m http.server 8123 --bind 127.0.0.1
 
 ```text
 index.html            单页入口
-css/style.css         全部样式（tswn 蓝灰白 + Twemoji 图标）
+css/style.css         全部样式（tswn 蓝灰白 + 透明像素图标）
 js/main.js            启动、导航、战斗流程
 js/engine.js          tswn_wasm 封装：名字 → 卡牌、头像
 js/combat.js          回合制战斗核心（能量、手牌、被动、状态、AI）
@@ -81,6 +81,6 @@ node tools/cdp.mjs <url> <out.png> [waitMs] [js]   # 无头 Chrome 截图 + 控�
 ## 版权与致谢
 
 - 引擎、角色构建规则、头像渲染：[`shenjackyuanjie/tswn-core`](https://github.com/shenjackyuanjie/tswn-core)（Rust / WASM，官方 v0.7.0 发行包）。
-- 当前技能、战术与物体图标：项目自绘 16×16 像素设计，源码位于 `tools/build-icons.mjs`；发布时使用合并后的无损 PNG。仓库保留的旧 Twemoji 图形遵循 CC-BY 4.0，版权归 Twitter/X 与贡献者。
+- 当前技能、战术与物体图标：逐张生成并整理为 32×32 透明 PNG，源文件位于 `assets/icons32/`，由 `tools/build-icons.mjs` 合并为单张无损图集；战术卡复用对应技能/属性图标并叠加 CSS 羊皮纸底，重复攻击与武器图标使用别名。仓库保留的旧 Twemoji 图形遵循 CC-BY 4.0，版权归 Twitter/X 与贡献者。
 - 天梯数据：`shenjack.top:10007` 的公开成员分数排名。
 - 本仓库的卡牌规则、界面与代码：见 [NOTICE.md](NOTICE.md)。
