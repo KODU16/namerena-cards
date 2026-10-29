@@ -792,7 +792,9 @@ export function renderMap(root, state, h) {
       let a = pos.get(n.id);
       let b = pos.get(id);
       if (!a || !b) continue;
-      const cls = 'map-edge' + (cleared.has(n.id) ? ' is-past' : '');
+      // 仅当前节点通往下一可访问节点的连线加粗，代替节点底色提示。
+      const cls = 'map-edge' + (cleared.has(n.id) ? ' is-past' : '')
+        + (n.id === run.nodeId && available.has(id) ? ' is-avail' : '');
       const via = n.via && n.via[id];
       // 将线端裁到圆外；折线采用端点相邻线段的方向。
       const waypoint = (v) => ({ x: INSET + v.x * (W - 2 * INSET), y: H - PAD - v.y * ROW });
@@ -859,8 +861,9 @@ export function renderMap(root, state, h) {
                   : '试炼';
     return `<g class="${cls.join(' ')}" data-id="${n.id}" transform="translate(${p.x},${p.y})">
       <g class="map-node__art">
-        <circle r="${r}"></circle>
-        ${art}
+        <!-- 保留原圆形命中区域与连线避让半径，仅将图案宽高翻倍。 -->
+        <circle class="map-node__hit" r="${r}"></circle>
+        <g class="map-node__icon" transform="scale(2)">${art}</g>
       </g>
       <text y="${r + 16}" text-anchor="middle" class="map-label">${label}</text>
     </g>`;

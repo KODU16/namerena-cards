@@ -1051,6 +1051,10 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 
 /* 悬停放大：只缩放节点本体（绕本地原点 0,0，不随鼠标位移） */
 .map-node__art { transform-origin: 0 0; transform-box: view-box; }
+/* 圆框不绘制，但仍可点击原圆形区域；图案单独缩放。 */
+.map-node circle.map-node__hit { fill: none !important; stroke: none !important; visibility: hidden; pointer-events: all; }
+/* 可访问路线只加粗连线，不为节点绘制底色。 */
+.map-edge.is-avail { stroke-width: 5; }
 .map-node.is-avail { cursor: pointer; }
 .map-node.is-avail .map-node__art { transition: transform .16s ease; }
 .map-node.is-avail:hover .map-node__art { transform: scale(1.14); }
