@@ -1,7 +1,7 @@
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
-import { potionById, currentOpponent, ladderStandings, potionDescription } from './game.js';
+import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary } from './game.js';
 import { makeCard } from './engine.js';
 import { emojiImg, mapIconSvg } from './emoji.js';
 // 生成和绘制共用尺寸，保持节点半径和几何约束一致。
@@ -605,6 +605,47 @@ export class BattlePlayer {
 
 // ————————————————————— 奖励 / 结算 / 工坊
 
+// 沿用地图木箱的金色包边，开启时掀盖并向四周散出金币；只播放一次。
+export function chestOpeningArt() {
+  const art = el('div', { class: 'treasure-art', html: `<svg class="treasure-art__chest" viewBox="0 0 300 180" role="img" aria-label="装满金币的宝箱已经打开">
+    <defs><radialGradient id="treasure-glow"><stop stop-color="#ffdf73" stop-opacity=".65"/><stop offset="1" stop-color="#fff0aa" stop-opacity="0"/></radialGradient><linearGradient id="treasure-wood" x2="0" y2="1"><stop stop-color="#b97834"/><stop offset="1" stop-color="#79451f"/></linearGradient><linearGradient id="treasure-gold" x2="0" y2="1"><stop stop-color="#ffe7a0"/><stop offset="1" stop-color="#dda032"/></linearGradient></defs>
+    <ellipse class="treasure-art__glow" cx="150" cy="86" rx="116" ry="80" fill="url(#treasure-glow)"/>
+    <ellipse cx="150" cy="151" rx="64" ry="8" fill="#624226" opacity=".12"/>
+    <g class="treasure-art__lid" stroke="#623e21" stroke-width="3" stroke-linejoin="round"><path d="M99 79V53Q150 23 201 53V79Z" fill="url(#treasure-wood)"/><path d="M104 73V56Q150 33 196 56V73Z" fill="#6c4224"/><path d="M111 72V51M189 72V51" stroke="#eebd59" stroke-width="7"/><path d="M99 77H201" stroke="#ffe1a0" stroke-width="6"/></g>
+    <path d="M95 93L107 77H193L205 93L195 108H105Z" fill="#4f321f" stroke="#633e22" stroke-width="3"/>
+    <g fill="#ffd55a" stroke="#ac771f" stroke-width="2"><ellipse cx="118" cy="89" rx="10" ry="5"/><ellipse cx="137" cy="85" rx="11" ry="5"/><ellipse cx="157" cy="89" rx="11" ry="5"/><ellipse cx="178" cy="85" rx="10" ry="5"/><ellipse cx="190" cy="92" rx="9" ry="5"/><ellipse cx="143" cy="94" rx="12" ry="5"/></g>
+    <path d="M95 94H205V139L195 148H105L95 139Z" fill="url(#treasure-wood)" stroke="#623e21" stroke-width="3" stroke-linejoin="round"/>
+    <path d="M99 108H201M99 129H201" stroke="#6a3c1d" stroke-width="2" opacity=".55"/>
+    <path d="M109 96V145M191 96V145" stroke="#633e22" stroke-width="12"/><path d="M109 96V145M191 96V145" stroke="url(#treasure-gold)" stroke-width="8"/>
+    <path d="M96 95H204M103 145H197" stroke="#f2c362" stroke-width="5"/><rect x="141" y="94" width="18" height="22" rx="3" fill="url(#treasure-gold)" stroke="#674421" stroke-width="2"/><circle cx="150" cy="103" r="3" fill="#704b29"/><path d="M150 104V109" stroke="#704b29" stroke-width="3"/>
+    <path d="M77 57l3 8 8 3-8 3-3 8-3-8-8-3 8-3ZM222 85l2 6 6 2-6 2-2 6-2-6-6-2 6-2Z" fill="#edbc44"/>
+  </svg>` });
+  for (let i = 0; i < 18; i++) {
+    const angle = i * Math.PI * 2 / 18;
+    const x = Math.round(Math.cos(angle) * (85 + (i % 3) * 20));
+    const y = Math.round(Math.sin(angle) * (48 + (i % 4) * 9) - 38);
+    const coin = el('span', { class: 'treasure-art__coin', 'aria-hidden': 'true' }, emojiImg('coin', 'emoji emoji--sm'));
+    // CSS 自定义属性必须用 setProperty，不能通过普通 style 对象赋值。
+    for (const [key, value] of Object.entries({
+      '--coin-x': x + 'px', '--coin-y': y + 'px', '--coin-land': (y + 58) + 'px',
+      '--coin-spin': (i % 2 ? 540 : -540) + 'deg', '--coin-delay': (140 + (i % 5) * 45) + 'ms',
+    })) coin.style.setProperty(key, value);
+    art.append(coin);
+  }
+  return art;
+}
+
+// 自动领取也展示完整奖励回执，避免只弹出笼统的“一件补给”。
+export function rewardReceipt(offer) {
+  const summary = rewardSummary(offer);
+  const icon = offer.kind === 'potion' ? potionIcon(potionById(offer.potion.id), 40)
+    : emojiImg(offer.skill?.id || offer.tactic?.id || (offer.kind === 'score' ? 'coin' : offer.kind === 'weapon' ? 'normal' : 'star'), 'emoji emoji--xxl');
+  return el('div', { class: 'reward-receipt' },
+    el('div', { class: 'reward-receipt__heading' }, icon, el('b', {}, summary.label)),
+    offer.card ? fullCharRow(offer.card) : el('p', {}, summary.detail),
+    el('p', { class: 'muted small' }, summary.destination));
+}
+
 export function renderReward(root, state, offers, h) {
   root.replaceChildren(
     el('section', { class: 'reward' },
@@ -981,6 +1022,9 @@ export function renderMap(root, state, h) {
       ? '<text y="6" text-anchor="middle" class="map-glyph">起</text>'
       : n.kind === 'event'
         ? objectArt('event')
+        : n.kind === 'chest'
+          // 宝箱使用本地 SVG 几何图案，无额外图片请求。
+          ? '<g shape-rendering="crispEdges"><path d="M-11,-3 V-8 L-7,-11 H7 L11,-8 V-3 Z" fill="#cc8d2c" stroke="#704820" stroke-width="2"/><rect x="-11" y="-3" width="22" height="14" rx="1" fill="#b87326" stroke="#704820" stroke-width="2"/><path d="M-7,-9 V10 M7,-9 V10 M-11,-2 H11" stroke="#f5cf63" stroke-width="2"/><rect x="-2" y="-4" width="4" height="7" fill="#ffe08a" stroke="#704820" stroke-width="1"/></g>'
         : n.kind === 'elite'
           ? objectArt('boss')
           : n.kind === 'cpu'
@@ -1001,7 +1045,8 @@ export function renderMap(root, state, h) {
             : n.kind === 'cpu' ? '电脑'
               : n.kind === 'shop' ? '商店'
               : n.kind === 'camp' ? '篝火'
-                : n.kind === 'event' ? '事件 ?'
+                : n.kind === 'event' ? '补给'
+                  : n.kind === 'chest' ? '宝箱'
                   : '试炼';
     return `<g class="${cls.join(' ')}" data-id="${n.id}" transform="translate(${p.x},${p.y})">
       <g class="map-node__art">
@@ -1034,6 +1079,7 @@ export function renderMap(root, state, h) {
           el('span', { class: 'map-legend map-legend--avail' }, '可前往'),
           el('span', { class: 'map-legend map-legend--ladder' }, '天梯'),
           el('span', { class: 'map-legend map-legend--filler' }, '试炼'),
+          el('span', { class: 'map-legend map-legend--chest' }, '宝箱 · 物品＋分数'),
           el('span', { class: 'map-legend map-legend--end' }, '终点'))),
       el('div', { class: 'map__row' },
         el('div', { class: 'map__body' }),
@@ -1104,7 +1150,7 @@ export function renderMap(root, state, h) {
         const rect = nodeEl.getBoundingClientRect();
         const cx = rect.left + rect.width / 2;
         const cy = rect.top + rect.height / 2;
-        const color = nodeData?.kind === 'filler' ? '#8b5cf6' : (colorFromIcon(nodeData?.payload?.cards?.[0]?.icon) || '#2f8ec9');
+        const color = nodeData?.kind === 'chest' ? '#dba533' : nodeData?.kind === 'filler' ? '#8b5cf6' : (colorFromIcon(nodeData?.payload?.cards?.[0]?.icon) || '#2f8ec9');
         burstAt(cx, cy, color);
         setTimeout(() => h.onPick(nodeEl.dataset.id), 700);
       });

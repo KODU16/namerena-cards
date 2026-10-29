@@ -781,17 +781,23 @@ function mapScreen() {
         );
         return;
       }
-      if (node?.kind === 'event') {
+      if (node?.kind === 'event' || node?.kind === 'chest') {
         const res = G.enterEvent(state, nodeId);
         if (!res) return;
+        // 补给显示实际物品回执，宝箱同时显示独立到账的分数。
+        const chest = node.kind === 'chest';
+        // 先刷新已通关位置和分数，关闭遮罩也能直接沿新路线前进。
+        mapScreen();
         sheet(
           el('div', { class: 'result result--win' },
-            el('div', { class: 'result__kicker' }, 'EVENT'),
-            el('h2', {}, '发现补给'),
-            el('p', { class: 'muted' }, `获得 ${res.label}（自动生效，无需选择）`),
+            el('div', { class: 'result__kicker' }, chest ? 'TREASURE' : 'SUPPLIES'),
+            el('h2', {}, chest ? '宝箱已打开' : '获得补给'),
+            chest ? UI.chestOpeningArt() : null,
+            UI.rewardReceipt(res.reward),
+            chest ? UI.rewardReceipt({ kind: 'score', points: res.points }) : null,
           ),
           el('div', { class: 'result__actions' },
-            el('button', { class: 'primary', type: 'button', onclick: () => { closeSheet(); mapScreen(); } }, '继续前进'),
+            el('button', { class: 'primary', type: 'button', onclick: closeSheet }, '继续前进'),
           ),
         );
         return;

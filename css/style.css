@@ -1211,6 +1211,26 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .forge__form select { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; }
 .forge__locked { margin: 24px 0; padding: 22px; border: 1px solid var(--line); border-radius: 12px; background: #f7fbfe; }
 .forge__locked button + button { margin-left: 10px; }
+/* 自动领取奖励逐项列出名称、效果和去向，宝箱分数另列。 */
+.reward-receipt { margin: 14px 0; padding: 16px; border: 1px solid #d9e5ed; border-radius: 12px; background: #f8fbfd; text-align: left; overflow-wrap: anywhere; }
+.reward-receipt__heading { display: flex; align-items: center; gap: 12px; font-size: 18px; color: #214b61; }
+.reward-receipt__heading > :first-child { flex-shrink: 0; }
+.reward-receipt p { margin: 10px 0 0; line-height: 1.6; }
+.reward-receipt .fullrow { margin-top: 12px; }
+.map-legend--chest { color: #97620e; }
+
+/* 箱盖掀开后保持开启；金币先向四周飞散，再下落淡出，不影响奖励按钮。 */
+.treasure-art { position: relative; width: min(300px, 100%); height: 180px; margin: 0 auto -6px; pointer-events: none; }
+.treasure-art__chest { display: block; width: 100%; height: 180px; overflow: visible; }
+.treasure-art__lid { transform-origin: 150px 78px; transform: translateY(-10px) rotate(-12deg); animation: treasure-open .5s cubic-bezier(.2,.8,.3,1) both; }
+.treasure-art__glow { animation: treasure-glow .7s ease-out both; }
+.treasure-art__coin { position: absolute; z-index: 1; left: calc(50% - 10px); top: 80px; width: 20px; height: 20px; opacity: 0; animation: treasure-coin 1.5s var(--coin-delay) cubic-bezier(.15,.55,.4,1) both; }
+.treasure-art__coin .emoji { width: 20px; height: 20px; }
+@keyframes treasure-open { from { transform: translateY(25px) rotate(0); } to { transform: translateY(-10px) rotate(-12deg); } }
+@keyframes treasure-glow { from { opacity: 0; transform: scale(.7); transform-origin: center; } to { opacity: 1; transform: scale(1); transform-origin: center; } }
+@keyframes treasure-coin { 0% { opacity: 0; transform: translate(0, 0) scale(.5) rotate(0); } 12% { opacity: 1; } 55% { opacity: 1; transform: translate(var(--coin-x), var(--coin-y)) scale(1) rotate(var(--coin-spin)); } 100% { opacity: 0; transform: translate(var(--coin-x), var(--coin-land)) scale(.7) rotate(var(--coin-spin)); } }
+@media (prefers-reduced-motion: reduce) { .treasure-art__lid, .treasure-art__glow { animation: none; } .treasure-art__coin { display: none; animation: none; } }
+
 /* 卡面宽高比 0.618，横向最多六张；更多卡片沿横轴滚动。 */
 .heroes { max-width: 1860px; margin: 0 auto; }
 body[data-screen="heroes"] .screen { max-width: 1912px; }

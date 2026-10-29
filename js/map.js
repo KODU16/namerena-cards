@@ -170,9 +170,10 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
   }
   // 精英试炼：更强、奖励更厚，每层 1 个
   {
-    const open = sparseDepths();
-    for (let rep = 0; rep < 2 && makeElite; rep++) if (open.length) {
-      const d = open[Math.floor(rng() * open.length)];
+    for (let rep = 0; rep < 2 && makeElite; rep++) {
+      // 每次插入后重算容量，避免新增节点把同一行挤到五个。
+      const d = pickSparseDepth();
+      if (d === undefined) break;
       groups[d].push(mk('elite', makeElite(teamSize, rng), null));
     }
   }
@@ -197,7 +198,14 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
       if (open2.length) groups[open2[Math.floor(rng() * open2.length)]].push(mk('shop', null, null));
     }
   }
-  // 事件节点（?）：进入不战斗，随机给一张战术/名字/技能卡，1~2 个
+  // 每层预留 1～2 个宝箱位置：不战斗，领取物品及额外天梯分数。
+  const chestCount = 1 + Math.floor(rng() * 2);
+  for (let i = 0; i < chestCount; i++) {
+    const d = pickSparseDepth();
+    if (d === undefined) break;
+    groups[d].push(mk('chest', null, null));
+  }
+  // 补给节点：进入不战斗，从完整奖池随机领取一项奖励。
   const eventCount = 2 + Math.floor(rng() * 2);
   for (let i = 0; i < eventCount; i++) {
     const open = sparseDepths();

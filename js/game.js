@@ -482,25 +482,34 @@ export function clearNode(state) {
   return node;
 }
 
-// 事件节点（?）：不战斗，随机拿一张战术/名字/技能卡，自动生效
+// 奖励摘要覆盖完整奖池，供补给和宝箱回执显示真实所得与存放位置。
+export function rewardSummary(offer) {
+  if (offer.kind === 'skill') return { label: '技能卡「' + skillMeta(offer.skill.id).name + '」', detail: '熟练度 ' + offer.skill.lv, destination: '已放入技能卡栏，可在锻造时使用。' };
+  if (offer.kind === 'tactic') return { label: '战术卡「' + offer.tactic.name + '」', detail: offer.tactic.desc + ' · 强度 ×' + (offer.power || 1).toFixed(1), destination: '已加入战术卡栏，同名保留更强的一张。' };
+  if (offer.kind === 'potion') return { label: (potionById(offer.potion.id)?.name || '药水') + ' ×' + (offer.potion.n || 1), detail: potionDescription(potionById(offer.potion.id)), destination: '已放入物品栏，可在战斗中使用。' };
+  if (offer.kind === 'weapon') return { label: '武器「' + offer.weapon.name + '」', detail: '装备后重新计算角色属性和技能。', destination: '已放入物品栏。' };
+  if (offer.kind === 'score') return { label: '天梯分数 +' + offer.points, detail: '分数已计入本局天梯排名。', destination: '已到账。' };
+  return { label: '角色卡「' + offer.card.name + '@' + offer.card.clan + '」', detail: '获得一名可出战角色。', destination: '已加入角色库。' };
+}
+
+// 事件和宝箱仅允许从相邻未通关节点领取，防止重复开箱或跨节点领取。
 export function enterEvent(state, nodeId) {
   const run = state.run;
   if (!run?.graph) return null;
   const from = run.graph.byId.get(run.nodeId);
-  if (!from?.next.includes(nodeId)) return null;
+  const node = run.graph.byId.get(nodeId);
+  if (!from?.next.includes(nodeId) || !['event', 'chest'].includes(node?.kind) || run.cleared.includes(nodeId)) return null;
   run.selectedId = nodeId;
   clearNode(state);
   const r = mulberry32((run.seed ^ (run.index * 40503) ^ 0x5f3759df) >>> 0);
   const offers = rollRewards(state, (run.seed ^ (run.index * 2654435761)) >>> 0);
-  const pick = offers[Math.floor(r() * offers.length)];
+  // 宝箱物品不含分数，也不抽取未生成成功的角色卡；额外分数独立结算。
+  const pool = offers.filter((offer) => (offer.kind !== 'card' || offer.card) && (node.kind !== 'chest' || offer.kind !== 'score'));
+  const pick = pool[Math.floor(r() * pool.length)];
   applyReward(state, pick);
-  // 结果文案
-  let label = '一件补给';
-  if (pick.kind === 'skill') label = '技能卡「' + skillMeta(pick.skill.id).name + '」熟练度' + pick.skill.lv;
-  else if (pick.kind === 'tactic') label = '战术卡「' + pick.tactic.name + '」';
-  else if (pick.card) label = '角色卡「' + pick.card.name + '@' + pick.card.clan + '」';
+  const points = node.kind === 'chest' ? addScorePoints(state, rollRewardPoints(run, r)) : 0;
   persist(state);
-  return { kind: pick.kind, label };
+  return { kind: pick.kind, label: rewardSummary(pick).label, reward: pick, points };
 }
 
 // 打赢带武器的试炼 → 50% 掉落一把武器
@@ -963,7 +972,13 @@ export function battleSeed(run) {
   return h >>> 0;
 }
 
-// —— 奖励：两张卡二选一 —— 随机技能卡（进锻造）或随机角色
+// 宝箱与试炼使用相同的分数奖励范围：每层递增，普通奖励约 300～1000 分。
+function rollRewardPoints(run, rng, elite = false) {
+  const progress = Math.min(1, Math.max(0, ((run.layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
+  return Math.round((300 + progress * 500 + rng() * 200) * (elite ? 1.5 : 1));
+}
+
+// 战斗奖励从完整奖池抽取三项供玩家选择。
 export function rollRewards(state, seed, elite = false) {
   const r = mulberry32(seed);
   const run = state.run;
@@ -988,7 +1003,7 @@ export function rollRewards(state, seed, elite = false) {
     card = { ...card, stats: s0 };
   }
   const potionMeta = POTIONS[Math.floor(r() * POTIONS.length)];
-  const scorePoints = Math.round((300 + progress * 500 + r() * 200) * (elite ? 1.5 : 1));
+  const scorePoints = rollRewardPoints(run, r, elite);
   // 全类型奖池，洗匀后抽 3 个
   const pool = [
     { kind: 'skill', skill: { id: skillId, lv, uid: `sk-${seed}-${Math.floor(r() * 1e9)}` } },
