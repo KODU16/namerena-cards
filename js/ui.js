@@ -1,7 +1,7 @@
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
-import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary } from './game.js';
+import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote } from './game.js';
 import { makeCard } from './engine.js';
 import { emojiImg, mapIconSvg } from './emoji.js';
 // 生成和绘制共用尺寸，保持节点半径和几何约束一致。
@@ -413,7 +413,8 @@ export function handCardEl(card, { onPlay, disabled, locked = false }) {
   const meta = skillMeta(card.id);
   const passive = !!card.passive;
   return el('button', {
-    class: `hcard cat-${meta.cat}${passive ? ' is-passive' : ''}${locked ? ' is-locked' : ''}`,
+    // 净化的金色品质与来源无关，在手牌及 MP 不足时仍能辨认。
+    class: `hcard cat-${meta.cat}${card.id === 'skldisperse' ? ' hcard--gold' : ''}${passive ? ' is-passive' : ''}${locked ? ' is-locked' : ''}`,
     type: 'button',
     disabled: disabled || passive || locked || undefined,
     onclick: () => onPlay(card),
@@ -425,7 +426,7 @@ export function handCardEl(card, { onPlay, disabled, locked = false }) {
       el('span', { class: 'hcard__lv' }, passive ? '被动 · 自动' : `熟练度 ${card.lv} · 消耗 ${card.cost} MP`),
       el('small', {}, passive ? '条件满足时自动发动，不需要点击。' : meta.desc),
     ),
-    el('div', { class: 'hcard__cat' }, passive ? '被动' : CAT[meta.cat]?.name || ''),
+    el('div', { class: 'hcard__cat' }, card.id === 'skldisperse' ? '金色 · 稀有' : passive ? '被动' : CAT[meta.cat]?.name || ''),
     el('span', { class: `hcard__cost${locked ? ' is-locked' : ''}` }, card.cost),
   );
 }
@@ -605,21 +606,55 @@ export class BattlePlayer {
 
 // ————————————————————— 奖励 / 结算 / 工坊
 
+// 品质同时以颜色和文字标识，避免只靠颜色区分稀有物品。
+export function qualityBadge(rarity = 'blue') {
+  return el('span', { class: 'quality-badge quality-badge--' + rarity }, rarity === 'gold' ? '金色 · 稀有' : '蓝色 · 精良');
+}
+
+// 三把固定库存与物品栏交易分开浏览，每次操作后由主流程刷新余额及报价。
+export function weaponMerchantSheet(state, h) {
+  const tab = h.tab || 'buy';
+  const score = state.run.score || 0;
+  const describe = (weapon) => {
+    const quote = weaponQuote(weapon, state.run.layer);
+    return el('div', { class: 'merchant-value' },
+      el('p', {}, 'tswn 加成折算：属性 ' + (quote.attrs >= 0 ? '+' : '') + quote.attrs + ' · 技能熟练度净增 ' + quote.skills),
+      el('small', {}, '总估值 ' + quote.value + ' 分 · 回收价 ' + quote.sell + ' 分'),
+      el('small', {}, '对不同角色的实际增益以装备预览为准。'));
+  };
+  const grid = el('div', { class: 'merchant-grid' });
+  if (tab === 'buy') grid.append(...h.stock.map((offer) => el('div', { class: 'merchant-item' + (offer.sold ? ' is-sold' : '') },
+    qualityBadge(offer.rarity), emojiImg('weapon', 'emoji emoji--xxl'), el('b', {}, offer.weapon.name), describe(offer.weapon),
+    el('button', { class: 'primary', type: 'button', disabled: offer.sold || score < offer.price, onclick: () => h.onBuy(offer.weapon.id) }, offer.sold ? '已售出' : '购买 · ' + offer.price + ' 分'))));
+  else {
+    grid.append(...(state.weapons || []).map((weapon) => {
+      const quote = weaponQuote(weapon, state.run.layer);
+      return el('div', { class: 'merchant-item' }, qualityBadge(), el('b', {}, weapon.name), describe(weapon),
+        tab === 'reforge' ? el('div', {}, el('p', { class: 'muted small' }, '已重铸 ' + (weapon.reforges || 0) + ' 次'),
+          el('button', { class: 'primary', type: 'button', disabled: score < quote.reforge, onclick: () => h.onReforge(weapon.id) }, '随机改名 · ' + quote.reforge + ' 分'))
+          : el('button', { class: 'primary', type: 'button', onclick: () => h.onSell(weapon.id) }, '出售 · 获得 ' + quote.sell + ' 分'));
+    }));
+    if (!grid.childElementCount) grid.append(el('p', { class: 'muted' }, '物品栏里还没有可交易的武器。'));
+  }
+  return el('section', { class: 'merchant' },
+    el('div', { class: 'merchant-heading' }, emojiImg('weaponMerchant', 'emoji emoji--xxl'), el('div', {}, el('h2', {}, '武器商人'), el('p', {}, '天梯分数 ' + Math.round(score)))),
+    el('div', { class: 'merchant-tabs', role: 'group', 'aria-label': '武器交易' }, [['buy', '购买武器'], ['reforge', '重铸武器'], ['sell', '出售武器']].map(([id, label]) =>
+      el('button', { class: 'ghost', type: 'button', 'aria-pressed': String(tab === id), onclick: () => h.onTab(id) }, label))),
+    el('p', { class: 'muted small' }, tab === 'buy' ? '本次摆出三把武器，售出后不补货。'
+      : tab === 'reforge' ? '重铸会随机改变武器名，属性和技能随 tswn 重新生成；结果可能变弱，费用随重铸次数增加。'
+        : '按 tswn 加成折算估值的 50% 回收，出售后武器从物品栏移除。'), grid,
+    ...(tab !== 'buy' ? (state.collection || []).filter((card) => card.weapon).map((card) => el('div', { class: 'merchant-equipped' },
+      el('span', {}, card.name + ' 已装备「' + card.weapon + '」'),
+      el('button', { class: 'ghost', type: 'button', onclick: () => h.onUnequip(card.id) }, '卸下以交易'))) : []),
+    el('div', { class: 'result__actions' }, el('button', { class: 'primary', type: 'button', onclick: h.onLeave }, '离开')));
+}
+
 // 沿用地图木箱的金色包边，开启时掀盖并向四周散出金币；只播放一次。
 export function chestOpeningArt() {
-  const art = el('div', { class: 'treasure-art', html: `<svg class="treasure-art__chest" viewBox="0 0 300 180" role="img" aria-label="装满金币的宝箱已经打开">
-    <defs><radialGradient id="treasure-glow"><stop stop-color="#ffdf73" stop-opacity=".65"/><stop offset="1" stop-color="#fff0aa" stop-opacity="0"/></radialGradient><linearGradient id="treasure-wood" x2="0" y2="1"><stop stop-color="#b97834"/><stop offset="1" stop-color="#79451f"/></linearGradient><linearGradient id="treasure-gold" x2="0" y2="1"><stop stop-color="#ffe7a0"/><stop offset="1" stop-color="#dda032"/></linearGradient></defs>
-    <ellipse class="treasure-art__glow" cx="150" cy="86" rx="116" ry="80" fill="url(#treasure-glow)"/>
-    <ellipse cx="150" cy="151" rx="64" ry="8" fill="#624226" opacity=".12"/>
-    <g class="treasure-art__lid" stroke="#623e21" stroke-width="3" stroke-linejoin="round"><path d="M99 79V53Q150 23 201 53V79Z" fill="url(#treasure-wood)"/><path d="M104 73V56Q150 33 196 56V73Z" fill="#6c4224"/><path d="M111 72V51M189 72V51" stroke="#eebd59" stroke-width="7"/><path d="M99 77H201" stroke="#ffe1a0" stroke-width="6"/></g>
-    <path d="M95 93L107 77H193L205 93L195 108H105Z" fill="#4f321f" stroke="#633e22" stroke-width="3"/>
-    <g fill="#ffd55a" stroke="#ac771f" stroke-width="2"><ellipse cx="118" cy="89" rx="10" ry="5"/><ellipse cx="137" cy="85" rx="11" ry="5"/><ellipse cx="157" cy="89" rx="11" ry="5"/><ellipse cx="178" cy="85" rx="10" ry="5"/><ellipse cx="190" cy="92" rx="9" ry="5"/><ellipse cx="143" cy="94" rx="12" ry="5"/></g>
-    <path d="M95 94H205V139L195 148H105L95 139Z" fill="url(#treasure-wood)" stroke="#623e21" stroke-width="3" stroke-linejoin="round"/>
-    <path d="M99 108H201M99 129H201" stroke="#6a3c1d" stroke-width="2" opacity=".55"/>
-    <path d="M109 96V145M191 96V145" stroke="#633e22" stroke-width="12"/><path d="M109 96V145M191 96V145" stroke="url(#treasure-gold)" stroke-width="8"/>
-    <path d="M96 95H204M103 145H197" stroke="#f2c362" stroke-width="5"/><rect x="141" y="94" width="18" height="22" rx="3" fill="url(#treasure-gold)" stroke="#674421" stroke-width="2"/><circle cx="150" cy="103" r="3" fill="#704b29"/><path d="M150 104V109" stroke="#704b29" stroke-width="3"/>
-    <path d="M77 57l3 8 8 3-8 3-3 8-3-8-8-3 8-3ZM222 85l2 6 6 2-6 2-2 6-2-6-6-2 6-2Z" fill="#edbc44"/>
-  </svg>` });
+  // 两帧均来自 32px 图集，整数倍放大保持像素边缘。
+  const art = el("div", { class: "treasure-art" },
+    emojiImg("chest", "emoji treasure-art__closed"),
+    emojiImg("chest-open", "emoji treasure-art__opened"));
   for (let i = 0; i < 18; i++) {
     const angle = i * Math.PI * 2 / 18;
     const x = Math.round(Math.cos(angle) * (85 + (i % 3) * 20));
@@ -1022,9 +1057,10 @@ export function renderMap(root, state, h) {
       ? '<text y="6" text-anchor="middle" class="map-glyph">起</text>'
       : n.kind === 'event'
         ? objectArt('event')
+        : n.kind === 'weaponMerchant'
+          ? objectArt('weaponMerchant')
         : n.kind === 'chest'
-          // 宝箱使用本地 SVG 几何图案，无额外图片请求。
-          ? '<g shape-rendering="crispEdges"><path d="M-11,-3 V-8 L-7,-11 H7 L11,-8 V-3 Z" fill="#cc8d2c" stroke="#704820" stroke-width="2"/><rect x="-11" y="-3" width="22" height="14" rx="1" fill="#b87326" stroke="#704820" stroke-width="2"/><path d="M-7,-9 V10 M7,-9 V10 M-11,-2 H11" stroke="#f5cf63" stroke-width="2"/><rect x="-2" y="-4" width="4" height="7" fill="#ffe08a" stroke="#704820" stroke-width="1"/></g>'
+          ? objectArt('chest')
         : n.kind === 'elite'
           ? objectArt('boss')
           : n.kind === 'cpu'
@@ -1046,6 +1082,7 @@ export function renderMap(root, state, h) {
               : n.kind === 'shop' ? '商店'
               : n.kind === 'camp' ? '篝火'
                 : n.kind === 'event' ? '补给'
+                  : n.kind === 'weaponMerchant' ? '武器商人'
                   : n.kind === 'chest' ? '宝箱'
                   : '试炼';
     return `<g class="${cls.join(' ')}" data-id="${n.id}" transform="translate(${p.x},${p.y})">
@@ -1080,6 +1117,7 @@ export function renderMap(root, state, h) {
           el('span', { class: 'map-legend map-legend--ladder' }, '天梯'),
           el('span', { class: 'map-legend map-legend--filler' }, '试炼'),
           el('span', { class: 'map-legend map-legend--chest' }, '宝箱 · 物品＋分数'),
+          el('span', { class: 'map-legend map-legend--chest' }, '武器商人'),
           el('span', { class: 'map-legend map-legend--end' }, '终点'))),
       el('div', { class: 'map__row' },
         el('div', { class: 'map__body' }),

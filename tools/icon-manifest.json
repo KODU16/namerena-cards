@@ -72,7 +72,10 @@
     "camp",
     "cpu",
     "shop",
-    "boss"
+    "boss",
+    "chest",
+    "chest-open",
+    "weaponMerchant"
   ],
   "aliases": {
     "normal": "atk",

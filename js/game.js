@@ -168,7 +168,7 @@ export function snapshot(state) {
   const slim = (c) => ({
     id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
     cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
-    weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, forge: c.forge || null,
+    weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, weaponItem: c.weaponItem || null, forge: c.forge || null,
     skillTraining: c.skillTraining || null,
     runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
   });
@@ -210,7 +210,7 @@ export function persist(state) {
       id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
       cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
       // 装备与武器信息也要存，否则刷新后武器就「消失」了
-      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, forge: c.forge || null, skillTraining: c.skillTraining || null, runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
+      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, weaponItem: c.weaponItem || null, forge: c.forge || null, skillTraining: c.skillTraining || null, runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
     });
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       v: 1,
@@ -603,6 +603,7 @@ function skillsForBuild(state, card, natural) {
     if (f.charId !== card.id) continue;
     const skill = get(f.skillId);
     skill.lv += f.lv;
+    if (f.playerDisperse) skill.playerDisperse = true;
     skill.forges = (skill.forges || ((natural || []).some((s) => s.id === skill.id) ? 1 : 0)) + 1;
   }
   for (const [id, training] of Object.entries(card.skillTraining || {})) {
@@ -661,10 +662,12 @@ export function equipWeapon(state, weaponId, charId) {
   const beforeSkills = new Map((card.skillList || []).map((s) => [s.id, s.lv]));
 
   if (card.weapon) {
-    list.push({ id: 'w-' + Date.now().toString(36) + '-old', name: card.weapon });
+    // 装卸保留同一物品身份及重铸次数，防止换装重置商人费用。
+    list.push(card.weaponItem || { id: 'w-' + Date.now().toString(36) + '-old', name: card.weapon });
   }
   rememberSkillTraining(state, card);
   card.weapon = weapon.name;
+  card.weaponItem = { ...weapon };
   // 天然构建替换为名字+武器，属性锻造与技能锻造作为独立增量叠回。
   card.stats = finalStats(card, built.stats);
   card.skillList = skillsForBuild(state, card, built.skills);
@@ -687,9 +690,10 @@ export function equipWeapon(state, weaponId, charId) {
   if (!card || !card.weapon) return null;
   state.weapons = state.weapons || [];
   const weapon = card.weapon;
-  state.weapons.push({ id: 'w-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e6).toString(36), name: weapon });
+  state.weapons.push(card.weaponItem || { id: 'w-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e6).toString(36), name: weapon });
   rememberSkillTraining(state, card);
   card.weapon = '';
+  card.weaponItem = null;
   // 卸下后恢复本体天然构建，再叠回独立保存的锻造加成。
   const base = makeCard(card.name, card.clan);
   card.stats = finalStats(card, base.stats);
@@ -827,7 +831,99 @@ export function scanCpuNode(state, nodeId, prefix, startAt) {
   }
 }
 
-// 商店：用任意类型的奖励
+// 稳定的节点种子让存档、重新打开面板和购买都不刷新库存。
+function nodeSeed(run, node, salt = 0) {
+  let seed = (run.seed ^ salt) >>> 0;
+  for (const char of node.id) seed = Math.imul(seed ^ char.charCodeAt(0), 16777619) >>> 0;
+  return seed;
+}
+
+// 使用固定名字的 tswn 自然构建作估值基准，七围按 3、体力按 1 折算。
+const weaponValueCache = new Map();
+export function weaponQuote(weapon, layer = 1) {
+  if (!weaponValueCache.has(weapon.name)) {
+    const base = makeCard('武器估值', '商人');
+    const built = buildWithWeapon(base.name, base.clan, weapon.name);
+    if (!built) return null;
+    const deltas = STAT_LABELS.map(([key, label]) => ({ label, delta: Math.round(built.stats[key] - base.stats[key]) }));
+    const attrs = deltas.reduce((sum, d, i) => sum + d.delta * (i === 0 ? 1 : 3), 0);
+    const skills = built.skills.reduce((sum, s) => sum + s.lv, 0) - base.skillList.reduce((sum, s) => sum + s.lv, 0);
+    const value = Math.max(400, Math.min(3000, Math.round(400 + attrs * 6 + skills * 10)));
+    weaponValueCache.set(weapon.name, { value, attrs, skills, deltas });
+  }
+  const quote = weaponValueCache.get(weapon.name);
+  return { ...quote, buy: Math.ceil(quote.value * 1.6 / 50) * 50,
+    sell: Math.floor(quote.value * .5 / 25) * 25,
+    // 单次费用高于最高回收价，重铸不能靠卖出刷分；次数随物品保存。
+    reforge: 1800 + Math.max(0, layer - 1) * 50 + (weapon.reforges || 0) * 450 };
+}
+
+function merchantHere(state) {
+  const node = currentNode(state);
+  return node?.kind === 'weaponMerchant' && node.id === state.run.nodeId ? node : null;
+}
+
+// 商人初次打开刷新三把不同名字的武器，售出后不补货、不重复购买。
+export function merchantStock(state) {
+  const node = merchantHere(state);
+  if (!node) return [];
+  if (!node.weaponStock) {
+    const rng = mulberry32(nodeSeed(state.run, node, 0x7eaf09));
+    const names = new Set();
+    node.weaponStock = Array.from({ length: 3 }, (_, i) => {
+      let name;
+      do { name = randomWeapon(rng); } while (names.has(name));
+      names.add(name);
+      const weapon = { id: 'merchant-' + node.id + '-' + i, name, reforges: 0 };
+      return { weapon, price: weaponQuote(weapon).buy, rarity: 'blue', sold: false };
+    });
+    persist(state);
+  }
+  return node.weaponStock;
+}
+
+export function buyMerchantWeapon(state, weaponId) {
+  const offer = merchantStock(state).find((o) => o.weapon.id === weaponId);
+  if (!offer || offer.sold || !Number.isFinite(state.run.score) || state.run.score < offer.price) return false;
+  offer.sold = true;
+  state.run.score -= offer.price;
+  (state.weapons ||= []).push({ ...offer.weapon });
+  persist(state);
+  return true;
+}
+
+// 只处理物品栏武器；已装备的武器先卸下，以保证角色属性同步重算。
+export function reforgeWeapon(state, weaponId) {
+  const node = merchantHere(state);
+  const weapon = (state.weapons || []).find((w) => w.id === weaponId);
+  if (!node || !weapon) return null;
+  const quote = weaponQuote(weapon, state.run.layer);
+  if (!quote || !Number.isFinite(state.run.score) || state.run.score < quote.reforge) return null;
+  const rng = mulberry32(nodeSeed(state.run, node, 0x98ae31) ^ nodeSeed(state.run, { id: weapon.id }, weapon.reforges || 0));
+  const oldName = weapon.name;
+  let name;
+  do { name = randomWeapon(rng); } while (name === oldName);
+  if (!weaponQuote({ name })) return null;
+  state.run.score -= quote.reforge;
+  weapon.name = name;
+  weapon.reforges = (weapon.reforges || 0) + 1;
+  persist(state);
+  return { oldName, name, cost: quote.reforge };
+}
+
+export function sellWeapon(state, weaponId) {
+  if (!merchantHere(state)) return null;
+  const index = (state.weapons || []).findIndex((w) => w.id === weaponId);
+  if (index < 0) return null;
+  const weapon = state.weapons[index], quote = weaponQuote(weapon);
+  if (!quote) return null;
+  state.weapons.splice(index, 1);
+  state.run.score = (Number.isFinite(state.run.score) ? state.run.score : 0) + quote.sell;
+  persist(state);
+  return { name: weapon.name, points: quote.sell };
+}
+
+// 商店默认蓝色品质，8% 概率额外出售一张熟练度 1～2 的金色净化卡。
 export function rollShop(state, seed, layer = 1) {
   const r = mulberry32(seed);
   const run = state.run;
@@ -843,7 +939,8 @@ export function rollShop(state, seed, layer = 1) {
   const card = makeCard(randomName(r), run.clan || '青');
   items.push({ kind: 'card', price: priceOf(1800), card });
   // 武器
-  items.push({ kind: 'weapon', price: priceOf(1400), weapon: { id: 'w-shop-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
+  const weapon = { id: 'w-shop-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) };
+  items.push({ kind: 'weapon', price: priceOf(weaponQuote(weapon).buy), weapon });
   // 药水
   const pm = POTIONS[Math.floor(r() * POTIONS.length)];
   items.push({ kind: 'potion', price: priceOf(500), potion: { id: pm.id, n: 2 } });
@@ -851,15 +948,30 @@ export function rollShop(state, seed, layer = 1) {
   const pool = (state.tacticsPool || []).filter((t) => !(state.ownedTactics || []).includes(t.id));
   const tactic = pool.length ? pool[Math.floor(r() * pool.length)] : null;
   if (tactic) items.push({ kind: 'tactic', price: priceOf(1500), tactic, power: Math.round((1 + progress) * 10) / 10 });
-  return items;
+  if (r() < .08) items.push({ kind: 'skill', rarity: 'gold', price: priceOf(4500),
+    skill: { id: 'skldisperse', lv: 1 + Math.floor(r() * 2), uid: 'shop-purify-' + seed, playerDisperse: true } });
+  return items.map((item, i) => ({ ...item, id: 'shop-' + seed + '-' + i, rarity: item.rarity || 'blue' }));
+}
+
+export function shopStock(state) {
+  const node = currentNode(state);
+  if (node?.kind !== 'shop' || node.id !== state.run.nodeId) return [];
+  if (!node.shopItems) {
+    node.shopItems = rollShop(state, nodeSeed(state.run, node, 0x51ed270b), state.run.layer);
+    persist(state);
+  }
+  return node.shopItems;
 }
 
 export function buyShopItem(state, item) {
   const run = state.run;
   if (!run || !item) return false;
+  item = shopStock(state).find((offer) => offer.id === item.id);
+  if (!item || item.sold) return false;
   const score = Number.isFinite(run.score) ? run.score : 0;
   if (score < item.price) return false;
   run.score = score - item.price;
+  item.sold = true;
   applyReward(state, item);
   persist(state);
   return true;
@@ -1083,10 +1195,11 @@ export function forgeSkill(state, uid, characterId) {
       existing.lv += card.lv;
       existing.forges = (existing.forges || 1) + 1;
     } else {
-      target.skillList.push({ id: card.id, lv: card.lv, cat: SKILLS[card.id]?.cat, forges: 1 });
+      target.skillList.push({ id: card.id, lv: card.lv, cat: SKILLS[card.id]?.cat, forges: 1, playerDisperse: !!card.playerDisperse });
     }
+    if (card.playerDisperse) target.skillList.find((s) => s.id === card.id).playerDisperse = true;
     run.forged = run.forged || [];
-    run.forged.push({ charId: target.id, skillId: card.id, lv: card.lv });
+    run.forged.push({ charId: target.id, skillId: card.id, lv: card.lv, playerDisperse: !!card.playerDisperse });
   }
   run.skillCards.splice(idx, 1);
   persist(state);

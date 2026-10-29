@@ -24,7 +24,9 @@ function skillsOf(unit, champion) {
     const list = raw.map(([name, lv]) => {
       const key = String(name).replace(/^core\.skill\./, '');
       const id = `skl${key}`;
-      return ACTIVE_ID[id] != null ? { id, lv } : null;
+      // 引擎快照不含卡牌来源标记，按实际行动角色补回合法净化来源。
+      const source = champion?.skillList?.find((s) => s.id === id);
+      return ACTIVE_ID[id] != null ? { id, lv, fromWeapon: !!source?.fromWeapon, playerDisperse: !!source?.playerDisperse } : null;
     }).filter(Boolean);
     if (list.length) return list;
   }
@@ -35,9 +37,9 @@ function skillsOf(unit, champion) {
 export const rollMpCost = (rng) => 8 + (Math.floor(rng() * 256) & 15);
 
 export function drawHand(skills, rng, count = 3, exclude = null) {
-  // 净化是敌人专属：玩家抽到时直接换成别的技能（熟练度不变）
+  // 玩家仅能通过武器或合法获得并锻造的净化卡将净化加入手牌。
   const pool = (skills || [])
-    .filter((s) => ACTIVE_ID[s.id] != null && (s.id !== 'skldisperse' || s.fromWeapon))
+    .filter((s) => ACTIVE_ID[s.id] != null && (s.id !== 'skldisperse' || s.fromWeapon || s.playerDisperse))
     .filter((s) => !exclude || !exclude.has(s.id))
     .map((s) => ({ ...s, weight: weightOf(s.lv) }));
   const out = [];
@@ -79,11 +81,19 @@ export class Duel {
     this.input = input;
     this.playerTeam = playerTeam;
     this.champion = champion;
+    this.team = team || [champion];
     this.queues = new Map();
   }
 
   baseFor(state) {
     return this.baseStats ? this.baseStats.get(state.id_name) : null;
+  }
+
+  // 本体和分身分别追溯原角色，防止第二位队友借用第一位的净化许可。
+  cardFor(unit, states = []) {
+    const source = states.find((s) => s.id === (unit.source_id ?? unit.owner_id)) || unit;
+    return this.team.find((card) => card.name === source.id_name)
+      || this.team.find((card) => card.name === unit.id_name) || this.champion;
   }
 
   flatPairs(extra = []) {
@@ -617,7 +627,7 @@ export class DuelView {
     // 否则引擎选不到目标会把它降级成普通攻击
     const canRevive = (liveStates || []).some((s) => s.team_index === this.duel.playerTeam && s.alive === false && s.owner_id == null);
     if (!canRevive) exclude.add('sklrevive');
-    const hand = drawHand(skillsOf(state, this.duel.champion), this.rng, 3, exclude.size ? exclude : null);
+    const hand = drawHand(skillsOf(state, this.duel.cardFor?.(state, liveStates) || this.duel.champion), this.rng, 3, exclude.size ? exclude : null);
     this.renderEnergy(mp);
     const cards = [
       handCardEl({ id: 'normal', lv: 0 }, { onPlay: (c) => this.choose(decision, c, mp) }),

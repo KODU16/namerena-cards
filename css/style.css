@@ -586,6 +586,13 @@ button.big { font-size: 16px; padding: 9px 22px; }
 .hcard__cat { position: absolute; top: 8px; right: 10px; font-size: 10px; color: var(--muted); letter-spacing: .08em; }
 .hcard--normal { border-style: dashed; border-color: #a9c6d8; background: linear-gradient(180deg, #ffffff, #f4fafd); }
 .hcard--normal .hcard__glyph { background: #e9f7fe; color: var(--sky-3); border-color: #bfe3f5; }
+/* 净化手牌沿用金色品质，锁定时保留金色并以 MP 标记提示不可用。 */
+.hcard.hcard--gold { border: 2px solid #d7a22f; background: linear-gradient(155deg, #fffdf3, #fff0bd); box-shadow: 0 4px 16px #b8881926; }
+.hcard.hcard--gold:hover:not(:disabled) { border-color: #a87408; box-shadow: 0 10px 24px #b8881940; }
+.hcard.hcard--gold .hcard__glyph { border-color: #e2bc5b; background: #ffedb0; }
+.hcard--gold .hcard__cat, .hcard--gold .hcard__lv { color: #8d640e; }
+.hcard--gold .hcard__cost:not(.is-locked) { background: linear-gradient(#edc65d, #aa7518); border-color: #92600d; }
+.hcard.hcard--gold.is-locked { filter: none; opacity: .65; }
 
 /* ——— 弹层 */
 .overlay { position: fixed; inset: 0; background: rgba(33, 64, 82, .35); backdrop-filter: blur(4px); display: grid; place-items: center; z-index: 50; padding: 24px; }
@@ -817,7 +824,7 @@ body, .app { background: #ffffff; }
 .unit-row__hp, .unit-row__mp { flex: none; height: 11px; min-width: 0; }
 .unit-row__stats { flex: none; }
 .unit-row .statuses { flex: none; }
-/* 雪碧图：71 张独立图标合并请求，每格保留两像素透明边距 */
+/* 雪碧图：74 张独立图标合并请求，每格保留两像素透明边距 */
 .emoji-sprite {
   background-image: url('../assets/icons-32.png?v=1');
   background-repeat: no-repeat;
@@ -1211,6 +1218,29 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .forge__form select { width: 100%; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--ink); font: inherit; }
 .forge__locked { margin: 24px 0; padding: 22px; border: 1px solid var(--line); border-radius: 12px; background: #f7fbfe; }
 .forge__locked button + button { margin-left: 10px; }
+/* 商店品质和武器交易共用清晰的边框、文字标记及窄屏布局。 */
+.quality-badge { display: inline-flex; align-self: flex-start; padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; }
+.quality-badge--blue { color: #1666b3; background: #e5f1ff; border: 1px solid #8dbce5; }
+.quality-badge--gold { color: #875c00; background: #fff3c4; border: 1px solid #d6a636; }
+.shop-item--blue { border-color: #8dbce5; }
+.shop-item--gold { border-color: #d6a636; background: #fffaf0; }
+.shop-item { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.shop-item p { margin: 0; }
+.sheet--merchant { width: min(900px, 100%); }
+.merchant-heading { display: flex; align-items: center; gap: 14px; }
+.merchant-heading p { margin: 8px 0; color: #28749d; font-family: var(--mono); }
+.merchant-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: 18px 0; }
+.merchant-tabs button[aria-pressed="true"] { background: #217eb1; color: white; }
+.merchant-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.merchant-item { display: flex; flex-direction: column; gap: 12px; padding: 15px; border: 1px solid #8dbce5; border-radius: 12px; background: #f8fbff; overflow-wrap: anywhere; }
+.merchant-item > button { margin-top: auto; }
+.merchant-item.is-sold { opacity: .55; }
+.merchant-value { display: flex; flex-direction: column; gap: 8px; font-size: 12px; line-height: 1.6; }
+.merchant-value p { margin: 0; }
+.merchant-value small { color: #657e8c; }
+.merchant-equipped { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #dce7ed; }
+@media (max-width: 650px) { .merchant-grid { grid-template-columns: 1fr; } .merchant-equipped { align-items: flex-start; flex-direction: column; } }
+
 /* 自动领取奖励逐项列出名称、效果和去向，宝箱分数另列。 */
 .reward-receipt { margin: 14px 0; padding: 16px; border: 1px solid #d9e5ed; border-radius: 12px; background: #f8fbfd; text-align: left; overflow-wrap: anywhere; }
 .reward-receipt__heading { display: flex; align-items: center; gap: 12px; font-size: 18px; color: #214b61; }
@@ -1221,15 +1251,15 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 
 /* 箱盖掀开后保持开启；金币先向四周飞散，再下落淡出，不影响奖励按钮。 */
 .treasure-art { position: relative; width: min(300px, 100%); height: 180px; margin: 0 auto -6px; pointer-events: none; }
-.treasure-art__chest { display: block; width: 100%; height: 180px; overflow: visible; }
-.treasure-art__lid { transform-origin: 150px 78px; transform: translateY(-10px) rotate(-12deg); animation: treasure-open .5s cubic-bezier(.2,.8,.3,1) both; }
-.treasure-art__glow { animation: treasure-glow .7s ease-out both; }
+.treasure-art__closed, .treasure-art__opened { --cell: 128px; position: absolute; left: calc(50% - 64px); top: 20px; width: 128px; height: 128px; image-rendering: pixelated; }
+.treasure-art__closed { opacity: 0; animation: treasure-closed .24s steps(1, end) both; }
+.treasure-art__opened { opacity: 1; animation: treasure-open .24s steps(1, end) both; }
 .treasure-art__coin { position: absolute; z-index: 1; left: calc(50% - 10px); top: 80px; width: 20px; height: 20px; opacity: 0; animation: treasure-coin 1.5s var(--coin-delay) cubic-bezier(.15,.55,.4,1) both; }
 .treasure-art__coin .emoji { width: 20px; height: 20px; }
-@keyframes treasure-open { from { transform: translateY(25px) rotate(0); } to { transform: translateY(-10px) rotate(-12deg); } }
-@keyframes treasure-glow { from { opacity: 0; transform: scale(.7); transform-origin: center; } to { opacity: 1; transform: scale(1); transform-origin: center; } }
+@keyframes treasure-closed { from { opacity: 1; } to { opacity: 0; } }
+@keyframes treasure-open { from { opacity: 0; } to { opacity: 1; } }
 @keyframes treasure-coin { 0% { opacity: 0; transform: translate(0, 0) scale(.5) rotate(0); } 12% { opacity: 1; } 55% { opacity: 1; transform: translate(var(--coin-x), var(--coin-y)) scale(1) rotate(var(--coin-spin)); } 100% { opacity: 0; transform: translate(var(--coin-x), var(--coin-land)) scale(.7) rotate(var(--coin-spin)); } }
-@media (prefers-reduced-motion: reduce) { .treasure-art__lid, .treasure-art__glow { animation: none; } .treasure-art__coin { display: none; animation: none; } }
+@media (prefers-reduced-motion: reduce) { .treasure-art__closed { display: none; } .treasure-art__opened { animation: none; } .treasure-art__coin { display: none; animation: none; } }
 
 /* 卡面宽高比 0.618，横向最多六张；更多卡片沿横轴滚动。 */
 .heroes { max-width: 1860px; margin: 0 auto; }

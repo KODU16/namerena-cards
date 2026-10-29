@@ -735,27 +735,58 @@ function mapScreen() {
         openCpu();
         return;
       }
+      if (node?.kind === 'weaponMerchant') {
+        if (!G.enterCamp(state, nodeId)) return;
+        mapScreen();
+        const openMerchant = (tab = 'buy') => {
+          sheet(UI.weaponMerchantSheet(state, { tab, stock: G.merchantStock(state),
+            onTab: openMerchant,
+            onBuy: (id) => {
+              toast(G.buyMerchantWeapon(state, id) ? '武器已放入物品栏' : '购买失败：分数不足或已售出');
+              UI.renderScoreBadge(state, true); openMerchant(tab);
+            },
+            onReforge: (id) => {
+              const result = G.reforgeWeapon(state, id);
+              toast(result ? '「' + result.oldName + '」重铸为「' + result.name + '」，消耗 ' + result.cost + ' 分' : '重铸失败：分数不足');
+              UI.renderScoreBadge(state, true); openMerchant(tab);
+            },
+            onSell: (id) => {
+              const result = G.sellWeapon(state, id);
+              toast(result ? '售出「' + result.name + '」，获得 ' + result.points + ' 分' : '这把武器已不在物品栏');
+              UI.renderScoreBadge(state, true); openMerchant(tab);
+            },
+            onUnequip: (id) => { G.unequipWeapon(state, id); openMerchant(tab); },
+            onLeave: () => { closeSheet(); mapScreen(); },
+          }));
+          document.querySelector('.sheet')?.classList.add('sheet--merchant');
+        };
+        openMerchant();
+        return;
+      }
       if (node?.kind === 'shop') {
         const openShop = () => {
-          const items = G.rollShop(state, (state.run.seed ^ (state.run.layer * 2654435761) ^ 0x51ed270b) >>> 0, state.run.layer);
-          const body = el('div', { class: 'inv__grid' }, items.map((it) => el('div', { class: 'inv__item' },
+          const items = G.shopStock(state);
+          const body = el('div', { class: 'inv__grid' }, items.map((it) => el('div', { class: 'inv__item shop-item shop-item--' + it.rarity },
+            UI.qualityBadge(it.rarity),
             el('b', {}, it.kind === 'skill' ? '技能卡 ' + skillMeta(it.skill.id).name
               : it.kind === 'card' ? '角色 ' + it.card.name + '@' + it.card.clan
                 : it.kind === 'weapon' ? '武器 ⚔ ' + it.weapon.name
                   : it.kind === 'potion' ? '药水 ' + (G.potionById(it.potion.id) || {}).name
                     : '战术 ' + (it.tactic?.name || '')),
+            el('p', { class: 'muted small' }, G.rewardSummary(it).detail),
             el('small', {}, it.price + ' 分'),
             el('button', {
-              class: 'ghost', type: 'button', disabled: (state.run.score || 0) < it.price,
+              class: 'ghost', type: 'button', disabled: it.sold || (state.run.score || 0) < it.price,
               onclick: () => {
-                if (G.buyShopItem(state, it)) { toast('购买成功：' + it.price + ' 分', 1600); openShop(); }
+                if (G.buyShopItem(state, it)) { toast('购买成功：' + it.price + ' 分', 1600); UI.renderScoreBadge(state, true); openShop(); }
                 else toast('分数不够', 1400);
               },
-            }, '购买'))));
+            }, it.sold ? '已售出' : '购买'))));
           sheet(el('div', {}, el('h2', {}, '商店'), el('p', { class: 'muted' }, '当前分数 ' + Math.round(state.run.score || 0)), body,
             el('div', { class: 'result__actions' }, el('button', { class: 'primary', type: 'button', onclick: () => { closeSheet(); mapScreen(); } }, '离开'))));
         };
-        G.enterCamp(state, nodeId);
+        if (!G.enterCamp(state, nodeId)) return;
+        mapScreen();
         openShop();
         return;
       }
