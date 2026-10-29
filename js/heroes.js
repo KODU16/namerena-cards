@@ -5,7 +5,7 @@ export const HEROES = [{
   name: 'Tik_Tok #IBxWzGZtr',
   clan: 'Shabby_fish',
   portrait: 'assets/heroes/tik-tok.webp',
-  description: '强评双项单挑双项，技能榜等更是手到擒来',
+  description: 'Tik_Tok已经横扫全球',
   scores: { pp: 8510, pd: 9497, qp: 6504, qd: 8210 },
 }, {
   id: 'squall-duo',
@@ -16,4 +16,13 @@ export const HEROES = [{
   ],
   portrait: 'assets/heroes/squall-duo.webp',
   description: '包揽了二人组前二',
+}, {
+  // 2022 年英雄沿用单人卡牌的四项榜单评分与按需加载立绘。
+  id: 'vruh-z',
+  year: 2022,
+  name: 'vRuH:z',
+  clan: '耗子尾汁',
+  portrait: 'assets/heroes/vruh-z.webp',
+  description: '年轻人不讲武德',
+  scores: { pp: 8500, pd: 9210, qp: 6122, qd: 7241 },
 }];
