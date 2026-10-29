@@ -709,44 +709,17 @@ export function renderForge(root, state, h) {
       ? el('p', { class: 'muted' }, '生成后可以将角色加入卡组。') : null)));
 }
 
-// 英雄卡保持宽高 0.618；多卡横向排列，纵向滚轮用于横向浏览。
+// 英雄按类型和年份归档；二人组共用立绘，摊开的资料卡可点选居中。
 export function renderHeroes(root, heroes, h) {
   const labels = { hp: '血', atk: '攻', def: '防', spd: '速', agi: '敏', mag: '魔', res: '抗', wis: '智' };
   const scoreLabels = [['pp', '普评'], ['qp', '强评'], ['qd', '强单'], ['pd', '普单']];
-  const rail = el('div', { class: 'heroes__rail', tabindex: '0', 'aria-label': '英雄角色卡，横向滚动浏览' },
-    heroes.map((hero) => {
-      const card = hero.card;
-      return el('article', { class: 'hero-card', 'aria-label': hero.name + '@' + hero.clan },
-        el('div', { class: 'hero-card__portrait' }, el('img', { src: hero.portrait, alt: hero.name + ' 英雄立绘', loading: 'lazy', decoding: 'async', width: '640', height: '640' })),
-        el('div', { class: 'hero-card__body' },
-          el('p', { class: 'hero-card__description' }, hero.description),
-          el('div', { class: 'hero-card__identity' },
-            el('span', { class: 'hero-card__badge' }, gradeIcon(card) || emojiImg('star', 'emoji emoji--sm')),
-            el('div', { class: 'hero-card__names', title: card.id },
-              el('b', { class: 'hero-card__name' }, card.name),
-              el('span', { class: 'hero-card__clan' }, '@' + card.clan)),
-            el('img', { class: 'hero-card__expression', src: card.icon, alt: '名字表情' })),
-          el('dl', { class: 'hero-card__stats' }, Object.entries(labels).map(([key, label]) =>
-            el('div', {}, el('dt', {}, label), el('dd', {}, Math.round(card.stats[key] || 0))))),
-          el('div', { class: 'hero-card__skills', tabindex: '0', 'aria-label': '技能熟练度' }, card.skillList.length
-            ? card.skillList.map((skill) => el('span', { title: skillMeta(skill.id).desc }, emojiImg(skill.id, 'emoji emoji--xs'), skillMeta(skill.id).name, el('b', {}, skill.lv)))
-            : el('span', { class: 'muted' }, '无技能')),
-          el('dl', { class: 'hero-card__scores' }, scoreLabels.map(([key, label]) =>
-            el('div', {}, el('dt', {}, label), el('dd', {}, Number.isFinite(hero.scores?.[key]) ? hero.scores[key] : '—'))))));
-    }));
-  rail.addEventListener('wheel', (event) => {
-    if (event.ctrlKey || event.target.closest('.hero-card__skills') || rail.scrollWidth <= rail.clientWidth || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
-    const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rail.clientWidth : 1);
-    if ((delta < 0 && rail.scrollLeft <= 0) || (delta > 0 && rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 1)) return;
-    event.preventDefault(); rail.scrollLeft += delta;
-  }, { passive: false });
-  root.replaceChildren(el('section', { class: 'heroes' },
-    el('header', { class: 'heroes__head' }, el('div', {}, el('div', { class: 'home__kicker' }, 'HERO GALLERY'), el('h1', {}, '英雄角色')),
-      el('button', { class: 'ghost', type: 'button', onclick: h.onHome }, '返回')),
-    rail));
-  // 两行分别自适应字号，完整显示名字与队伍，不折行、不省略。
-  const fitNames = () => {
-    for (const line of rail.querySelectorAll('.hero-card__name, .hero-card__clan')) {
+  const years = Array.from({ length: 11 }, (_, i) => 2026 - i);
+  const archive = el('div', { class: 'heroes__archive' });
+  let mode = 'single';
+  let collapseFocused = null;
+  // 自动缩字保留完整的两行姓名，并按真实换行判断是否需要展开技能组。
+  const fitLayout = () => {
+    for (const line of archive.querySelectorAll('.hero-card__name, .hero-card__clan')) {
       let size = line.classList.contains('hero-card__name') ? 14 : 11;
       line.style.fontSize = size + 'px';
       if (line.clientWidth && line.scrollWidth > line.clientWidth) {
@@ -755,11 +728,127 @@ export function renderHeroes(root, heroes, h) {
         while (line.scrollWidth > line.clientWidth && size > 1) { size -= .1; line.style.fontSize = size + 'px'; }
       }
     }
+    for (const wrap of archive.querySelectorAll('.hero-card__skills-wrap')) {
+      const list = wrap.querySelector('.hero-card__skills');
+      wrap.querySelector('.hero-card__expand').hidden = list.scrollHeight <= list.clientHeight + 1;
+    }
   };
-  fitNames();
-  const observer = new ResizeObserver(() => { if (!rail.isConnected) observer.disconnect(); else fitNames(); });
-  observer.observe(rail);
-  document.fonts.ready.then(() => { if (rail.isConnected) fitNames(); });
+  const skillItems = (card) => card.skillList.length
+    ? card.skillList.map((skill) => el('span', { title: skillMeta(skill.id).desc }, emojiImg(skill.id, 'emoji emoji--xs'), skillMeta(skill.id).name, el('b', {}, skill.lv)))
+    : [el('span', { class: 'muted' }, '无技能')];
+  const heroCard = (hero) => {
+    const cards = hero.cards || [hero.card];
+    const duo = cards.length === 2;
+    const details = el('div', { class: 'hero-card__details' });
+    const panes = [];
+    let outsideController = null;
+    const collapse = () => {
+      panes.forEach((pane) => {
+        pane.classList.remove('is-focused');
+        pane.setAttribute('aria-expanded', 'false');
+        pane.querySelector('.hero-card__skill-panel').hidden = true;
+        const expand = pane.querySelector('.hero-card__expand');
+        expand.textContent = '点击展开技能组';
+        expand.setAttribute('aria-expanded', 'false');
+      });
+      article.classList.remove('has-focused-member');
+      outsideController?.abort();
+      if (collapseFocused === collapse) collapseFocused = null;
+    };
+    // 同一节点通过 CSS 变换从摊牌位置移到中央，切换成员也保留动画。
+    const focusMember = (pane) => {
+      // 多张英雄并列时，打开另一张也视为点击当前资料卡外部。
+      collapseFocused?.();
+      collapse();
+      collapseFocused = collapse;
+      pane.classList.add('is-focused');
+      pane.setAttribute('aria-expanded', 'true');
+      article.classList.add('has-focused-member');
+      outsideController = new AbortController();
+      document.addEventListener('click', (event) => {
+        if (!pane.contains(event.target)) collapse();
+      }, { signal: outsideController.signal });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') collapse();
+      }, { signal: outsideController.signal });
+      fitLayout();
+    };
+    const memberPane = (card, index) => {
+      // 首行之外的技能通过面板展开，移除内部拖动条。
+      const panel = el('div', { class: 'hero-card__skill-panel', hidden: true },
+        el('b', { class: 'hero-card__skill-title' }, '技能熟练度'),
+        el('div', { class: 'hero-card__skill-list' }, skillItems(card)));
+      const expand = el('button', { class: 'hero-card__expand', type: 'button', 'aria-expanded': 'false', onclick: (event) => {
+        event.stopPropagation();
+        if (duo && !pane.classList.contains('is-focused')) focusMember(pane);
+        panel.hidden = !panel.hidden;
+        expand.textContent = panel.hidden ? '点击展开技能组' : '收起技能组';
+        expand.setAttribute('aria-expanded', String(!panel.hidden));
+      } }, '点击展开技能组');
+      const pane = el('div', { class: 'hero-card__member', ...(duo ? {
+        tabindex: '0', role: 'button', 'aria-label': '查看' + card.name + '的详细信息', 'aria-expanded': 'false',
+        'data-member': index,
+        onclick: (event) => { event.stopPropagation(); if (!pane.classList.contains('is-focused')) focusMember(pane); },
+        onkeydown: (event) => {
+          if (event.target !== pane) return;
+          if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); focusMember(pane); }
+          if (event.key === 'Escape') collapse();
+        },
+      } : {}) },
+        el('div', { class: 'hero-card__identity' },
+          // 名字生成图是队徽，放左侧；绿色评级表情固定在右侧。
+          el('span', { class: 'hero-card__badge' }, el('img', { src: card.icon, width: 24, height: 24, alt: '队徽' })),
+          el('div', { class: 'hero-card__names', title: card.id },
+            el('b', { class: 'hero-card__name' }, card.name),
+            el('span', { class: 'hero-card__clan' }, '@' + card.clan)),
+          el('span', { class: 'hero-card__expression', title: '评级表情' }, gradeIcon(card) || emojiImg('star', 'emoji emoji--sm'))),
+        el('dl', { class: 'hero-card__stats' }, Object.entries(labels).map(([key, label]) =>
+          el('div', {}, el('dt', {}, label), el('dd', {}, Math.round(card.stats[key] || 0))))),
+        el('div', { class: 'hero-card__skills-wrap' },
+          el('div', { class: 'hero-card__skills', 'aria-label': '技能熟练度首行' }, skillItems(card)), expand, panel),
+        !duo ? el('dl', { class: 'hero-card__scores' }, scoreLabels.map(([key, label]) =>
+          el('div', {}, el('dt', {}, label), el('dd', {}, Number.isFinite(hero.scores?.[key]) ? hero.scores[key] : '—')))) : null);
+      panes.push(pane);
+      return pane;
+    };
+    const article = el('article', { class: 'hero-card' + (duo ? ' hero-card--duo' : ''), 'aria-label': cards.map((card) => card.id).join(' + ') },
+      el('div', { class: 'hero-card__portrait' }, el('img', { src: hero.portrait, alt: cards.map((card) => card.name).join('与') + ' 英雄立绘', loading: 'lazy', decoding: 'async', width: '640', height: '640' })),
+      el('div', { class: 'hero-card__body' }, el('p', { class: 'hero-card__description' }, hero.description), details));
+    details.replaceChildren(...cards.map(memberPane));
+    return article;
+  };
+  const renderYears = () => {
+    collapseFocused?.();
+    archive.replaceChildren(...years.map((year) => {
+      const entries = heroes.filter((hero) => hero.year === year && ((hero.cards?.length || 1) === 2 ? 'duo' : 'single') === mode);
+      const rail = el('div', { class: 'heroes__rail' + (mode === 'duo' ? ' heroes__rail--duo' : ''), tabindex: '0', 'aria-label': year + '年英雄角色，横向滚动浏览' }, entries.map(heroCard));
+      rail.addEventListener('wheel', (event) => {
+        if (event.ctrlKey || rail.scrollWidth <= rail.clientWidth || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
+        const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rail.clientWidth : 1);
+        if ((delta < 0 && rail.scrollLeft <= 0) || (delta > 0 && rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 1)) return;
+        event.preventDefault(); rail.scrollLeft += delta;
+      }, { passive: false });
+      return el('section', { class: 'heroes__year-section', 'data-year': year },
+        el('h2', { class: 'heroes__year' }, year, el('span', { 'aria-hidden': 'true' })),
+        entries.length ? rail : el('p', { class: 'heroes__empty' }, '暂无英雄角色'));
+    }));
+    fitLayout();
+  };
+  const filters = el('div', { class: 'heroes__filters', role: 'group', 'aria-label': '英雄类型' },
+    [['single', '单人英雄'], ['duo', '二人组英雄']].map(([value, label]) => el('button', {
+      type: 'button', 'aria-pressed': String(value === mode), onclick: (event) => {
+        mode = value;
+        filters.querySelectorAll('button').forEach((button) => button.setAttribute('aria-pressed', String(button === event.currentTarget)));
+        renderYears();
+      },
+    }, label)));
+  root.replaceChildren(el('section', { class: 'heroes' },
+    el('header', { class: 'heroes__head' }, el('div', {}, el('div', { class: 'home__kicker' }, 'HERO GALLERY'), el('h1', {}, '英雄角色')),
+      el('button', { class: 'ghost', type: 'button', onclick: h.onHome }, '返回')), filters, archive));
+  renderYears();
+  const observer = new ResizeObserver(() => { if (!archive.isConnected) observer.disconnect(); else fitLayout(); });
+  observer.observe(archive);
+  document.fonts.ready.then(() => { if (archive.isConnected) fitLayout(); });
 }
 
 // ————————————————————— 悬浮提示（技能名 + 说明）

@@ -554,7 +554,8 @@ export class DuelView {
       // 回复 MP 后刷新原手牌的锁定状态，不重抽牌或重新掷费用。
       for (const card of this.handEl.querySelectorAll('.hcard')) {
         const cost = Number(card.dataset.mpCost || 0);
-        const locked = cost > next.magic_point;
+        // 普攻不消耗 MP，负余额也不能锁定它。
+        const locked = card.dataset.cardId !== 'normal' && cost > next.magic_point;
         card.disabled = locked;
         card.classList.toggle('is-locked', locked);
         card.title = locked ? 'MP 不足（需要 ' + cost + ' MP）' : (skillMeta(card.dataset.cardId)?.desc || '普通攻击');
@@ -568,7 +569,7 @@ export class DuelView {
     if (this.berserkTimer) { clearTimeout(this.berserkTimer); this.berserkTimer = null; }
     this.waitingState = state;
     this.turnBanner('player', this.roundOf(decision));
-    const mp = Math.max(0, state.magic_point || 0);
+    const mp = state.magic_point || 0;
     // 狂暴（含被附体）：四张牌全部是「狂暴攻击」，自动随机打出一张，结果交给引擎
     const berserk = (state.status_labels || []).some((l) => l.includes('狂暴'));
     // 分身和多人队友分别判断，只在自己的狂暴出牌期间泛红。
@@ -601,6 +602,8 @@ export class DuelView {
     }
     // tswn 不允许连续蓄力：已经在蓄力状态时，牌堆里不再出现蓄力术
     const charging = (state.status_labels || []).some((l) => String(l).startsWith('蓄力'));
+    // 铁壁持续期间也不能再次抽到铁壁，状态消失后恢复入池。
+    const ironActive = (state.status_labels || []).some((l) => String(l).startsWith('铁壁'));
     // 已有使魔 → 血祭不再进牌池（每个角色只能有 1 只使魔）；蓄力中同理
     const liveStates = (this.current?.frames || []).length
       ? this.current.frames[this.current.frames.length - 1].states
@@ -608,6 +611,7 @@ export class DuelView {
     const hasSummon = (liveStates || []).some((s) => s.owner_id === state.id && s.minion_kind === 'summon');
     const exclude = new Set();
     if (charging) exclude.add('sklcharge');
+    if (ironActive) exclude.add('skliron');
     if (hasSummon) exclude.add('sklsummon');
     // 苏生术只能复活「已经倒下的本体/非召唤物」；没有这样的目标时不给这张牌，
     // 否则引擎选不到目标会把它降级成普通攻击
@@ -632,8 +636,8 @@ export class DuelView {
     this.handEl.replaceChildren(...cards);
     this.markWaiting(state.id);
     if (!hand.length) {
-      // 蓄力把唯一可抽的技能排除掉了：本回合只剩普通攻击，明确提示一下
-      const why = hasSummon && !charging ? '已有使魔' : '蓄力中';
+      // 状态过滤后只剩普通攻击时，提示真实原因。
+      const why = [charging && '蓄力中', ironActive && '铁壁中', hasSummon && '已有使魔'].filter(Boolean).join('、') || '没有适用目标';
       this.logEl.append(el('div', { class: 'log__you' }, '→ ' + why + '：没有可用的技能卡，本回合只能普通攻击'));
     }
     this.interactive = true;
@@ -646,7 +650,8 @@ export class DuelView {
     // 使用喝药后的 MP，避免点击回调仍捕获喝药前的旧余额。
     mp = this.waitingState?.magic_point ?? mp;
     const id = card.id === 'normal' ? NORMAL_ID : ACTIVE_ID[card.id];
-    if (id == null || (card.cost || 0) > mp) return;
+    // 普攻不检查 MP 余额；技能仍按抽牌时掷出的费用检查。
+    if (id == null || (card.id !== 'normal' && (card.cost || 0) > mp)) return;
     this.clearWaiting();
     this.interactive = false;
     const node = this.handEl.querySelector(`[data-card-id="${card.id}"]`);

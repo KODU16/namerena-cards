@@ -862,7 +862,9 @@ async function buildForgeCard(event) {
 
 // 英雄区按配置名单现算卡牌，不增加初始启动时的图片请求。
 function heroesScreen() {
-  const heroes = HEROES.map((hero) => ({ ...hero, card: makeCard(hero.name, hero.clan) }));
+  const heroes = HEROES.map((hero) => ({ ...hero,
+    cards: (hero.members || [hero]).map((member) => makeCard(member.name, member.clan)),
+  }));
   nav('heroes', () => UI.renderHeroes(root, heroes, { onHome: home }));
 }
 

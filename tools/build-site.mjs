@@ -31,20 +31,11 @@ if (existing.length) {
 const wasm = await read('vendor/tswn_wasm_duel/tswn_wasm_bg.wasm');
 const wasmName = 'tswn_wasm_bg-' + hash(wasm) + '.wasm';
 await emit('vendor/tswn_wasm_duel/' + wasmName, wasm);
-// 预压缩引擎为普通二进制文件，由浏览器原生解压，不依赖 Pages 对 wasm 开启 gzip。
-const wasmGzip = gzipSync(wasm, { level: 9 });
-const compressedName = 'tswn_wasm_bg-' + hash(wasmGzip) + '.bin';
-await emit('vendor/tswn_wasm_duel/' + compressedName, wasmGzip);
+// 直接加载标准 WASM，避免 .bin 请求被 IDM 接管为文件下载。
 const vendorSource = (await read('vendor/tswn_wasm_duel/tswn_wasm.js')).toString('utf8')
-  .replace("module_or_path = new URL('tswn_wasm_bg.wasm', import.meta.url);", [
-    "if (typeof DecompressionStream === 'function') {",
-    'module_or_path = fetch(new URL(' + JSON.stringify(compressedName) + ', import.meta.url)).then((response) => {',
-    "if (!response.ok) throw new Error('Engine download failed: ' + response.status);",
-    "return new Response(response.body.pipeThrough(new DecompressionStream('gzip')), { headers: { 'Content-Type': 'application/wasm' } });",
-    '});',
-    '} else { module_or_path = new URL(' + JSON.stringify(wasmName) + ', import.meta.url); }',
-  ].join('\n'));
-if (!vendorSource.includes(compressedName)) throw new Error('WASM loader format changed; update compression rewrite');
+  .replace("module_or_path = new URL('tswn_wasm_bg.wasm', import.meta.url);",
+    'module_or_path = new URL(' + JSON.stringify(wasmName) + ', import.meta.url);');
+if (!vendorSource.includes(wasmName)) throw new Error('WASM loader format changed; update asset rewrite');
 const vendor = (await transform(vendorSource, { minify: true, format: 'esm', target: 'es2020', legalComments: 'none' })).code;
 const vendorName = 'tswn_wasm-' + hash(vendor) + '.js';
 await emit('vendor/tswn_wasm_duel/' + vendorName, vendor);
@@ -102,9 +93,9 @@ html = html.replace(/css\/style\.css\?v=\d+/g, 'css/' + cssName)
 await emit('index.html', html);
 await emit('.nojekyll', '');
 await emit('NOTICE.md', await read('NOTICE.md'));
-// 估算可压缩文本与 wasm 的传输体积；PNG 按原始字节计，不依赖服务器一定启用 gzip。
+// 仅估算文本压缩；WASM 和 PNG 按原始字节计，不依赖服务器开启 gzip。
 const assets = [Buffer.from(html), Buffer.from(app), Buffer.from(vendor), Buffer.from(css),
   Buffer.from(JSON.stringify(JSON.parse(await read('data/tactics.json'))))];
-const raw = wasmGzip.length + gradeBytes + assets.reduce((sum, data) => sum + data.length, 0) + sprite.length + (await read('assets/favicon.png')).length;
-const gzip = wasmGzip.length + gradeBytes + assets.reduce((sum, data) => sum + gzipSync(data, { level: 9 }).length, 0) + sprite.length + (await read('assets/favicon.png')).length;
+const raw = wasm.length + gradeBytes + assets.reduce((sum, data) => sum + data.length, 0) + sprite.length + (await read('assets/favicon.png')).length;
+const gzip = wasm.length + gradeBytes + assets.reduce((sum, data) => sum + gzipSync(data, { level: 9 }).length, 0) + sprite.length + (await read('assets/favicon.png')).length;
 console.log('dist ready: first-load assets ' + (raw / 1024).toFixed(1) + ' KiB raw / ' + (gzip / 1024).toFixed(1) + ' KiB gzip estimate');
