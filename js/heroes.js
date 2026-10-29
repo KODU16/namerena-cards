@@ -25,4 +25,13 @@ export const HEROES = [{
   portrait: 'assets/heroes/vruh-z.webp',
   description: '年轻人不讲武德',
   scores: { pp: 8500, pd: 9210, qp: 6122, qd: 7241 },
+}, {
+  // 2020 年英雄按提供的名字生成属性，榜单评分独立保留。
+  id: 'bingcha-xinshi',
+  year: 2020,
+  name: '并查信使遗纵骏',
+  clan: '学车中学',
+  portrait: 'assets/heroes/bingcha-xinshi.webp',
+  description: '预计成为汏修垄一样的超级霸主',
+  scores: { pp: 7707, pd: 8752, qp: 5512, qd: 6386 },
 }];
