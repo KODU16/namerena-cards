@@ -143,4 +143,29 @@ export const HEROES = [{
   portrait: 'assets/heroes/braille-xj.webp',
   description: '第六届武术大赛冠军',
   scores: { pp: 7795, pd: 8641, qp: 5150, qd: 5627, sum: 27213 },
+}, {
+  // 第七至第九届冠军按届次独立归档，保留提供的名字、评分和对应立绘。
+  id: 'ithea-310129',
+  year: 2021,
+  name: 'Ithea310129',
+  clan: '末日三问',
+  portrait: 'assets/heroes/ithea-310129.webp',
+  description: '第七届武术大赛冠军',
+  scores: { pp: 7626, pd: 8600, qp: 5174, qd: 5579, sum: 26979 },
+}, {
+  id: 'lingyun-5ce4yqjl26f681',
+  year: 2022,
+  name: '5CE4YQJL26F681',
+  clan: '霛雲',
+  portrait: 'assets/heroes/lingyun-5ce4yqjl26f681.webp',
+  description: '第八届武术大赛冠军',
+  scores: { pp: 8450, pd: 9263, qp: 5644, qd: 6764, sum: 30121 },
+}, {
+  id: 'f-syqhmyv',
+  year: 2022,
+  name: 'F',
+  clan: 'SyqhmyV',
+  portrait: 'assets/heroes/f-syqhmyv.webp',
+  description: '第九届武术大赛冠军',
+  scores: { pp: 8428, pd: 9071, qp: 5920, qd: 5986, sum: 29405 },
 }];
