@@ -118,4 +118,29 @@ export const HEROES = [{
   portrait: 'assets/heroes/zhan1-2841600.webp',
   description: '第三届武术大赛冠军',
   scores: { pp: 7374, pd: 8451, qp: 4906, qd: 5205, sum: 25936 },
+}, {
+  // 第四至第六届冠军保留原始特殊字符姓名，使用对应年份与榜单评分。
+  id: 'yunjian-ashen',
+  year: 2020,
+  name: '云剑擏黃琁',
+  clan: 'Ashen',
+  portrait: 'assets/heroes/yunjian-ashen.webp',
+  description: '第四届武术大赛冠军',
+  scores: { pp: 6787, pd: 7883, qp: 4364, qd: 4667, sum: 23701 },
+}, {
+  id: 'liutingju-zuoyou',
+  year: 2021,
+  name: '留挻挙',
+  clan: '佐佑',
+  portrait: 'assets/heroes/liutingju-zuoyou.webp',
+  description: '第五届武术大赛冠军',
+  scores: { pp: 7387, pd: 8323, qp: 5359, qd: 5610, sum: 26679 },
+}, {
+  id: 'braille-xj',
+  year: 2021,
+  name: '⢿⡑⠃⢅⢶⡽',
+  clan: 'XJ联队',
+  portrait: 'assets/heroes/braille-xj.webp',
+  description: '第六届武术大赛冠军',
+  scores: { pp: 7795, pd: 8641, qp: 5150, qd: 5627, sum: 27213 },
 }];
