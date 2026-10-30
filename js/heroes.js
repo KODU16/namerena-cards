@@ -68,4 +68,29 @@ export const HEROES = [{
   portrait: 'assets/heroes/daxiulong-xingjiejing.webp',
   description: '以积分为标准的天梯还拼的是大概率',
   scores: { pp: 7557, pd: 8654, qp: 5010, qd: 5883, sum: 27104 },
+}, {
+  // 新增历史英雄沿用按年归档与四项榜单展示，保留原始名字标点。
+  id: 'dingyuan-1266270',
+  year: 2020,
+  name: '定远·1266270',
+  clan: 'hhh233353',
+  portrait: 'assets/heroes/dingyuan-1266270.webp',
+  description: '第一个普评8000+',
+  scores: { pp: 8064, pd: 8787, qp: 5386, qd: 5627, sum: 27864 },
+}, {
+  id: 'kongge-5068463',
+  year: 2020,
+  name: '5068463',
+  clan: '空阁',
+  portrait: 'assets/heroes/kongge-5068463.webp',
+  description: '当新人真厉害，我也要当新人（',
+  scores: { pp: 7831, pd: 8545, qp: 5898, qd: 6019, sum: 28293 },
+}, {
+  id: 'taohua-liushui',
+  year: 2021,
+  name: '桃花流水的香火因缘',
+  clan: 'Hell',
+  portrait: 'assets/heroes/taohua-liushui.webp',
+  description: '让我来考大家一些信奥方面的知识吧',
+  scores: { pp: 8074, pd: 8707, qp: 5480, qd: 5233, sum: 27494 },
 }];
