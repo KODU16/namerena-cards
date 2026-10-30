@@ -637,7 +637,7 @@ export function weaponMerchantSheet(state, h) {
     if (!grid.childElementCount) grid.append(el('p', { class: 'muted' }, '物品栏里还没有可交易的武器。'));
   }
   return el('section', { class: 'merchant' },
-    el('div', { class: 'merchant-heading' }, emojiImg('weaponMerchant', 'emoji emoji--xxl'), el('div', {}, el('h2', {}, '武器商人'), el('p', {}, '天梯分数 ' + Math.round(score)))),
+    el('div', { class: 'merchant-heading' }, emojiImg('weaponMerchant', 'emoji emoji--xxl'), el('p', {}, '天梯分数 ' + Math.round(score))),
     el('div', { class: 'merchant-tabs', role: 'group', 'aria-label': '武器交易' }, [['buy', '购买武器'], ['reforge', '重铸武器'], ['sell', '出售武器']].map(([id, label]) =>
       el('button', { class: 'ghost', type: 'button', 'aria-pressed': String(tab === id), onclick: () => h.onTab(id) }, label))),
     el('p', { class: 'muted small' }, tab === 'buy' ? '本次摆出三把武器，售出后不补货。'

@@ -62,6 +62,18 @@ function sheet(...kids) {
   overlay.classList.remove('hidden');
 }
 
+// 同一窗口包含左侧立绘和右侧交易区，商人标题固定在立绘上方。
+function shopSheet(kind, ...kids) {
+  sheet(...kids);
+  const panel = overlay.querySelector('.sheet');
+  const weapon = kind === 'weapon';
+  if (weapon) panel.classList.add('sheet--merchant');
+  overlay.replaceChildren(el('div', { class: 'shop-stage' + (weapon ? ' shop-stage--weapon' : ''), role: 'dialog', 'aria-label': weapon ? '武器商人' : '商店' },
+    el('aside', { class: 'shop-stage__character' }, el('h2', {}, weapon ? '武器商人' : '商人'),
+      el('img', { class: 'shop-stage__portrait', src: weapon ? 'assets/characters/weapon-merchant.webp' : 'assets/characters/merchant.webp',
+        alt: weapon ? '武器商人立绘' : '商人立绘', width: 800, height: 800, decoding: 'async' })), panel));
+}
+
 function closeSheet() {
   overlay.classList.add('hidden');
   overlay.replaceChildren();
@@ -739,7 +751,7 @@ function mapScreen() {
         if (!G.enterCamp(state, nodeId)) return;
         mapScreen();
         const openMerchant = (tab = 'buy') => {
-          sheet(UI.weaponMerchantSheet(state, { tab, stock: G.merchantStock(state),
+          shopSheet('weapon', UI.weaponMerchantSheet(state, { tab, stock: G.merchantStock(state),
             onTab: openMerchant,
             onBuy: (id) => {
               toast(G.buyMerchantWeapon(state, id) ? '武器已放入物品栏' : '购买失败：分数不足或已售出');
@@ -758,7 +770,6 @@ function mapScreen() {
             onUnequip: (id) => { G.unequipWeapon(state, id); openMerchant(tab); },
             onLeave: () => { closeSheet(); mapScreen(); },
           }));
-          document.querySelector('.sheet')?.classList.add('sheet--merchant');
         };
         openMerchant();
         return;
@@ -782,7 +793,7 @@ function mapScreen() {
                 else toast('分数不够', 1400);
               },
             }, it.sold ? '已售出' : '购买'))));
-          sheet(el('div', {}, el('h2', {}, '商店'), el('p', { class: 'muted' }, '当前分数 ' + Math.round(state.run.score || 0)), body,
+          shopSheet('general', el('div', {}, el('p', { class: 'muted' }, '当前分数 ' + Math.round(state.run.score || 0)), body,
             el('div', { class: 'result__actions' }, el('button', { class: 'primary', type: 'button', onclick: () => { closeSheet(); mapScreen(); } }, '离开'))));
         };
         if (!G.enterCamp(state, nodeId)) return;

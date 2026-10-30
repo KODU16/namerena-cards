@@ -34,4 +34,13 @@ export const HEROES = [{
   portrait: 'assets/heroes/bingcha-xinshi.webp',
   description: '预计成为汏修垄一样的超级霸主',
   scores: { pp: 7707, pd: 8752, qp: 5512, qd: 6386 },
+}, {
+  // 历史冠军使用提供的榜单评分，属性和技能由名字现算。
+  id: 'wenge-i357114',
+  year: 2019,
+  name: '文鸽I357114',
+  clan: '文哥',
+  portrait: 'assets/heroes/wenge-i357114.webp',
+  description: '第0届武术大赛冠军',
+  scores: { pp: 7152, pd: 8003, qp: 4571, qd: 4334, sum: 24060 },
 }];
