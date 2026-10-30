@@ -1,5 +1,5 @@
 ﻿// 局内状态、爬塔流程与存档。
-import { makeCard, iconFor, statsWithWeapon, buildWithWeapon, applyRunBuff, runMultiplier } from './engine.js';
+import { makeCard, hydrateCard, iconFor, statsWithWeapon, buildWithWeapon, applyRunBuff, runMultiplier } from './engine.js';
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
 
 // 给一张卡套上开局保底倍率，并把倍率记在卡上供界面显示加成
@@ -157,7 +157,8 @@ function hydrateOpponent(o) {
 function hydrateSaved(c) {
   if (!c || !c.stats) return null;
   return {
-    ...c,
+    // 带原始 attrs 的旧卡池/存档也通过同一外显属性入口恢复。
+    ...hydrateCard(c),
     icon: c.icon || iconFor(c.name, c.clan),
     skillList: (c.skillList || []).map((s) => ({ ...s, cat: s.cat || SKILLS[s.id]?.cat || 'atk' })),
   };

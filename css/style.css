@@ -1297,6 +1297,8 @@ body[data-screen="heroes"] .screen { max-width: 1912px; }
 .hero-card__portrait img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .hero-card__portrait::after { content: ''; position: absolute; inset: 50% 0 -1px; background: linear-gradient(transparent, #ffffffb3 62%, #fff); pointer-events: none; }
 .hero-card__body { position: relative; margin-top: -48px; padding: 0 14px 14px; display: flex; flex-direction: column; gap: 7px; flex: 1; min-height: 0; }
+/* 多出半行技能预览，信息区相应上移，保持原卡面比例及评分完整。 */
+.hero-card:not(.hero-card--duo) .hero-card__body { margin-top: -64px; }
 .hero-card__description { margin: 0; min-height: 28px; font-size: 11px; line-height: 1.35; color: #536b76; }
 .hero-card__identity { display: grid; grid-template-columns: 24px minmax(0, 1fr) 24px; gap: 7px; align-items: center; min-height: 36px; }
 .hero-card__badge { display: grid; place-items: center; width: 24px; }
@@ -1311,7 +1313,9 @@ body[data-screen="heroes"] .screen { max-width: 1912px; }
 .hero-card__stats > div { display: flex; gap: 5px; align-items: baseline; }
 .hero-card dt { color: #71828a; }
 .hero-card dd { margin: 0; font-weight: 700; color: #214b61; }
-.hero-card__skills { display: flex; flex-wrap: wrap; align-content: start; gap: 4px 9px; height: 24px; min-height: 24px; overflow: hidden; }
+.hero-card__skills { display: flex; flex-wrap: wrap; align-content: start; gap: 4px 9px; height: 42px; min-height: 42px; overflow: hidden; }
+/* 下一行保留渐隐预览，第一行清晰，提示需要展开才能看全。 */
+.hero-card__skills.has-more { mask-image: linear-gradient(#000 0 23px, #0006 32px, transparent 42px); }
 .hero-card__skills > span, .hero-card__skill-list > span { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; font-size: 11px; line-height: 22px; }
 .hero-card__skills b, .hero-card__skill-list b { color: #2473a1; font-family: var(--mono); }
 .hero-card__scores { flex: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid #e5edf2; padding-top: 7px; text-align: center; font-size: 11px; }
@@ -1325,7 +1329,7 @@ body[data-screen="heroes"] .screen { max-width: 1912px; }
 .heroes__year > span { flex: 1; height: 1px; background: #d7e3eb; }
 .heroes__empty { margin: 10px 0 22px; font-size: 12px; color: #91a2ae; }
 .hero-card__details, .hero-card__member { display: flex; flex-direction: column; gap: 7px; flex: 1; min-height: 0; }
-.hero-card__skills-wrap { display: flex; flex-direction: column; flex: 1; min-height: 46px; gap: 2px; }
+.hero-card__skills-wrap { display: flex; flex-direction: column; flex: 1; min-height: 62px; gap: 2px; }
 .hero-card__expand { align-self: flex-end; margin-top: auto; padding: 1px 0; border: 0; border-radius: 0; background: none; box-shadow: none; color: #28749d; font-size: 10px; line-height: 18px; }
 /* 完整技能用浮层展开，不设置内部滚动条；立绘与卡面比例保持不变。 */
 .hero-card__skill-panel { position: absolute; z-index: 3; left: 10px; right: 10px; bottom: 80px; padding: 12px; border: 1px solid #c4dce9; border-radius: 10px; background: #fffffff5; box-shadow: 0 5px 20px #234b6129; }
@@ -1343,7 +1347,10 @@ body[data-screen="heroes"] .screen { max-width: 1912px; }
 .hero-card--duo .hero-card__member { position: absolute; z-index: 1; left: 7%; top: calc(100% - 292px); width: 86%; height: 160px; padding: 12px; border: 1px solid #c8dce9; border-radius: 10px; background: #fffffff5; box-shadow: 0 4px 14px #24435820; cursor: pointer; transform: rotate(-4deg); transform-origin: center; transition: top .3s ease, transform .3s ease, height .3s ease, box-shadow .3s ease; }
 .hero-card--duo .hero-card__member[data-member="1"] { z-index: 2; top: calc(100% - 174px); transform: rotate(4deg); }
 .hero-card--duo .hero-card__member:focus-visible { outline: 2px solid #217eb1; outline-offset: 2px; }
-.hero-card--duo .hero-card__member.is-focused { z-index: 5; top: 50%; height: 246px; transform: translateY(-50%) rotate(0); cursor: default; box-shadow: 0 12px 38px #183d6850; }
+.hero-card--duo .hero-card__member.is-focused { z-index: 5; top: 50%; height: auto; min-height: 246px; transform: translateY(-50%) rotate(0); cursor: default; box-shadow: 0 12px 38px #183d6850; }
+/* 二人组聚焦即展示全部技能，不再生成展开按钮或额外技能浮层。 */
+.hero-card--duo .hero-card__skills-wrap { flex: none; min-height: 42px; }
+.hero-card--duo .is-focused .hero-card__skills { height: auto; overflow: visible; mask-image: none; }
 .hero-card--duo.has-focused-member::after { content: ''; position: absolute; inset: 0; z-index: 4; background: #ffffff75; }
 .hero-card--duo .hero-card__skill-panel { left: 8px; right: 8px; bottom: 32px; }
 @media (prefers-reduced-motion: reduce) { .hero-card--duo .hero-card__member { transition: none; } }

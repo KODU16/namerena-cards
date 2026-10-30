@@ -106,9 +106,10 @@ for (const [name, clan, flavor] of ROSTER) {
   cards.push({
     id: name, name, clan, flavor,
     attrs: ol.attrs,
+    // 卡池保存外显 attrs，Runtime 的 speed 含 +124，不能直接写进卡面。
     stats: {
-      atk: st.attack, def: st.defense, spd: st.speed, agi: st.agility,
-      mag: st.magic, res: st.resistance, wis: st.wisdom, hp: st.max_hp,
+      atk: ol.attrs[0], def: ol.attrs[1], spd: ol.attrs[2], agi: ol.attrs[3],
+      mag: ol.attrs[4], res: ol.attrs[5], wis: ol.attrs[6], hp: ol.attrs[7],
     },
     skills: ol.skills || {},
     icon: mod.name_to_png_base64(`${name}@${clan}`),

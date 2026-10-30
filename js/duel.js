@@ -5,6 +5,7 @@ import { emojiImg } from './emoji.js';
 import { skillMeta } from './skills.js';
 import { potionPreview } from './game.js';
 import { playSkillFX } from './fx.js';
+import { battleDisplayStats } from './engine.js';
 
 const ACTIVE_ID = {
   sklfire: 0, sklice: 1, sklthunder: 2, sklquake: 3, sklabsorb: 4, sklpoison: 5, sklrapid: 6,
@@ -194,9 +195,6 @@ function clanOf(state) {
 
 const STAT_KEYS = [['攻', 'attack', 'atk'], ['防', 'defense', 'def'], ['速', 'speed', 'spd'], ['敏', 'agility', 'agi'], ['魔', 'magic', 'mag'], ['抗', 'resistance', 'res'], ['智', 'wisdom', 'wis']];
 
-// tswn 的八围显示用 overlay 里的原始写法：前七围 +36，速度 -124（引擎内部含 160 基础速度）
-const DISPLAY_OFFSET = { attack: 36, defense: 36, speed: -124, agility: 36, magic: 36, resistance: 36, wisdom: 36 };
-
 // 单位行显示名：
 //  - 分身：和本体同名（去掉引擎加的 ?N 后缀），例如 烟山?0@新纪元 → 烟山@新纪元
 //  - 召唤物（幻影/使魔/丧尸）：直接显示召唤物名称
@@ -223,9 +221,9 @@ function fullNameOf(s) {
 }
 
 function statsLineFor(state, base, mult = 1) {
-  return STAT_KEYS.map(([label, field, key]) => {
-    const offset = DISPLAY_OFFSET[field] || 0;
-    const shown = state[field] + offset;
+  const display = battleDisplayStats(state);
+  return STAT_KEYS.map(([label, , key]) => {
+    const shown = display[key];
     const baseShown = base ? base[key] : null; // 卡牌基线已是显示口径，不再加引擎偏移。
     const bonus = baseShown != null && shown > baseShown ? shown - baseShown : 0;
     return el('span', { class: 'unit-row__stat' },
@@ -448,9 +446,8 @@ export class DuelView {
     const overlay = document.getElementById('overlay');
     if (!overlay) return;
     const stats = ['攻', '防', '速', '敏', '魔', '抗', '智'].map((k, i) => {
-      const field = ['attack', 'defense', 'speed', 'agility', 'magic', 'resistance', 'wisdom'][i];
-      const off = [36, 36, -124, 36, 36, 36, 36][i];
-      return el('div', {}, el('b', {}, k), ' ' + (state[field] + off), (this.duel.multFor?.(state) || 1) > 1 ? el('em', { class: 'unit-row__buff' }, '*' + this.duel.multFor(state)) : null);
+      const key = ['atk', 'def', 'spd', 'agi', 'mag', 'res', 'wis'][i];
+      return el('div', {}, el('b', {}, k), ' ' + battleDisplayStats(state)[key], (this.duel.multFor?.(state) || 1) > 1 ? el('em', { class: 'unit-row__buff' }, '*' + this.duel.multFor(state)) : null);
     });
     const skills = (state.skills || []).map(([name, lv]) => {
       const id = 'skl' + String(name).replace(/^core[.]skill[.]/, '');

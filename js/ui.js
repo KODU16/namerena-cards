@@ -2,7 +2,7 @@
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote, scaleTactic } from './game.js';
-import { makeCard } from './engine.js';
+import { makeCard, cardDisplayStats } from './engine.js';
 import { emojiImg, mapIconSvg } from './emoji.js';
 // 生成和绘制共用尺寸，保持节点半径和几何约束一致。
 import { MAP_LAYOUT, mapNodeRadius } from './map.js';
@@ -34,8 +34,8 @@ export function el(tag, attrs = {}, ...kids) {
   return n;
 }
 
-const STAT_DISP = { atk: 36, def: 36, spd: -124, agi: 36, mag: 36, res: 36, wis: 36 };
-const shownStat = (k, v) => v + (STAT_DISP[k] || 0);
+// 卡面一律接收外显属性，不再对速度重复减去 Runtime 偏移。
+const shownStat = (k, v) => cardDisplayStats({ [k]: v })[k];
 
 const STAT_MAX = { atk: 60, def: 60, spd: 220, agi: 60, mag: 60, res: 60, wis: 60 };
 const STAT_LABEL = { atk: '攻', def: '防', spd: '速', agi: '敏', mag: '魔', res: '抗', wis: '智' };
@@ -48,7 +48,7 @@ export function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
 export function statLine(card) {
   const s = card.stats;
   // 速对外始终展示折合后的值（引擎内部才是 +124 的原始值）
-  const spdShown = Math.round((s.spd ?? 0) - 124);
+  const spdShown = cardDisplayStats(s).spd;
   return `HP ${s.hp} · 攻 ${s.atk} · 防 ${s.def} · 速 ${spdShown} · 敏 ${s.agi} · 魔 ${s.mag} · 抗 ${s.res} · 智 ${s.wis}`;
 }
 
@@ -831,7 +831,12 @@ export function renderHeroes(root, heroes, h) {
     }
     for (const wrap of archive.querySelectorAll('.hero-card__skills-wrap')) {
       const list = wrap.querySelector('.hero-card__skills');
-      wrap.querySelector('.hero-card__expand').hidden = list.scrollHeight <= list.clientHeight + 1;
+      const expand = wrap.querySelector('.hero-card__expand');
+      const items = [...list.children], firstTop = items[0]?.offsetTop;
+      // 真实第二行作为渐隐预览，提示尚有完整技能；聚焦二人组时直接全部展开。
+      const more = items.some((item) => item.offsetTop > firstTop);
+      list.classList.toggle('has-more', more);
+      if (expand) expand.hidden = !more;
     }
   };
   const skillItems = (card) => card.skillList.length
@@ -847,10 +852,13 @@ export function renderHeroes(root, heroes, h) {
       panes.forEach((pane) => {
         pane.classList.remove('is-focused');
         pane.setAttribute('aria-expanded', 'false');
-        pane.querySelector('.hero-card__skill-panel').hidden = true;
+        const panel = pane.querySelector('.hero-card__skill-panel');
+        if (panel) panel.hidden = true;
         const expand = pane.querySelector('.hero-card__expand');
-        expand.textContent = '点击展开技能组';
-        expand.setAttribute('aria-expanded', 'false');
+        if (expand) {
+          expand.textContent = '点击展开技能组';
+          expand.setAttribute('aria-expanded', 'false');
+        }
       });
       article.classList.remove('has-focused-member');
       outsideController?.abort();
@@ -875,17 +883,17 @@ export function renderHeroes(root, heroes, h) {
       fitLayout();
     };
     const memberPane = (card, index) => {
-      // 首行之外的技能通过面板展开，移除内部拖动条。
-      const panel = el('div', { class: 'hero-card__skill-panel', hidden: true },
+      const display = cardDisplayStats(card.stats);
+      // 单人保留展开按钮，二人组点选资料卡后直接显示完整技能组。
+      const panel = !duo ? el('div', { class: 'hero-card__skill-panel', hidden: true },
         el('b', { class: 'hero-card__skill-title' }, '技能熟练度'),
-        el('div', { class: 'hero-card__skill-list' }, skillItems(card)));
-      const expand = el('button', { class: 'hero-card__expand', type: 'button', 'aria-expanded': 'false', onclick: (event) => {
+        el('div', { class: 'hero-card__skill-list' }, skillItems(card))) : null;
+      const expand = !duo ? el('button', { class: 'hero-card__expand', type: 'button', 'aria-expanded': 'false', onclick: (event) => {
         event.stopPropagation();
-        if (duo && !pane.classList.contains('is-focused')) focusMember(pane);
         panel.hidden = !panel.hidden;
         expand.textContent = panel.hidden ? '点击展开技能组' : '收起技能组';
         expand.setAttribute('aria-expanded', String(!panel.hidden));
-      } }, '点击展开技能组');
+      } }, '点击展开技能组') : null;
       const pane = el('div', { class: 'hero-card__member', ...(duo ? {
         tabindex: '0', role: 'button', 'aria-label': '查看' + card.name + '的详细信息', 'aria-expanded': 'false',
         'data-member': index,
@@ -904,9 +912,9 @@ export function renderHeroes(root, heroes, h) {
             el('span', { class: 'hero-card__clan' }, '@' + card.clan)),
           el('span', { class: 'hero-card__expression', title: '评级表情' }, gradeIcon(card) || emojiImg('star', 'emoji emoji--sm'))),
         el('dl', { class: 'hero-card__stats' }, Object.entries(labels).map(([key, label]) =>
-          el('div', {}, el('dt', {}, label), el('dd', {}, Math.round(card.stats[key] || 0))))),
+          el('div', {}, el('dt', {}, label), el('dd', {}, display[key])))),
         el('div', { class: 'hero-card__skills-wrap' },
-          el('div', { class: 'hero-card__skills', 'aria-label': '技能熟练度首行' }, skillItems(card)), expand, panel),
+          el('div', { class: 'hero-card__skills', 'aria-label': duo ? '技能熟练度；点选角色显示完整技能组' : '技能熟练度预览' }, skillItems(card)), expand, panel),
         !duo ? el('dl', { class: 'hero-card__scores' }, scoreLabels.map(([key, label]) =>
           el('div', {}, el('dt', {}, label), el('dd', {}, Number.isFinite(hero.scores?.[key]) ? hero.scores[key] : '—')))) : null);
       panes.push(pane);
@@ -1251,9 +1259,7 @@ function colorFromIcon(src) {
 
 // 对外展示的八围数值（与 tswn 展示页一致）
 export function dispStats(s) {
-  const raw = s || {};
-  const r = (v) => Math.round(v || 0);
-  return { hp: r(raw.hp), atk: r(raw.atk), def: r(raw.def), agi: r(raw.agi), mag: r(raw.mag), res: r(raw.res), wis: r(raw.wis), spd: r(raw.spd) };
+  return cardDisplayStats(s);
 }
 
 // 八围：七围 + 体力

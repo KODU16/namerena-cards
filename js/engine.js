@@ -47,6 +47,17 @@ function decodeStats(attrs) {
   };
 }
 
+// 卡牌 ol.attrs 已是 tswn 外显值；只有战斗 Runtime 的七围需要转换偏移。
+export function cardDisplayStats(stats = {}) {
+  return Object.fromEntries(['hp', 'atk', 'def', 'spd', 'agi', 'mag', 'res', 'wis'].map((key) => [key, Math.round(stats[key] || 0)]));
+}
+
+export function battleDisplayStats(state = {}) {
+  const fields = { atk: 'attack', def: 'defense', spd: 'speed', agi: 'agility', mag: 'magic', res: 'resistance', wis: 'wisdom' };
+  return { hp: Math.round(state.max_hp || 0), ...Object.fromEntries(Object.entries(fields).map(([key, field]) =>
+    [key, Math.round((state[field] || 0) + (key === 'spd' ? -124 : 36))])) };
+}
+
 /**
  * 用名字生成一张卡。
  * @param {string} name 名字本体（不含 @阵营）
@@ -106,6 +117,8 @@ export function makeCard(name, clan = '无名') {
 export function hydrateCard(raw) {
   return {
     ...raw,
+    // 早期预生成卡池保存的是 Runtime 数值，原始 attrs 可无损恢复外显口径。
+    stats: Array.isArray(raw.attrs) ? decodeStats(raw.attrs) : raw.stats,
     skillList: (raw.skillList || []).map((s) => ({ ...s, cat: s.cat || SKILLS[s.id]?.cat || 'atk' })),
   };
 }
