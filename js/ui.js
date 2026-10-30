@@ -820,6 +820,10 @@ export function renderHeroes(root, heroes, h) {
   let collapseFocused = null;
   // 自动缩字保留完整的两行姓名，并按真实换行判断是否需要展开技能组。
   const fitLayout = () => {
+    // 卡面信息按原设计宽度整体缩放，五列变窄时评分和技能不会被裁掉。
+    for (const card of archive.querySelectorAll('.hero-card')) {
+      card.style.setProperty('--hero-scale', card.clientWidth / (card.classList.contains('hero-card--duo') ? 320 : 280));
+    }
     for (const line of archive.querySelectorAll('.hero-card__name, .hero-card__clan')) {
       let size = line.classList.contains('hero-card__name') ? 14 : 11;
       line.style.fontSize = size + 'px';
@@ -930,13 +934,8 @@ export function renderHeroes(root, heroes, h) {
     collapseFocused?.();
     archive.replaceChildren(...years.map((year) => {
       const entries = heroes.filter((hero) => hero.year === year && ((hero.cards?.length || 1) === 2 ? 'duo' : 'single') === mode);
-      const rail = el('div', { class: 'heroes__rail' + (mode === 'duo' ? ' heroes__rail--duo' : ''), tabindex: '0', 'aria-label': year + '年英雄角色，横向滚动浏览' }, entries.map(heroCard));
-      rail.addEventListener('wheel', (event) => {
-        if (event.ctrlKey || rail.scrollWidth <= rail.clientWidth || Math.abs(event.deltaX) >= Math.abs(event.deltaY)) return;
-        const delta = event.deltaY * (event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rail.clientWidth : 1);
-        if ((delta < 0 && rail.scrollLeft <= 0) || (delta > 0 && rail.scrollLeft + rail.clientWidth >= rail.scrollWidth - 1)) return;
-        event.preventDefault(); rail.scrollLeft += delta;
-      }, { passive: false });
+      // 英雄列表自动换行，滚轮保留页面纵向浏览行为。
+      const rail = el('div', { class: 'heroes__rail' + (mode === 'duo' ? ' heroes__rail--duo' : ''), 'aria-label': year + '年英雄角色' }, entries.map(heroCard));
       return el('section', { class: 'heroes__year-section', 'data-year': year },
         el('h2', { class: 'heroes__year' }, year, el('span', { 'aria-hidden': 'true' })),
         entries.length ? rail : el('p', { class: 'heroes__empty' }, '暂无英雄角色'));

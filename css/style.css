@@ -1286,17 +1286,18 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 @keyframes treasure-coin { 0% { opacity: 0; transform: translate(0, 0) scale(.5) rotate(0); } 12% { opacity: 1; } 55% { opacity: 1; transform: translate(var(--coin-x), var(--coin-y)) scale(1) rotate(var(--coin-spin)); } 100% { opacity: 0; transform: translate(var(--coin-x), var(--coin-land)) scale(.7) rotate(var(--coin-spin)); } }
 @media (prefers-reduced-motion: reduce) { .treasure-art__closed { display: none; } .treasure-art__opened { animation: none; } .treasure-art__coin { display: none; animation: none; } }
 
-/* 卡面宽高比 0.618，横向最多六张；更多卡片沿横轴滚动。 */
-.heroes { max-width: 1860px; margin: 0 auto; }
-body[data-screen="heroes"] .screen { max-width: 1912px; }
+/* 单人英雄每行五张，超过后自动换行；各年份随页面纵向浏览。 */
+.heroes { width: 100%; margin: 0 auto; }
+/* 展示区随视口铺满，五张卡等分可用宽度，不保留大屏两侧空白。 */
+body[data-screen="heroes"] .screen { max-width: none; }
 .heroes__head { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 22px; }
 .heroes__head h1 { margin: 5px 0 0; font-size: 32px; }
-.heroes__rail { display: grid; grid-auto-flow: column; grid-auto-columns: max(280px, calc((100% - 100px) / 6)); gap: 20px; overflow-x: auto; padding: 6px 0 20px; scroll-snap-type: x proximity; overscroll-behavior-x: contain; }
-.hero-card { position: relative; aspect-ratio: 0.618; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #d4e1e8; border-radius: 14px; background: #fff; box-shadow: 0 3px 12px #24435812; scroll-snap-align: start; }
+.heroes__rail { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 20px; padding: 6px 0 20px; }
+.hero-card { position: relative; aspect-ratio: 0.618; min-width: 0; display: flex; flex-direction: column; overflow: hidden; border: 1px solid #d4e1e8; border-radius: 14px; background: #fff; box-shadow: 0 3px 12px #24435812; }
 .hero-card__portrait { flex: none; width: 100%; aspect-ratio: 1; position: relative; }
 .hero-card__portrait img { width: 100%; height: 100%; display: block; object-fit: cover; }
 .hero-card__portrait::after { content: ''; position: absolute; inset: 50% 0 -1px; background: linear-gradient(transparent, #ffffffb3 62%, #fff); pointer-events: none; }
-.hero-card__body { position: relative; margin-top: -48px; padding: 0 14px 14px; display: flex; flex-direction: column; gap: 7px; flex: 1; min-height: 0; }
+.hero-card__body { zoom: var(--hero-scale, 1); position: relative; margin-top: -48px; padding: 0 14px 14px; display: flex; flex-direction: column; gap: 7px; flex: 1; min-height: 0; }
 /* 多出半行技能预览，信息区相应上移，保持原卡面比例及评分完整。 */
 .hero-card:not(.hero-card--duo) .hero-card__body { margin-top: -64px; }
 .hero-card__description { margin: 0; min-height: 28px; font-size: 11px; line-height: 1.35; color: #536b76; }
@@ -1339,7 +1340,7 @@ body[data-screen="heroes"] .screen { max-width: 1912px; }
 .hero-card__skill-panel[hidden], .hero-card__expand[hidden] { display: none; }
 
 /* 二人组一行四张；资料卡上下错开，姓名和八围均露出且旋转后仍在卡内。 */
-.heroes__rail--duo { grid-auto-columns: max(320px, calc((100% - 60px) / 4)); }
+.heroes__rail--duo { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .hero-card--duo { aspect-ratio: auto; height: auto; min-height: 630px; padding-bottom: 304px; }
 .hero-card--duo .hero-card__body { position: static; flex: none; min-height: 32px; }
 .hero-card--duo .hero-card__description { position: relative; z-index: 1; }
@@ -1355,3 +1356,7 @@ body[data-screen="heroes"] .screen { max-width: 1912px; }
 .hero-card--duo .hero-card__skill-panel { left: 8px; right: 8px; bottom: 32px; }
 @media (prefers-reduced-motion: reduce) { .hero-card--duo .hero-card__member { transition: none; } }
 
+
+/* 窄屏减少列数以保留卡面信息，同样自动换行而不横向滚动。 */
+@media (max-width: 1020px) { .heroes__rail, .heroes__rail--duo { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .heroes__rail, .heroes__rail--duo { grid-template-columns: 1fr; } }
