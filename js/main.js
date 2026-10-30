@@ -67,11 +67,13 @@ function shopSheet(kind, ...kids) {
   sheet(...kids);
   const panel = overlay.querySelector('.sheet');
   const weapon = kind === 'weapon';
+  const curse = kind === 'curse';
+  const title = weapon ? '武器商人' : curse ? '诅咒商人' : '商人';
   if (weapon) panel.classList.add('sheet--merchant');
-  overlay.replaceChildren(el('div', { class: 'shop-stage' + (weapon ? ' shop-stage--weapon' : ''), role: 'dialog', 'aria-label': weapon ? '武器商人' : '商店' },
-    el('aside', { class: 'shop-stage__character' }, el('h2', {}, weapon ? '武器商人' : '商人'),
-      el('img', { class: 'shop-stage__portrait', src: weapon ? 'assets/characters/weapon-merchant.webp' : 'assets/characters/merchant.webp',
-        alt: weapon ? '武器商人立绘' : '商人立绘', width: 800, height: 800, decoding: 'async' })), panel));
+  overlay.replaceChildren(el('div', { class: 'shop-stage' + (weapon ? ' shop-stage--weapon' : ''), role: 'dialog', 'aria-label': title },
+    el('aside', { class: 'shop-stage__character' }, el('h2', {}, title),
+      el('img', { class: 'shop-stage__portrait', src: weapon ? 'assets/characters/weapon-merchant.webp' : curse ? 'assets/characters/curse-merchant.webp' : 'assets/characters/merchant.webp',
+        alt: title + '立绘', width: 800, height: 800, decoding: 'async' })), panel));
 }
 
 function closeSheet() {
@@ -489,8 +491,8 @@ async function fight() {
     states: initial.initial_states.map((s) => ({ id: s.id, name: s.id_name, team: s.team_index, hp: s.max_hp, skills: s.skills })),
   });
   // 战斗蓝字以天然属性 + 永久锻造为基线，实际值已包含武器、保底与战术。
-  const battleTeam = team.map((c) => ({ ...c, battleBase: G.applyForge(makeCard(c.name, c.clan).stats, c.forge) }));
-  const duel = new Duel({ wasm, iconFor }, { input, playerTeam: me.team_index, champion: team[0], team: battleTeam });
+  const battleTeam = team.map((c) => ({ ...c, battleBase: G.curseBaseStats(c) }));
+  const duel = new Duel({ wasm, iconFor }, { input, playerTeam: me.team_index, champion: team[0], team: battleTeam, enemies: opp.cards });
   nav('battle', () => {
     renderBattleShell(root, state, null, {
       onSpeed: (x) => {
@@ -677,6 +679,7 @@ function forgeAtCamp() {
       el('div', { class: 'inv__grid' }, (card?.skillList || []).map((s) => el('button', {
         class: 'ghost inv__item',
         type: 'button',
+        disabled: !!card.lostSkills?.[s.id], title: card.lostSkills?.[s.id] ? '本体技能已交换；武器贡献仍可发动，不能训练恢复本体' : undefined,
         onclick: () => {
           const res = G.campForge(state, charId, s.id);
           closeSheet();
@@ -772,6 +775,25 @@ function mapScreen() {
           }));
         };
         openMerchant();
+        return;
+      }
+      if (node?.kind === 'curseMerchant') {
+        if (!G.enterCamp(state, nodeId)) return;
+        mapScreen();
+        // 技能交易以选定的当前角色报价，属性交易始终扣除整个角色库。
+        const openCurse = (charId = state.run.championId || state.run.teamIds?.[0] || state.collection[0]?.id) => {
+          if (!state.collection.some((c) => c.id === charId)) charId = state.collection[0]?.id;
+          shopSheet('curse', UI.curseMerchantSheet(state, { charId, stock: G.curseStock(state, charId), canBuy: (offer) => G.canBuyCurse(state, offer),
+            onChange: openCurse,
+            onBuy: (id) => {
+              const offer = G.buyCurseItem(state, charId, id);
+              toast(offer ? '交换成功：获得' + G.rewardSummary(offer).label : '无法交换：代价已不满足或物品已售出');
+              openCurse(charId);
+            },
+            onLeave: () => { closeSheet(); mapScreen(); },
+          }));
+        };
+        openCurse();
         return;
       }
       if (node?.kind === 'shop') {

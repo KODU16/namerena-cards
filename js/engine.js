@@ -118,7 +118,8 @@ export function buildLine(card) {
     clampAttr(card.stats.atk), clampAttr(card.stats.def), clampAttr(card.stats.spd), clampAttr(card.stats.agi),
     clampAttr(card.stats.mag), clampAttr(card.stats.res), clampAttr(card.stats.wis), Math.max(1, Math.round(card.stats.hp)),
   ];
-  const skills = Object.fromEntries(card.skillList.map((s) => [s.id, s.lv]));
+  // 失去的本体技能不能恢复，已重算出的武器贡献仍可正常进入战斗。
+  const skills = Object.fromEntries(card.skillList.filter((s) => !card.lostSkills?.[s.id] || s.fromWeapon).map((s) => [s.id, s.lv]));
   return `${card.name}@${card.clan}+ol:${JSON.stringify({ attrs, skills, name_factor_enabled: false })}`;
 }
 
@@ -126,15 +127,15 @@ export function buildLine(card) {
 export function applyTactics(card, tactics) {
   if (!tactics || !tactics.length) return card;
   const stats = { ...card.stats };
-  const skills = new Map((card.skillList || []).map((s) => [s.id, s.lv]));
+  const skills = new Map((card.skillList || []).filter((s) => !card.lostSkills?.[s.id] || s.fromWeapon).map((s) => [s.id, s.lv]));
   for (const t of tactics) {
     for (const [k, v] of Object.entries(t.apply?.attrs || {})) stats[k] = (stats[k] || 0) + v;
-    for (const [k, v] of Object.entries(t.apply?.skills || {})) skills.set(k, (skills.get(k) || 0) + v);
+    for (const [k, v] of Object.entries(t.apply?.skills || {})) if (!card.lostSkills?.[k] || skills.has(k)) skills.set(k, (skills.get(k) || 0) + v);
   }
   return {
     ...card,
     stats,
-    skillList: [...skills.entries()].map(([id, lv]) => ({ id, lv, cat: card.skillList?.find((s) => s.id === id)?.cat })),
+    skillList: [...skills.entries()].map(([id, lv]) => ({ ...card.skillList?.find((s) => s.id === id), id, lv })),
   };
 }
 // 开局保底：除体力外每经过一个地图节点减 0.1 倍，第十个节点恢复 1 倍。

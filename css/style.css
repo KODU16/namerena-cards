@@ -21,7 +21,7 @@
   --shadow: 0 16px 36px -22px rgba(33, 64, 82, .45);
   --shadow-soft: 0 6px 18px -12px rgba(33, 64, 82, .35);
   --radius: 14px;
-  --button-bg: #888;
+  --button-bg: #3187b5;
   --sans: "Microsoft YaHei", Consolas, Menlo, Monaco, "Lucida Console", "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace, serif;
   --mono: Consolas, Menlo, Monaco, "Lucida Console", "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace;
 }
@@ -62,7 +62,7 @@ body::before {
 
 button { font: inherit; color: inherit; }
 
-/* ——— 按钮：完全沿用 tswn 展示页的写法（#888 底、1px 白边、20px 圆角、白色文字） */
+/* ——— 按钮：蓝色可操作底色，保留白边、圆角与白色文字。 */
 button {
   background: var(--button-bg);
   border: solid #fff 1px;
@@ -80,7 +80,7 @@ button:hover:not(:disabled) { box-shadow: 0 0 5px 0 rgba(0, 0, 0, .5); }
 button.primary:hover:not(:disabled),
 button.secondary:hover:not(:disabled),
 button.ghost:hover:not(:disabled) {
-  background: linear-gradient(0deg, var(--button-bg) 0%, #999 100%);
+  background: linear-gradient(0deg, var(--button-bg) 0%, #63add2 100%);
 }
 button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
 
@@ -95,9 +95,11 @@ button.primary:hover:not(:disabled) {
   background: linear-gradient(0deg, var(--sky-2) 0%, var(--sky-3) 100%);
   box-shadow: 0 0 5px 0 rgba(18, 119, 174, .55);
 }
-button.secondary { background: #888; }
-button.ghost { background: #a9bcc8; border-color: #fff; }
-button.ghost:hover:not(:disabled) { background: linear-gradient(0deg, #a9bcc8 0%, #bcccd5 100%); }
+/* 可点击的次级操作使用明亮蓝色，与主按钮的深蓝及禁用态区分。 */
+button.secondary { background: #398cbd; }
+button.ghost { background: #5a9fc8; border-color: #d6edfa; }
+button.ghost:hover:not(:disabled) { background: linear-gradient(0deg, #438ebd 0%, #79b9dd 100%); }
+button.primary:disabled, button.secondary:disabled, button.ghost:disabled { background: #a9b6c0; border-color: #d5dfe5; color: #f5f7f9; }
 button.big { font-size: 16px; padding: 9px 22px; }
 
 /* ——— 透明 32×32 像素图标，使用独立单元边界 */
@@ -824,6 +826,16 @@ body, .app { background: #ffffff; }
 .unit-row__hp, .unit-row__mp { flex: none; height: 11px; min-width: 0; }
 .unit-row__stats { flex: none; }
 .unit-row .statuses { flex: none; }
+/* MP 的回复量位于槽外右侧，保留独立布局以免被槽内裁切。 */
+.unit-row__mp-line { display: flex; align-items: center; gap: 6px; min-height: 14px; }
+.unit-row__mp-recovery { color: #087cc4; font: 700 12px var(--mono); font-style: normal; white-space: nowrap; }
+.unit-row__mp-line .unit-row__mp { max-width: calc(100% - 38px); }
+.unit-row__buff, .elite-mult { color: #087cc4; font-style: normal; margin-left: 4px; }
+.elite-mult { background: #f4fbff; padding: 0 3px; text-shadow: none; font-weight: 700; }
+.curse-loss { color: #c12c35; }
+.curse-cost { font-size: 13px; line-height: 1.6; }
+.curse-cost small { display: block; color: var(--muted); }
+.curse-shop select { width: 100%; min-width: 0; padding: 8px; border: 1px solid var(--line); border-radius: 8px; color: var(--ink); background: #fff; }
 /* 雪碧图：74 张独立图标合并请求，每格保留两像素透明边距 */
 .emoji-sprite {
   background-image: url('../assets/icons-32.png?v=1');

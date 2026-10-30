@@ -182,6 +182,11 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     const d = pickSparseDepth();
     if (d !== undefined) groups[d].push(mk('weaponMerchant', null, null));
   }
+  // 诅咒商人与武器商人独立抽取，使用属性或技能交换普通商店品类。
+  if (rng() < .33) {
+    const d = pickSparseDepth();
+    if (d !== undefined) groups[d].push(mk('curseMerchant', null, null));
+  }
   // 商店节点：花分数买卡，每层 1 个
   {
     const open = [];

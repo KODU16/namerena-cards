@@ -73,7 +73,7 @@ function firstDiff(a, b) {
 }
 
 export class Duel {
-  constructor(engine, { input, playerTeam, champion, team }) {
+  constructor(engine, { input, playerTeam, champion, team, enemies = [] }) {
     this.engine = engine;
     // 基线使用未套保底/武器/战术的显示属性，保留永久锻造。
     this.baseStats = new Map((team || []).map((c) => [c.name, c.battleBase || c.stats]));
@@ -82,11 +82,17 @@ export class Duel {
     this.playerTeam = playerTeam;
     this.champion = champion;
     this.team = team || [champion];
+    this.enemies = enemies;
     this.queues = new Map();
   }
 
   baseFor(state) {
     return this.baseStats ? this.baseStats.get(state.id_name) : null;
+  }
+
+  // 精英倍率保留在原卡上，战斗快照中的每项属性都可追溯到同一倍率。
+  multFor(state) {
+    return this.enemies.find((c) => c.name === state.id_name)?.eliteMult || 1;
   }
 
   // 本体和分身分别追溯原角色，防止第二位队友借用第一位的净化许可。
@@ -216,7 +222,7 @@ function fullNameOf(s) {
   return clan ? name + '@' + clan : name;
 }
 
-function statsLineFor(state, base) {
+function statsLineFor(state, base, mult = 1) {
   return STAT_KEYS.map(([label, field, key]) => {
     const offset = DISPLAY_OFFSET[field] || 0;
     const shown = state[field] + offset;
@@ -224,7 +230,7 @@ function statsLineFor(state, base) {
     const bonus = baseShown != null && shown > baseShown ? shown - baseShown : 0;
     return el('span', { class: 'unit-row__stat' },
       `${label} ${shown}`,
-      bonus ? el('em', { class: 'unit-row__buff' }, `+${bonus}`) : null);
+      mult > 1 ? el('em', { class: 'unit-row__buff' }, `*${mult}`) : bonus ? el('em', { class: 'unit-row__buff' }, `+${bonus}`) : null);
   });
 }
 function panelHtml(state, side, icon, base) {
@@ -246,9 +252,9 @@ function panelHtml(state, side, icon, base) {
         el('i', { class: 'hp' }),
         el('span', { class: 'hpnum' }))),
     // 第三行：MP 蓝条
-    el('div', { class: 'unit-row__mp', title: '魔力 MP：放技能会消耗，抽牌时就已定好' },
+    el('div', { class: 'unit-row__mp-line' }, el('div', { class: 'unit-row__mp', title: '魔力 MP：出牌立即消耗，行动结束后显示回复' },
       el('i', { style: `width:${Math.max(0, Math.min(100, s.magic_point || 0))}%` }),
-      el('span', {}, '魔力 ' + (s.magic_point || 0))),
+      el('span', {}, '魔力 ' + (s.magic_point || 0))), el('em', { class: 'unit-row__mp-recovery', 'aria-live': 'polite' })),
     // 第四行：七围
     el('div', { class: 'unit-row__stats' }, statsLineFor(s, base)),
     el('div', { class: 'statuses' }),
@@ -271,6 +277,8 @@ export class DuelView {
     this.roundEl = root.querySelector('#battle-round');
     this.energyEl = root.querySelector('#battle-energy');
     this.units = new Map();
+    this.displayMp = new Map();
+    this.pendingMp = new Map();
     this.interactive = false;
     this.skip = false;
     this.speed = 1;
@@ -316,6 +324,8 @@ export class DuelView {
       num.textContent = shieldVal > 0
         ? '血量' + state.max_hp + '/护盾' + Math.round(shieldVal)
         : String(state.max_hp);
+      const mult = this.duel.multFor?.(state) || 1;
+      if (mult > 1) num.append(el('em', { class: 'unit-row__buff' }, '*' + mult));
     }
     const mpBar = node.querySelector('.unit-row__mp');
     if (mpBar) {
@@ -325,8 +335,11 @@ export class DuelView {
       if (fill) fill.style.width = mp + '%';
       if (num) num.textContent = '魔力 ' + (state.magic_point || 0);
     }
+    this.displayMp.set(state.id, state.magic_point || 0);
+    node.dataset.mp = String(state.magic_point || 0);
+    if (state.id === this.activeMpUnit) this.renderEnergy(state.magic_point || 0);
     // 属性变化和加成蓝字随当前帧更新，避免只保留开战时的值。
-    node.querySelector('.unit-row__stats')?.replaceChildren(...statsLineFor(state, this.duel.baseFor(state)));
+    node.querySelector('.unit-row__stats')?.replaceChildren(...statsLineFor(state, this.duel.baseFor(state), this.duel.multFor?.(state) || 1));
     const box = node.querySelector('.statuses');
     if (box) {
       box.replaceChildren(...(state.status_labels || []).map((name) =>
@@ -340,7 +353,7 @@ export class DuelView {
       if (bars) bars.style.width = (12 + 88 * Math.min(1, mh / this.maxHpSeen)).toFixed(1) + '%';
       const mpBar = n.querySelector('.unit-row__mp');
       if (mpBar) {
-        const mp = Number(n.querySelector('.unit-row__mp span')?.textContent?.replace(/[^0-9]/g, '') || 0);
+        const mp = Math.max(0, Number(n.dataset.mp) || 0);
         mpBar.style.width = (12 + 88 * Math.min(1, mp / 100)).toFixed(1) + '%';
       }
     }
@@ -357,7 +370,7 @@ export class DuelView {
     const rows = frame.rows || [];
     rows.forEach((row, ri) => {
       const line = el('div', { class: 'log__line log__line--step' });
-      line.style.animationDelay = (ri * 135) + 'ms';
+      line.style.animationDelay = (this.skip ? 0 : ri * 135 / this.speed) + 'ms';
       row.clips.forEach((clip, ci) => {
         if (ci > 0) line.append(document.createTextNode('，'));
         for (const part of clip.parts) {
@@ -386,7 +399,15 @@ export class DuelView {
       }
       this.logEl.append(line);
     });    this.logEl.scrollTop = this.logEl.scrollHeight;
-    for (const state of frame.states || []) this.patchUnit(state);
+    // 回放快照已经含行动尾部回复，先压住增加部分，动作和所有段落播完才落账。
+    for (const state of frame.states || []) {
+      const before = this.displayMp.get(state.id) ?? state.magic_point;
+      const after = state.magic_point || 0;
+      if (after > before) {
+        this.pendingMp.set(state.id, { state, amount: after - before });
+        this.patchUnit({ ...state, magic_point: before });
+      } else this.patchUnit(state);
+    }
     // 一帧后续状态行可能先提到被动触发者；只高亮主行动行的施法实体。
     for (const node of this.units.values()) node.classList.remove('is-acting');
     const actionRow = rows.find((row) => !row.indent) || rows[0];
@@ -402,9 +423,25 @@ export class DuelView {
     for (let i = from; i < Math.min(to, frames.length); i++) {
       this.renderFrame(frames[i]);
       if (this.manual) await this.waitClick();
-      else if (!this.skip) await sleep(1440 / this.speed);
+      else if (!this.skip) await sleep(Math.max(1440 / this.speed, Math.max(0, (frames[i].rows?.length || 0) - 1) * 135 / this.speed + 180));
+      this.settleMp();
     }
     this.shownFrames = Math.max(this.shownFrames, Math.min(to, frames.length));
+  }
+
+  // 行动完整播放后再显示真正余额，蓝色回复量位于 MP 槽右侧。
+  settleMp() {
+    for (const { state, amount } of this.pendingMp.values()) {
+      this.patchUnit(state);
+      const label = this.units.get(state.id)?.querySelector('.unit-row__mp-recovery');
+      if (label) {
+        label.textContent = '+' + amount; label.title = '回复 ' + amount + ' MP';
+        clearTimeout(label.recoveryTimer);
+        label.recoveryTimer = setTimeout(() => { label.textContent = ''; }, 1800);
+      }
+      if (state.id === this.activeMpUnit) this.renderEnergy(state.magic_point);
+    }
+    this.pendingMp.clear();
   }
 
   showDetail(state) {
@@ -413,7 +450,7 @@ export class DuelView {
     const stats = ['攻', '防', '速', '敏', '魔', '抗', '智'].map((k, i) => {
       const field = ['attack', 'defense', 'speed', 'agility', 'magic', 'resistance', 'wisdom'][i];
       const off = [36, 36, -124, 36, 36, 36, 36][i];
-      return el('div', {}, el('b', {}, k), ' ' + (state[field] + off));
+      return el('div', {}, el('b', {}, k), ' ' + (state[field] + off), (this.duel.multFor?.(state) || 1) > 1 ? el('em', { class: 'unit-row__buff' }, '*' + this.duel.multFor(state)) : null);
     });
     const skills = (state.skills || []).map(([name, lv]) => {
       const id = 'skl' + String(name).replace(/^core[.]skill[.]/, '');
@@ -421,7 +458,7 @@ export class DuelView {
     });
     overlay.replaceChildren(el('div', { class: 'sheet' },
       el('h2', {}, state.display_name),
-      el('div', { class: 'detail-grid' }, stats, el('div', {}, el('b', {}, 'HP'), ' ' + state.max_hp)),
+      el('div', { class: 'detail-grid' }, stats, el('div', {}, el('b', {}, 'HP'), ' ' + state.max_hp, (this.duel.multFor?.(state) || 1) > 1 ? el('em', { class: 'unit-row__buff' }, '*' + this.duel.multFor(state)) : null)),
       el('div', { class: 'detail-skills' }, skills.length ? skills : el('span', { class: 'muted' }, '无技能')),
       el('button', { class: 'primary', type: 'button', onclick: () => { overlay.classList.add('hidden'); overlay.replaceChildren(); } }, '关闭'),
     ));
@@ -578,6 +615,7 @@ export class DuelView {
   askCard(decision, state) {
     if (this.berserkTimer) { clearTimeout(this.berserkTimer); this.berserkTimer = null; }
     this.waitingState = state;
+    this.activeMpUnit = state.id;
     this.turnBanner('player', this.roundOf(decision));
     const mp = state.magic_point || 0;
     // 狂暴（含被附体）：四张牌全部是「狂暴攻击」，自动随机打出一张，结果交给引擎
@@ -662,6 +700,14 @@ export class DuelView {
     const id = card.id === 'normal' ? NORMAL_ID : ACTIVE_ID[card.id];
     // 普攻不检查 MP 余额；技能仍按抽牌时掷出的费用检查。
     if (id == null || (card.id !== 'normal' && (card.cost || 0) > mp)) return;
+    // 点击即扣除显示余额；真实引擎仍按同一费用结算一次，避免重复扣费。
+    const cost = card.id === 'normal' ? 0 : card.cost || 0;
+    const actor = this.waitingState || decision.unit;
+    this.pendingMp.delete(actor.id);
+    this.patchUnit({ ...actor, magic_point: mp - cost });
+    const recovery = this.units.get(actor.id)?.querySelector('.unit-row__mp-recovery');
+    if (recovery) recovery.textContent = '';
+    this.renderEnergy(mp - cost);
     this.clearWaiting();
     this.interactive = false;
     const node = this.handEl.querySelector(`[data-card-id="${card.id}"]`);

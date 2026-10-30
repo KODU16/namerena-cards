@@ -20,7 +20,7 @@ export function refreshRunBuff(state) {
     if (!natural) continue;
     card.statsBase = { ...natural };
     card.runMult = mult;
-    card.stats = applyForge(applyRunBuff({ stats: natural }, mult).stats, card.forge);
+    card.stats = finalStats(card, natural);
   }
 }
 
@@ -169,7 +169,7 @@ export function snapshot(state) {
     id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
     cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
     weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, weaponItem: c.weaponItem || null, forge: c.forge || null,
-    skillTraining: c.skillTraining || null,
+    skillTraining: c.skillTraining || null, curseStats: c.curseStats || null, lostSkills: c.lostSkills || null,
     runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
   });
   return {
@@ -210,7 +210,7 @@ export function persist(state) {
       id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
       cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
       // 装备与武器信息也要存，否则刷新后武器就「消失」了
-      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, weaponItem: c.weaponItem || null, forge: c.forge || null, skillTraining: c.skillTraining || null, runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
+      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, weaponItem: c.weaponItem || null, forge: c.forge || null, skillTraining: c.skillTraining || null, curseStats: c.curseStats || null, lostSkills: c.lostSkills || null, runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
     });
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       v: 1,
@@ -358,7 +358,7 @@ export function buildGraphForLayer(state) {
     teamSize: run.teamSize,
     rng: r,
     makeFiller: (teamSize, rr) => makeFiller(teamSize, rr),
-    makeElite: (teamSize, rr) => makeElite(teamSize, rr),
+    makeElite: (teamSize, rr) => makeElite(teamSize, rr, run.layer),
     makeCpu: (rr) => makeCpu(rr),
   });
   run.nodeId = run.graph.startId;
@@ -367,9 +367,10 @@ export function buildGraphForLayer(state) {
   return run.graph;
 }
 
-// 精英试炼：全属性翻倍的 @! 小队，或人数是出战人数两倍的 @! 群
-export function makeElite(teamSize, rng) {
-  const swarm = rng() < 0.5;
+// 前两层只出现 1.2/1.5 倍数值精英，第三层起才开放双倍人数或双倍属性。
+export function makeElite(teamSize, rng, layer = 1) {
+  const swarm = layer >= 3 && rng() < 0.5;
+  const mult = layer === 1 ? 1.2 : layer === 2 ? 1.5 : 2;
   const count = swarm ? Math.max(2, teamSize * 2) : Math.max(1, teamSize);
   const cards = [];
   for (let i = 0; i < count; i++) {
@@ -377,14 +378,15 @@ export function makeElite(teamSize, rng) {
       const card = makeCard(randomName(rng), '!');
       if (!swarm) {
         const s = card.stats;
-        for (const k of Object.keys(s)) s[k] = Math.round(s[k] * 2);
+        for (const k of Object.keys(s)) s[k] = Math.round(s[k] * mult);
+        card.eliteMult = mult;
       }
       cards.push(card);
     } catch {
       cards.push(statlessCard(randomName(rng) + '@!'));
     }
   }
-  return { cards, mode: swarm ? 'swarm' : 'heavy' };
+  return { cards, mode: swarm ? 'swarm' : 'heavy', mult: swarm ? 1 : mult };
 }
 
 // 随机 @! 队名的填充队伍（TestEx），人数 = 出战人数
@@ -443,6 +445,7 @@ export function currentNode(state) {
 
 // 战斗节点对应的对手（含 cards）
 export function currentOpponent(state) {
+  const run = state.run;
   const node = currentNode(state);
   if (!node) return null;
   // 旧存档中的试炼头像也按名字修复，不沿用「!」生成的缓存头像。
@@ -450,7 +453,23 @@ export function currentOpponent(state) {
   for (const card of cards) if (card.clan === '!' || card.name?.endsWith('@!')) card.icon = iconFor(card.name, card.clan);
   // 层级终点与普通天梯节点共用对手结构，必须一起进入战斗。
   if (node.kind === 'ladder' || node.kind === 'end') return node.payload;
-  if (node.kind === 'elite') return { rank: null, score: 0, name: '精英试炼', cards: node.payload.cards, teamSize: node.payload.cards.length, elite: true };
+  if (node.kind === 'elite') {
+    // 继续旧存档时也采用新曲线，沿用原名字，仅调整尚未交战的精英倍率/人数。
+    const layer = run.layer || 1, mult = layer === 1 ? 1.2 : layer === 2 ? 1.5 : 2;
+    const payload = node.payload;
+    if (layer < 3 && payload.mode === 'swarm') {
+      payload.mode = 'heavy'; payload.cards = payload.cards.slice(0, Math.max(1, run.teamSize));
+    }
+    if (payload.mode === 'heavy' && payload.mult !== mult) {
+      for (const card of payload.cards) {
+        const natural = makeCard(card.name, card.clan).stats;
+        card.stats = Object.fromEntries(Object.entries(natural).map(([key, value]) => [key, Math.round(value * mult)]));
+        card.eliteMult = mult;
+      }
+      payload.mult = mult;
+    }
+    return { rank: null, score: 0, name: '精英试炼', cards: payload.cards, teamSize: payload.cards.length, elite: true };
+  }
   if (node.kind === 'filler') return { rank: null, score: 0, name: node.payload[0]?.name || '试炼对手', cards: node.payload, teamSize: node.payload.length };
   return null;
 }
@@ -485,7 +504,7 @@ export function clearNode(state) {
 // 奖励摘要覆盖完整奖池，供补给和宝箱回执显示真实所得与存放位置。
 export function rewardSummary(offer) {
   if (offer.kind === 'skill') return { label: '技能卡「' + skillMeta(offer.skill.id).name + '」', detail: '熟练度 ' + offer.skill.lv, destination: '已放入技能卡栏，可在锻造时使用。' };
-  if (offer.kind === 'tactic') return { label: '战术卡「' + offer.tactic.name + '」', detail: offer.tactic.desc + ' · 强度 ×' + (offer.power || 1).toFixed(1), destination: '已加入战术卡栏，同名保留更强的一张。' };
+  if (offer.kind === 'tactic') return { label: '战术卡「' + offer.tactic.name + '」', detail: scaleTactic(offer.tactic, offer.power || 1).desc, destination: '已加入战术卡栏，同名保留更强的一张。' };
   if (offer.kind === 'potion') return { label: (potionById(offer.potion.id)?.name || '药水') + ' ×' + (offer.potion.n || 1), detail: potionDescription(potionById(offer.potion.id)), destination: '已放入物品栏，可在战斗中使用。' };
   if (offer.kind === 'weapon') return { label: '武器「' + offer.weapon.name + '」', detail: '装备后重新计算角色属性和技能。', destination: '已放入物品栏。' };
   if (offer.kind === 'score') return { label: '天梯分数 +' + offer.points, detail: '分数已计入本局天梯排名。', destination: '已到账。' };
@@ -571,7 +590,7 @@ export function cardBonus(state, card) {
     const base = makeCard(card.name, card.clan);
     if (base) {
       for (const [k, v] of Object.entries(base.stats)) {
-        const extra = Math.round((v || 0) * (mult - 1));
+        const extra = Math.round(((v || 0) - (card.curseStats?.[k] || 0)) * (mult - 1));
         if (extra) bonus[k] = (bonus[k] || 0) + extra;
       }
     }
@@ -593,8 +612,13 @@ function rememberSkillTraining(state, card) {
 }
 
 function skillsForBuild(state, card, natural) {
-  const list = new Map((natural || []).map((s) => [s.id, { ...s, cat: s.cat || SKILLS[s.id]?.cat || 'atk',
-    lv: card.weapon && s.id === 'skldisperse' ? Math.min(1, s.lv) : s.lv, fromWeapon: !!card.weapon }]));
+  // 诅咒只移除本体技能，武器重建仍保留超过本体天然熟练度的独立贡献。
+  const native = card.weapon && Object.keys(card.lostSkills || {}).length ? makeCard(card.name, card.clan).skillList : [];
+  const list = new Map((natural || []).map((s) => {
+    const lv = card.lostSkills?.[s.id] ? (card.weapon ? Math.max(0, s.lv - (native.find((v) => v.id === s.id)?.lv || 0)) : 0) : s.lv;
+    return [s.id, { ...s, cat: s.cat || SKILLS[s.id]?.cat || 'atk',
+      lv: card.weapon && s.id === 'skldisperse' ? Math.min(1, lv) : lv, fromWeapon: !!card.weapon }];
+  }));
   const get = (id) => {
     if (!list.has(id)) list.set(id, { id, lv: 0, cat: SKILLS[id]?.cat || 'atk' });
     return list.get(id);
@@ -615,12 +639,18 @@ function skillsForBuild(state, card, natural) {
   return [...list.values()].filter((s) => s.lv > 0);
 }
 
+// 技能代价使用卸下武器后的本体与锻造熟练度，计算过程不改动现有装备。
+export function curseBaseSkills(state, card) {
+  rememberSkillTraining(state, card);
+  return skillsForBuild(state, { ...card, weapon: '' }, makeCard(card.name, card.clan).skillList);
+}
+
 // 开战前也恢复旧存档里被换武器覆盖、但仍有锻造记录的技能。
 export function prepareBattleCard(state, card) {
   refreshRunBuff(state);
   rememberSkillTraining(state, card);
   const hasForge = (state.run?.forged || []).some((f) => f.charId === card.id);
-  if (hasForge || Object.keys(card.skillTraining).length) {
+  if (hasForge || Object.keys(card.skillTraining).length || Object.keys(card.lostSkills || {}).length) {
     const natural = card.weapon ? buildWithWeapon(card.name, card.clan, card.weapon)?.skills : makeCard(card.name, card.clan)?.skillList;
     if (natural) card.skillList = skillsForBuild(state, card, natural);
   }
@@ -630,9 +660,24 @@ export function prepareBattleCard(state, card) {
 // 构建结果再叠锻造、再套开局保底（保持与装备前一致）
 function finalStats(card, stats) {
   const mult = card.runMult || 1;
-  // 开局保底在武器之后算：先构建（本体或名字+武器），再乘倍率，最后叠锻造
-  const buffed = mult > 1 ? applyRunBuff({ stats }, mult).stats : stats;
-  return applyForge(buffed, card.forge);
+  // 诅咒降低基础值：武器差值不变，开局倍率作用于降低后的基础，锻造独立叠回。
+  return Object.fromEntries(Object.entries(stats).map(([key, value]) => {
+    const factor = key === 'hp' ? 1 : mult;
+    const shown = Math.round((value - (card.curseStats?.[key] || 0)) * factor) + (card.forge?.[key] || 0);
+    return [key, Math.max(key === 'hp' ? 1 : 0, shown)];
+  }));
+}
+
+// 黑字基础只含本体、永久锻造和诅咒；交易生成和扣款都使用同一口径。
+export function curseBaseStats(card) {
+  return applyCurses(applyForge(makeCard(card.name, card.clan).stats, card.forge), card.curseStats);
+}
+
+// 编码下限为 HP 1、其余 0；用于基础值及黑字属性的显示。
+export function applyCurses(stats, curseStats) {
+  const out = { ...stats };
+  for (const [key, loss] of Object.entries(curseStats || {})) out[key] = Math.max(key === 'hp' ? 1 : 0, Math.round((out[key] || 0) - loss));
+  return out;
 }
 
 // 锻造增量叠加在任何构建结果之上（锻造只锻基础值，不进蓝字加成）
@@ -963,6 +1008,99 @@ export function shopStock(state) {
   return node.shopItems;
 }
 
+// 代价固定在第一次看到库存时；切换人物只读取该人物自己的已存库存。
+export const CURSE_STATS = [['hp', 'HP'], ['atk', '攻击'], ['def', '防御'], ['spd', '速度'], ['agi', '敏捷'], ['mag', '魔力'], ['res', '抗性']];
+const highestSkill = (state, card) => card ? curseBaseSkills(state, card).sort((a, b) => b.lv - a.lv || a.id.localeCompare(b.id))[0] : null;
+function curseHere(state) {
+  const node = currentNode(state);
+  return node?.kind === 'curseMerchant' && node.id === state.run.nodeId ? node : null;
+}
+
+// 以损失 20 点单项属性或熟练度 40 的技能为标准强度，物品随代价增强。
+function curseReward(item, units, rng) {
+  const strength = Math.max(.1, Math.min(4, units / 20));
+  const reward = structuredClone(item);
+  delete reward.price;
+  if (reward.skill) reward.skill.lv = reward.rarity === 'gold' ? Math.min(2, Math.max(1, Math.round(strength))) : Math.max(1, Math.round(reward.skill.lv * strength));
+  if (reward.potion) reward.potion.n = Math.max(1, Math.round(2 * strength));
+  if (reward.tactic) reward.power = Math.round((1 + strength) * 10) / 10;
+  if (reward.card) {
+    // 新角色的额外强度写入永久锻造，避免领取后的保底重算将它覆盖。
+    reward.card.forge = Object.fromEntries(STAT_LABELS.map(([key]) => [key, Math.round(units * (key === 'hp' ? 1.5 : .5))]));
+    reward.card.stats = applyForge(reward.card.stats, reward.card.forge);
+  }
+  if (reward.weapon) {
+    const target = Math.min(3000, 400 + units * 65);
+    const names = [reward.weapon.name, ...Array.from({ length: 24 }, () => randomWeapon(rng))];
+    reward.weapon.name = names.sort((a, b) => Math.abs(weaponQuote({ name: a }).value - target) - Math.abs(weaponQuote({ name: b }).value - target))[0];
+  }
+  return reward;
+}
+
+export function curseStock(state, charId) {
+  const node = curseHere(state), card = state.collection.find((c) => c.id === charId);
+  if (!node || !card) return [];
+  refreshRunBuff(state);
+  node.curseStocks ||= {};
+  if (!node.curseStocks[charId]) {
+    const seed = nodeSeed(state.run, { id: node.id + ':' + charId }, 0xc075e);
+    const rng = mulberry32(seed), top = highestSkill(state, card);
+    const costs = CURSE_STATS.map(([key, label]) => {
+      const factor = key === 'hp' ? 3 : 1, floor = key === 'hp' ? 1 : 0;
+      // 随机数严格小于所有角色可承受值的最小值，保留至少一个单位的余量。
+      const max = Math.min(40, ...state.collection.map((c) => Math.ceil(((curseBaseStats(c)[key] || 0) - floor) / factor) - 1));
+      return { type: 'stat', key, label, factor, max };
+    }).filter((cost) => cost.max >= 1);
+    node.curseStocks[charId] = rollShop(state, seed, state.run.layer).map((item, i) => {
+      let cost;
+      if (top && (i % 2 === 1 || !costs.length)) cost = { type: 'skill', charId, charName: card.name, skillId: top.id, lv: top.lv, units: Math.max(1, top.lv / 2) };
+      else if (costs.length) {
+        const base = costs[Math.floor(rng() * costs.length)];
+        const units = 1 + Math.floor(rng() * base.max);
+        cost = { type: 'stat', key: base.key, label: base.label, amount: units * base.factor, units };
+      } else return null;
+      return { ...curseReward(item, cost.units, rng), id: 'curse-' + seed + '-' + i, cost, sold: false };
+    }).filter(Boolean);
+    persist(state);
+  }
+  return node.curseStocks[charId];
+}
+
+// 同时校验所有角色，绝不让部分角色先扣款；技能报价必须仍为该人物的最高技能。
+export function canBuyCurse(state, offer) {
+  if (!curseHere(state) || !offer || offer.sold) return false;
+  const cost = offer.cost;
+  if (offer.card && state.collection.some((c) => c.id === offer.card.id)) return false;
+  if (cost.type === 'stat') return state.collection.length > 0 && state.collection.every((c) => curseBaseStats(c)[cost.key] - cost.amount > (cost.key === 'hp' ? 1 : 0));
+  const top = highestSkill(state, state.collection.find((c) => c.id === cost.charId));
+  return !!top && top.id === cost.skillId && top.lv === cost.lv;
+}
+
+export function buyCurseItem(state, charId, offerId) {
+  const offer = curseStock(state, charId).find((o) => o.id === offerId);
+  if (!canBuyCurse(state, offer)) return null;
+  const cost = offer.cost;
+  if (cost.type === 'stat') {
+    for (const card of state.collection) {
+      card.curseStats ||= {};
+      card.curseStats[cost.key] = (card.curseStats[cost.key] || 0) + cost.amount;
+    }
+    refreshRunBuff(state);
+  } else {
+    const card = state.collection.find((c) => c.id === cost.charId);
+    card.lostSkills ||= {};
+    card.lostSkills[cost.skillId] = true;
+    if (card.skillTraining) delete card.skillTraining[cost.skillId];
+    state.run.forged = (state.run.forged || []).filter((f) => f.charId !== card.id || f.skillId !== cost.skillId);
+    const natural = card.weapon ? buildWithWeapon(card.name, card.clan, card.weapon).skills : makeCard(card.name, card.clan).skillList;
+    card.skillList = skillsForBuild(state, card, natural);
+  }
+  offer.sold = true;
+  applyReward(state, offer);
+  persist(state);
+  return offer;
+}
+
 export function buyShopItem(state, item) {
   const run = state.run;
   if (!run || !item) return false;
@@ -1017,6 +1155,8 @@ export function campForge(state, charId, skillId) {
   const card = (state.collection || []).find((c) => c.id === charId);
   const skill = card?.skillList?.find((s) => s.id === skillId);
   if (!skill) return null;
+  // 武器仍可发动被献祭的同名技能，但不能借训练将本体部分恢复。
+  if (card.lostSkills?.[skillId]) return null;
   rememberSkillTraining(state, card);
   const gain = Math.max(1, Math.round(skill.lv * 0.05));
   const training = card.skillTraining[skillId] || { gain: 0, count: 0, mpMul: 1 };
@@ -1053,7 +1193,12 @@ export function scaleTactic(t, power) {
   for (const [k, v] of Object.entries(t.apply?.attrs || {})) attrs[k] = Math.round(v * p);
   const skills = {};
   for (const [k, v] of Object.entries(t.apply?.skills || {})) skills[k] = Math.round(v * p);
-  return { ...t, power: p, apply: { ...t.apply, attrs, skills } };
+  // 卡面描述与实际应用共用已缩放、已取整的数值，不再并列显示基础值与倍率。
+  const labels = { hp: '体力上限', atk: '攻击', def: '防御', spd: '速度', agi: '敏捷', mag: '魔力', res: '抗性', wis: '智慧' };
+  const signed = (v) => (v >= 0 ? '+' : '') + v;
+  const desc = [...Object.entries(attrs).map(([key, value]) => (labels[key] || key) + ' ' + signed(value)),
+    ...Object.entries(skills).map(([id, value]) => skillMeta(id).name + ' ' + signed(value) + ' 级')].join('，') || t.desc;
+  return { ...t, power: p, desc, apply: { ...t.apply, attrs, skills } };
 }
 
 export function tacticsByIds(state, ids) {
@@ -1167,6 +1312,8 @@ export function applyReward(state, offer) {
 export function forgeChance(state, characterId, skillCard) {
   const target = state.collection.find((c) => c.id === characterId);
   if (!target || !skillCard) return 0;
+  // 已支付给诅咒商人的技能永久归零，不允许再次锻造恢复。
+  if (target.lostSkills?.[skillCard.id]) return 0;
   const list = target.skillList || [];
   const existing = list.find((s) => s.id === skillCard.id);
   const a = list.length;
@@ -1314,14 +1461,8 @@ function fromB64(b64) {
 }
 
 export function exportSaveText(state) {
-  const slim = {
-    v: 1,
-    records: state.records || [],
-    collection: state.collection.map((c) => ({ id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon, cost: c.cost, custom: c.custom })),
-    customCards: (state.customCards || []).map((c) => ({ id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon, custom: true })),
-    ownedTactics: state.ownedTactics,
-    run: state.run,
-  };
+  // 文本导出与槽位存档共用快照，防止导出遗漏永久代价或装备来源。
+  const slim = snapshot(state);
   return `NAMERENA-SAVE-1\n${toB64(xorText(JSON.stringify(slim), SAVE_SECRET))}\n`;
 }
 
@@ -1329,15 +1470,7 @@ export function importSaveText(text, state) {
   const body = text.split('\n').filter((l) => l && !l.startsWith('NAMERENA-SAVE')).join('');
   const data = JSON.parse(xorText(fromB64(body), SAVE_SECRET));
   if (!data || data.v !== 1) throw new Error('存档格式不对');
-  state.records = data.records || [];
-  state.collection = (data.collection || []).map(hydrateSaved).filter(Boolean);
-  state.customCards = (data.customCards || []).map(hydrateSaved).filter(Boolean);
-  state.ownedTactics = data.ownedTactics || [];
-  state.weapons = Array.isArray(data.weapons) ? data.weapons : [];
-  state.tacticPower = data.tacticPower || {};
-  state.run = data.run || null;
-  persist(state);
-  return true;
+  return restoreSnapshot(state, data);
 }
 // 战败：随机掉落一半已锻造技能，返还到角色身上（等级回退，归零则移除）
 export function dropForged(state) {

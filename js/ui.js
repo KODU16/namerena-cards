@@ -1,7 +1,7 @@
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta } from './skills.js';
 import { burstAt } from './fx.js';
-import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote } from './game.js';
+import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote, scaleTactic } from './game.js';
 import { makeCard } from './engine.js';
 import { emojiImg, mapIconSvg } from './emoji.js';
 // 生成和绘制共用尺寸，保持节点半径和几何约束一致。
@@ -611,6 +611,31 @@ export function qualityBadge(rarity = 'blue') {
   return el('span', { class: 'quality-badge quality-badge--' + rarity }, rarity === 'gold' ? '金色 · 稀有' : '蓝色 · 精良');
 }
 
+// 红字只突出支付的降低量或失去的技能名，获得的物品正常展示。
+export function curseCostEl(cost) {
+  return cost.type === 'stat'
+    ? el('p', { class: 'curse-cost' }, '所有角色' + cost.label + ' ', el('strong', { class: 'curse-loss' }, '降低 ' + cost.amount))
+    : el('p', { class: 'curse-cost' }, cost.charName + '失去', el('strong', { class: 'curse-loss' }, skillMeta(cost.skillId).name), '技能',
+      el('small', {}, '熟练度 ' + cost.lv));
+}
+
+export function curseMerchantSheet(state, h) {
+  return el('section', { class: 'curse-shop' },
+    el('label', { class: 'field' }, '当前角色（用于技能交换）',
+      el('select', { onchange: (event) => h.onChange(event.target.value) }, state.collection.map((card) => el('option', { value: card.id, selected: card.id === h.charId }, card.name + '@' + card.clan)))),
+    el('p', { class: 'muted small' }, '不消耗天梯分数。属性代价扣除所有已有角色的黑字基础值（含永久锻造，不含武器和开局加成）。技能交换按卸下武器后的本体技能组选择最高项，连同锻造熟练度永久移除；原武器贡献仍正常生效。HP 按三倍降低，物品强度按原始代价值计算。'),
+    el('div', { class: 'inv__grid' }, h.stock.length ? h.stock.map((offer) => {
+      const summary = rewardSummary(offer);
+      return el('div', { class: 'inv__item shop-item shop-item--' + offer.rarity }, qualityBadge(offer.rarity),
+        el('b', {}, summary.label), el('p', { class: 'muted small' }, summary.detail),
+        offer.weapon ? el('small', {}, '武器估值 ' + weaponQuote(offer.weapon).value) : null,
+        offer.card ? el('small', {}, '永久属性加成：七围 +' + offer.card.forge.atk + ' · HP +' + offer.card.forge.hp) : null,
+        curseCostEl(offer.cost),
+        el('button', { class: 'primary', type: 'button', disabled: !h.canBuy(offer), onclick: () => h.onBuy(offer.id) }, offer.sold ? '已交换' : '交换'));
+    }) : el('p', { class: 'muted' }, '没有可安全支付的属性或技能。')),
+    el('div', { class: 'result__actions' }, el('button', { class: 'primary', type: 'button', onclick: h.onLeave }, '离开')));
+}
+
 // 三把固定库存与物品栏交易分开浏览，每次操作后由主流程刷新余额及报价。
 export function weaponMerchantSheet(state, h) {
   const tab = h.tab || 'buy';
@@ -695,8 +720,8 @@ export function renderReward(root, state, offers, h) {
             el('div', { class: 'offer__tag' }, '战术卡'),
             el('div', { class: 'tactic__glyph big-glyph' }, emojiImg(o.tactic.id, 'emoji emoji--xxl')),
             el('b', {}, o.tactic.name),
-            el('p', {}, o.tactic.desc),
-            el('p', { class: 'muted small' }, '强度 x' + (o.power || 1).toFixed(1) + ' · 同名只保留更强的一张'),
+            el('p', {}, rewardSummary(o).detail),
+            el('p', { class: 'muted small' }, '同名只保留更强的一张'),
             el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
           )
         : o.kind === 'skill'
@@ -1057,6 +1082,8 @@ export function renderMap(root, state, h) {
       ? '<text y="6" text-anchor="middle" class="map-glyph">起</text>'
       : n.kind === 'event'
         ? objectArt('event')
+        : n.kind === 'curseMerchant'
+          ? objectArt('sklcurse')
         : n.kind === 'weaponMerchant'
           ? objectArt('weaponMerchant')
         : n.kind === 'chest'
@@ -1082,6 +1109,7 @@ export function renderMap(root, state, h) {
               : n.kind === 'shop' ? '商店'
               : n.kind === 'camp' ? '篝火'
                 : n.kind === 'event' ? '补给'
+                  : n.kind === 'curseMerchant' ? '诅咒商人'
                   : n.kind === 'weaponMerchant' ? '武器商人'
                   : n.kind === 'chest' ? '宝箱'
                   : '试炼';
@@ -1118,6 +1146,7 @@ export function renderMap(root, state, h) {
           el('span', { class: 'map-legend map-legend--filler' }, '试炼'),
           el('span', { class: 'map-legend map-legend--chest' }, '宝箱 · 物品＋分数'),
           el('span', { class: 'map-legend map-legend--chest' }, '武器商人'),
+          el('span', { class: 'map-legend map-legend--chest' }, '诅咒商人'),
           el('span', { class: 'map-legend map-legend--end' }, '终点'))),
       el('div', { class: 'map__row' },
         el('div', { class: 'map__body' }),
@@ -1268,11 +1297,12 @@ export function fullCharRow(card) {
   const line = (label, key, v) => {
     const delta = key ? Math.round(bonusMap[key] || 0) : 0;
     return el('span', { class: 'fullrow__stat' }, label + ' ' + v,
+      card.eliteMult > 1 ? el('i', { class: 'fullrow__plus' }, '*' + card.eliteMult) : null,
       delta ? el('i', { class: 'fullrow__plus' + (delta < 0 ? ' is-neg' : '') }, (delta > 0 ? '+' : '') + delta) : null);
   };
   const bar = (cls, label, pct) => el('div', { class: 'fullrow__bar ' + cls, title: label },
     el('i', { style: 'width:' + Math.max(0, Math.min(100, pct)) + '%' }),
-    el('span', {}, label));
+    el('span', {}, label, cls === 'fullrow__bar--hp' && card.eliteMult > 1 ? el('i', { class: 'elite-mult' }, '*' + card.eliteMult) : null));
   return el('div', { class: 'fullrow' },
     el('div', { class: 'fullrow__head' },
       card.icon ? el('img', { class: 'fullrow__icon', src: card.icon, alt: '' }) : null,
@@ -1325,8 +1355,10 @@ const CODEX_STATS = [
 
 const CODEX_PLAYER = [
   ['抽牌', '每回合从你已学的主动技能里抽 3 张，权重是 1 + 熟练度/6（熟练度越高越容易抽到）。普通攻击永远可用。'],
-  ['净化', '敌人专属，正常不会进你的牌池；只有武器带来的净化可以抽到，且熟练度封顶 1。'],
-  ['MP 时机', '卡牌在抽到的那一刻就用引擎的掷骰定好消耗（8~23），不是出牌时再掷。能量不足的牌会变灰。'],
+  ['净化', '武器带来的净化可以抽到，熟练度封顶 1；商店小概率出售熟练度 1～2 的金色净化锻造卡，锻造成功后也可抽到。'],
+  ['MP 时机', '抽牌时定好消耗（8~23），出牌立即扣除 MP。行动所有段落结束后再显示回复，单位 MP 槽右侧蓝字列出实际回复量。'],
+  ['精英试炼', '第一层为属性 ×1.2，第二层为 ×1.5；第三层起出现属性 ×2 或双倍人数的精英，数值倍率以蓝字显示。'],
+  ['诅咒商人', '用全体角色黑字基础属性或当前角色卸下武器后的最高熟练度技能交换物品。属性代价不计武器和开局加成，HP 按三倍扣除；本体技能含锻造部分永久归零，武器贡献保留。'],
   ['谁听你指挥', '只有本体与分身会停下来等你下指令；幻影、使魔、丧尸由引擎自动行动。'],
   ['背刺', '潜行与背刺是两段，引擎会强制走完第二段，玩家不能在这中间插别的牌。'],
   ['狂暴', '进入狂暴（含被附体）后，四张牌全部变成「狂暴攻击」并自动随机打出，玩家不能选牌。'],
@@ -1430,7 +1462,7 @@ export function inventorySheet(state, h = {}) {
         ? el('div', { class: 'inv__grid' }, ids.map((tid) => {
           const t = pool.find((x) => x.id === tid);
           const power = (state.tacticPower || {})[tid] || 1;
-          return el('div', { class: 'inv__item' }, el('b', {}, t?.name || tid), el('small', {}, '强度 ×' + power), del('tactic', tid, t?.name || tid));
+          return el('div', { class: 'inv__item' }, el('b', {}, t?.name || tid), el('small', {}, t ? scaleTactic(t, power).desc : ''), del('tactic', tid, t?.name || tid));
         }))
         : el('p', { class: 'muted' }, '还没有战术卡'));
     } else if (id === 'potions') {
