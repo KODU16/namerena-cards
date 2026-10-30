@@ -43,4 +43,29 @@ export const HEROES = [{
   portrait: 'assets/heroes/wenge-i357114.webp',
   description: '第0届武术大赛冠军',
   scores: { pp: 7152, pd: 8003, qp: 4571, qd: 4334, sum: 24060 },
+}, {
+  // 历史英雄保留提供的四项评分与总分，立绘按年份展示时加载。
+  id: 'shuolu-huang',
+  year: 2016,
+  name: '烁露凰',
+  clan: '库瓒',
+  portrait: 'assets/heroes/shuolu-huang.webp',
+  description: '譬如朝露',
+  scores: { pp: 6957, pd: 7699, qp: 4297, qd: 3963, sum: 22916 },
+}, {
+  id: 'yinying-67031736',
+  year: 2020,
+  name: '银影67031736',
+  clan: '云剑',
+  portrait: 'assets/heroes/yinying-67031736.webp',
+  description: '云剑只藏了一个7000',
+  scores: { pp: 7906, pd: 8736, qp: 5422, qd: 5756, sum: 27820 },
+}, {
+  id: 'daxiulong-xingjiejing',
+  year: 2020,
+  name: '汏修垄星结晶',
+  clan: '琪拉拉',
+  portrait: 'assets/heroes/daxiulong-xingjiejing.webp',
+  description: '以积分为标准的天梯还拼的是大概率',
+  scores: { pp: 7557, pd: 8654, qp: 5010, qd: 5883, sum: 27104 },
 }];
