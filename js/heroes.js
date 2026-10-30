@@ -93,4 +93,29 @@ export const HEROES = [{
   portrait: 'assets/heroes/taohua-liushui.webp',
   description: '让我来考大家一些信奥方面的知识吧',
   scores: { pp: 8074, pd: 8707, qp: 5480, qd: 5233, sum: 27494 },
+}, {
+  // 历届武术大赛冠军按提供的完整名字、年份和评分归档。
+  id: 'zhichenyu-hell',
+  year: 2020,
+  name: '此处替换成紌琛隃',
+  clan: 'Hell',
+  portrait: 'assets/heroes/zhichenyu-hell.webp',
+  description: '第一届武术大赛冠军',
+  scores: { pp: 7234, pd: 8239, qp: 4631, qd: 4875, sum: 24979 },
+}, {
+  id: 'baomei-zhizun',
+  year: 2020,
+  name: '爆躾蠿齓至尊',
+  clan: '昀澤',
+  portrait: 'assets/heroes/baomei-zhizun.webp',
+  description: '第二届武术大赛冠军',
+  scores: { pp: 6869, pd: 8196, qp: 4428, qd: 5026, sum: 24519 },
+}, {
+  id: 'zhan1-2841600',
+  year: 2020,
+  name: '战①2841600',
+  clan: '新纪元',
+  portrait: 'assets/heroes/zhan1-2841600.webp',
+  description: '第三届武术大赛冠军',
+  scores: { pp: 7374, pd: 8451, qp: 4906, qd: 5205, sum: 25936 },
 }];
