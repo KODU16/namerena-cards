@@ -4,6 +4,7 @@
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import * as path from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
+import { effectiveSkillLevel } from '../js/skills.js';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pkgDir = process.argv[2] ? path.resolve(process.argv[2]) : path.join(root, 'vendor', 'tswn_wasm');
@@ -80,7 +81,9 @@ function levelOf(v) {
 }
 
 function cardLine(name, clan, ol) {
-  const clone = { ...ol, name_factor_enabled: false };
+  // 评级对局也仅使用有效熟练度，生成卡池仍保留未截断的原始等级。
+  const skills = Object.fromEntries(Object.entries(ol.skills || {}).map(([id, value]) => [id, effectiveSkillLevel(levelOf(value))]));
+  const clone = { ...ol, skills, name_factor_enabled: false };
   return `${name}@${clan}+ol:` + JSON.stringify(clone);
 }
 

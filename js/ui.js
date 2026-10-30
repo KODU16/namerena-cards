@@ -1,5 +1,5 @@
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
-import { CAT, SKILLS, skillMeta } from './skills.js';
+import { CAT, SKILLS, skillMeta, effectiveSkillLevel } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote, scaleTactic } from './game.js';
 import { makeCard, cardDisplayStats } from './engine.js';
@@ -8,7 +8,7 @@ import { emojiImg, mapIconSvg } from './emoji.js';
 import { MAP_LAYOUT, mapNodeRadius } from './map.js';
 // 抽牌概率：被动不进牌堆，权重随熟练度线性增长（原先在 combat.js，那里已废弃）
 const PASSIVE_IDS = new Set(['sklcounter', 'sklreflect', 'sklreraise']);
-const drawWeight = (lv) => 1 + lv / 6;
+const drawWeight = (lv) => 1 + effectiveSkillLevel(lv) / 6;
 function drawChances(skills) {
   const list = (skills || []).filter((s) => !PASSIVE_IDS.has(s.id));
   const total = list.reduce((a, s) => a + drawWeight(s.lv), 0) || 1;
@@ -57,16 +57,16 @@ export function skillTag(s, chance) {
   const pct = chance == null ? null : Math.round(chance * 100);
   return el('span', {
     class: `skill-tag cat-${meta.cat || 'atk'}`,
-    'data-tip': `${meta.name} ${s.lv}`,
+    'data-tip': `${meta.name} ${effectiveSkillLevel(s.lv)}`,
     'data-tip-desc': meta.desc + (pct == null ? '' : `（单抽概率 ${pct}%）`),
   },
     emojiImg(s.id, 'emoji emoji--xs'),
-    ` ${meta.name} ${s.lv}`,
+    ` ${meta.name} ${effectiveSkillLevel(s.lv)}`,
     pct == null ? null : el('em', { class: 'skill-tag__pct' }, ` ${pct}%`));
 }
 
 export function cardTooltip(card) {
-  const skills = (card.skillList || []).slice(0, 6).map((s) => `${skillMeta(s.id).name} 熟练度${s.lv}`).join('、') || '无技能';
+  const skills = (card.skillList || []).slice(0, 6).map((s) => `${skillMeta(s.id).name} 熟练度${effectiveSkillLevel(s.lv)}`).join('、') || '无技能';
   return `${card.name} @${card.clan}\n${statLine(card)}\n${skills}`;
 }
 
@@ -101,10 +101,10 @@ export function cardEl(card, { size = 'grid', selected = false, dim = false, onC
     el('div', { class: 'c-skills' },
       skills.length ? skills.map((sk) => el('span', {
         class: `c-skill cat-${CAT[sk.cat]?.key || 'atk'}`,
-        'data-tip': `${skillMeta(sk.id).name} ${sk.lv}`,
+        'data-tip': `${skillMeta(sk.id).name} ${effectiveSkillLevel(sk.lv)}`,
         'data-tip-desc': skillMeta(sk.id).desc,
       },
-        emojiImg(sk.id, 'emoji emoji--xs'), el('b', {}, sk.lv))) : el('span', { class: 'c-skill c-skill--none' }, '无技能'),
+        emojiImg(sk.id, 'emoji emoji--xs'), el('b', {}, effectiveSkillLevel(sk.lv)))) : el('span', { class: 'c-skill c-skill--none' }, '无技能'),
     ),
     badge ? el('div', { class: 'c-badge' }, badge) : null,
     extra || null,
@@ -307,7 +307,7 @@ export function renderPrep(root, state, h) {
             return node;
           })(),
           el('div', { class: 'forged-list' }, (run.forged || []).filter((f) => f.charId === c.id).map((f) =>
-            el('span', { class: 'forged-tag' }, skillMeta(f.skillId).name + ' +' + f.lv)))))),
+            el('span', { class: 'forged-tag' }, skillMeta(f.skillId).name + ' +' + effectiveSkillLevel(f.lv))))))),
         el('h3', { class: 'mt' }, `战术 · ${state.ownedTactics.length}`),
         el('div', { class: 'tactics-grid' }, h.ownedTacticObjects(state).map((t) =>
           tacticEl(t, { active: run.tacticIds.includes(t.id), onClick: () => h.onToggleTactic(t.id) }))),
@@ -316,7 +316,7 @@ export function renderPrep(root, state, h) {
         el('div', { class: 'tactics-grid' }, (run.skillCards || []).map((s) =>
           el('button', { class: `tactic${h.forgeSelected === s.uid ? ' is-active' : ''}`, type: 'button', onclick: () => h.onPickSkillCard(s.uid) },
             el('span', { class: 'tactic__glyph' }, emojiImg(s.id, 'emoji emoji--lg')),
-            el('span', { class: 'tactic__body' }, el('b', {}, skillMeta(s.id).name), el('small', {}, `熟练度 ${s.lv}`)),
+            el('span', { class: 'tactic__body' }, el('b', {}, skillMeta(s.id).name), el('small', {}, `熟练度 ${effectiveSkillLevel(s.lv)}`)),
           ))),
       ),
       el('div', { class: 'prep__foot' },
@@ -423,7 +423,7 @@ export function handCardEl(card, { onPlay, disabled, locked = false }) {
     el('div', { class: 'hcard__glyph' }, emojiImg(card.id, 'emoji emoji--xl')),
     el('div', { class: 'hcard__body' },
       el('b', {}, meta.name),
-      el('span', { class: 'hcard__lv' }, passive ? '被动 · 自动' : `熟练度 ${card.lv} · 消耗 ${card.cost} MP`),
+      el('span', { class: 'hcard__lv' }, passive ? '被动 · 自动' : `熟练度 ${effectiveSkillLevel(card.lv)} · 消耗 ${card.cost} MP`),
       el('small', {}, passive ? '条件满足时自动发动，不需要点击。' : meta.desc),
     ),
     el('div', { class: 'hcard__cat' }, card.id === 'skldisperse' ? '金色 · 稀有' : passive ? '被动' : CAT[meta.cat]?.name || ''),
@@ -616,7 +616,7 @@ export function curseCostEl(cost) {
   return cost.type === 'stat'
     ? el('p', { class: 'curse-cost' }, '所有角色' + cost.label + ' ', el('strong', { class: 'curse-loss' }, '降低 ' + cost.amount))
     : el('p', { class: 'curse-cost' }, cost.charName + '失去', el('strong', { class: 'curse-loss' }, skillMeta(cost.skillId).name), '技能',
-      el('small', {}, '熟练度 ' + cost.lv));
+      el('small', {}, '熟练度 ' + effectiveSkillLevel(cost.lv)));
 }
 
 export function curseMerchantSheet(state, h) {
@@ -729,7 +729,7 @@ export function renderReward(root, state, offers, h) {
             el('div', { class: 'offer__tag' }, '技能卡 · 随机熟练度'),
             el('div', { class: 'tactic__glyph big-glyph' }, emojiImg(o.skill.id, 'emoji emoji--xxl')),
             el('b', {}, skillMeta(o.skill.id).name),
-            el('p', {}, `熟练度 ${o.skill.lv}`),
+            el('p', {}, `熟练度 ${effectiveSkillLevel(o.skill.lv)}`),
             el('p', { class: 'muted small' }, '只能在锻造里加给角色，加完消耗'),
             el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
           )
@@ -840,7 +840,7 @@ export function renderHeroes(root, heroes, h) {
     }
   };
   const skillItems = (card) => card.skillList.length
-    ? card.skillList.map((skill) => el('span', { title: skillMeta(skill.id).desc }, emojiImg(skill.id, 'emoji emoji--xs'), skillMeta(skill.id).name, el('b', {}, skill.lv)))
+    ? card.skillList.map((skill) => el('span', { title: skillMeta(skill.id).desc }, emojiImg(skill.id, 'emoji emoji--xs'), skillMeta(skill.id).name, el('b', {}, effectiveSkillLevel(skill.lv))))
     : [el('span', { class: 'muted' }, '无技能')];
   const heroCard = (hero) => {
     const cards = hero.cards || [hero.card];
@@ -1322,7 +1322,7 @@ export function fullCharRow(card) {
       line('攻', 'atk', disp.atk), line('防', 'def', disp.def), line('速', 'spd', disp.spd), line('敏', 'agi', disp.agi),
       line('魔', 'mag', disp.mag), line('抗', 'res', disp.res), line('智', 'wis', disp.wis)),
     el('div', { class: 'fullrow__skills' }, (card.skillList || []).length
-      ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: skillMeta(sk.id).desc }, skillMeta(sk.id).name + ' ' + sk.lv))
+      ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: skillMeta(sk.id).desc }, skillMeta(sk.id).name + ' ' + effectiveSkillLevel(sk.lv)))
       : el('span', { class: 'muted small' }, '无技能')));
 }
 
@@ -1360,6 +1360,7 @@ const CODEX_STATS = [
 ];
 
 const CODEX_PLAYER = [
+  ['熟练度', '所有主动、被动技能的显示与战斗计算最多按 106。原始熟练度仍可继续叠加并存档，不裁剪、不增加硬上界；抽牌权重、技能交易估值和训练增量同样使用有效值。'],
   ['抽牌', '每回合从你已学的主动技能里抽 3 张，权重是 1 + 熟练度/6（熟练度越高越容易抽到）。普通攻击永远可用。'],
   ['净化', '武器带来的净化可以抽到，熟练度封顶 1；商店小概率出售熟练度 1～2 的金色净化锻造卡，锻造成功后也可抽到。'],
   ['MP 时机', '抽牌时定好消耗（8~23），出牌立即扣除 MP。行动所有段落结束后再显示回复，单位 MP 槽右侧蓝字列出实际回复量。'],
@@ -1449,7 +1450,7 @@ export function inventorySheet(state, h = {}) {
               card.weapon ? el('span', { class: 'inv__weapon' }, '⚔ ' + card.weapon) : null,
               card.weaponInfo ? el('div', { class: 'inv__wd' },
                 el('div', {}, '加成：' + (card.weaponInfo.deltas.length ? card.weaponInfo.deltas.map((d) => d.label + (d.delta > 0 ? '+' : '') + d.delta).join('、') : '无')),
-                card.weaponInfo.added.length ? el('div', {}, '新技能：' + card.weaponInfo.added.map((a) => skillMeta(a.id).name + '(' + a.lv + ')').join('、')) : null,
+                card.weaponInfo.added.length ? el('div', {}, '新技能：' + card.weaponInfo.added.map((a) => skillMeta(a.id).name + '(' + effectiveSkillLevel(a.lv) + ')').join('、')) : null,
                 (card.weaponInfo.removed || []).length ? el('div', {}, '失去技能：' + card.weaponInfo.removed.map((a) => skillMeta(a.id).name).join('、')) : null) : null,
               card.weapon ? el('button', { class: 'ghost', type: 'button', onclick: () => { h.onUnequip && h.onUnequip(card.id); paint('chars'); } }, '卸下') : null,
               inTeam ? el('span', { class: 'muted small' }, '出战中') : del('card', card.id, card.name)));
@@ -1459,7 +1460,7 @@ export function inventorySheet(state, h = {}) {
       const list = (run.skillCards || []);
       body.replaceChildren(list.length
         ? el('div', { class: 'inv__grid' }, list.map((s) => el('div', { class: 'inv__item', title: skillMeta(s.id).desc },
-          el('b', {}, skillMeta(s.id).name), el('small', {}, '熟练度 ' + s.lv), del('forge', s.uid, skillMeta(s.id).name))))
+          el('b', {}, skillMeta(s.id).name), el('small', {}, '熟练度 ' + effectiveSkillLevel(s.lv)), del('forge', s.uid, skillMeta(s.id).name))))
         : el('p', { class: 'muted' }, '还没有锻造卡'));
     } else if (id === 'tactics') {
       const ids = state.ownedTactics || [];

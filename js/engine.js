@@ -1,7 +1,7 @@
 ﻿// tswn_wasm 的薄封装：名字 → 卡牌（八围 / 技能 / 头像）。
 // 所有数值都来自 tswn_core 的构建结果，前端只负责把它们整理成卡面。
 import initWasm, * as wasm from '../vendor/tswn_wasm_duel/tswn_wasm.js';
-import { levelOf, SKILLS } from './skills.js';
+import { levelOf, SKILLS, effectiveSkillLevel } from './skills.js';
 
 let ready = false;
 let versions = { wasm: '?', core: '?' };
@@ -132,7 +132,8 @@ export function buildLine(card) {
     clampAttr(card.stats.mag), clampAttr(card.stats.res), clampAttr(card.stats.wis), Math.max(1, Math.round(card.stats.hp)),
   ];
   // 失去的本体技能不能恢复，已重算出的武器贡献仍可正常进入战斗。
-  const skills = Object.fromEntries(card.skillList.filter((s) => !card.lostSkills?.[s.id] || s.fromWeapon).map((s) => [s.id, s.lv]));
+  // 仅序列化战斗输入时取有效值，不回写或裁剪卡牌与存档中的原始熟练度。
+  const skills = Object.fromEntries(card.skillList.filter((s) => !card.lostSkills?.[s.id] || s.fromWeapon).map((s) => [s.id, effectiveSkillLevel(s.lv)]));
   return `${card.name}@${card.clan}+ol:${JSON.stringify({ attrs, skills, name_factor_enabled: false })}`;
 }
 

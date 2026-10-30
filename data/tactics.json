@@ -1,6 +1,6 @@
 {
   "meta": {
-    "note": "战术卡＝在开战前给某张角色卡叠加一层 tswn 原生 ol 覆盖（属性或技能等级）。数值已整体上调，用来弥补随机名字与天梯老号之间的差距。",
+    "note": "战术卡在开战前叠加属性或技能等级。技能类基础增量按有效熟练度106的成长节奏调整，原始等级仍可继续累计。",
     "maxPerBattle": 2
   },
   "tactics": [
@@ -13,17 +13,17 @@
     { "id": "t-hp", "name": "长生符", "glyph": "命", "cost": 1, "desc": "体力上限 +200", "apply": { "attrs": { "hp": 200 } } },
     { "id": "t-wis", "name": "智慧符文", "glyph": "智", "cost": 1, "desc": "智慧 +24", "apply": { "attrs": { "wis": 24 } } },
 
-    { "id": "t-fire", "name": "烈焰附魔", "glyph": "火", "cost": 1, "desc": "火球术 +45 级", "apply": { "skills": { "sklfire": 45 } } },
-    { "id": "t-ice", "name": "寒冰附魔", "glyph": "冰", "cost": 1, "desc": "冰冻术 +45 级", "apply": { "skills": { "sklice": 45 } } },
-    { "id": "t-thunder", "name": "雷鸣附魔", "glyph": "雷", "cost": 1, "desc": "雷击术 +45 级", "apply": { "skills": { "sklthunder": 45 } } },
-    { "id": "t-iron", "name": "铁壁铭文", "glyph": "壁", "cost": 1, "desc": "铁壁 +40 级", "apply": { "skills": { "skliron": 40 } } },
-    { "id": "t-reflect", "name": "荆棘之甲", "glyph": "荆", "cost": 1, "desc": "伤害反弹 +35 级", "apply": { "skills": { "sklreflect": 35 } } },
-    { "id": "t-summon", "name": "血之契约", "glyph": "契", "cost": 1, "desc": "血祭 +30 级", "apply": { "skills": { "sklsummon": 30 } } },
-    { "id": "t-shadow", "name": "幻影之术", "glyph": "幻", "cost": 1, "desc": "幻术 +25 级", "apply": { "skills": { "sklshadow": 25 } } },
-    { "id": "t-revive", "name": "苏生符", "glyph": "生", "cost": 1, "desc": "苏生术 +20 级", "apply": { "skills": { "sklrevive": 20 } } },
-    { "id": "t-poison", "name": "剧毒之刃", "glyph": "毒", "cost": 1, "desc": "投毒 +35 级", "apply": { "skills": { "sklpoison": 35 } } },
-    { "id": "t-heal", "name": "治疗之泉", "glyph": "愈", "cost": 1, "desc": "治愈魔法 +40 级", "apply": { "skills": { "sklheal": 40 } } },
-    { "id": "t-shield", "name": "圣盾", "glyph": "盾", "cost": 1, "desc": "蓄盾 +45 级", "apply": { "skills": { "sklshield": 45 } } },
-    { "id": "t-protect", "name": "守护印记", "glyph": "护", "cost": 1, "desc": "守护 +30 级", "apply": { "skills": { "sklprotect": 30 } } }
+    { "id": "t-fire", "name": "烈焰附魔", "glyph": "火", "cost": 1, "desc": "火球术 +18 级", "apply": { "skills": { "sklfire": 18 } } },
+    { "id": "t-ice", "name": "寒冰附魔", "glyph": "冰", "cost": 1, "desc": "冰冻术 +18 级", "apply": { "skills": { "sklice": 18 } } },
+    { "id": "t-thunder", "name": "雷鸣附魔", "glyph": "雷", "cost": 1, "desc": "雷击术 +18 级", "apply": { "skills": { "sklthunder": 18 } } },
+    { "id": "t-iron", "name": "铁壁铭文", "glyph": "壁", "cost": 1, "desc": "铁壁 +16 级", "apply": { "skills": { "skliron": 16 } } },
+    { "id": "t-reflect", "name": "荆棘之甲", "glyph": "荆", "cost": 1, "desc": "伤害反弹 +14 级", "apply": { "skills": { "sklreflect": 14 } } },
+    { "id": "t-summon", "name": "血之契约", "glyph": "契", "cost": 1, "desc": "血祭 +12 级", "apply": { "skills": { "sklsummon": 12 } } },
+    { "id": "t-shadow", "name": "幻影之术", "glyph": "幻", "cost": 1, "desc": "幻术 +10 级", "apply": { "skills": { "sklshadow": 10 } } },
+    { "id": "t-revive", "name": "苏生符", "glyph": "生", "cost": 1, "desc": "苏生术 +8 级", "apply": { "skills": { "sklrevive": 8 } } },
+    { "id": "t-poison", "name": "剧毒之刃", "glyph": "毒", "cost": 1, "desc": "投毒 +14 级", "apply": { "skills": { "sklpoison": 14 } } },
+    { "id": "t-heal", "name": "治疗之泉", "glyph": "愈", "cost": 1, "desc": "治愈魔法 +16 级", "apply": { "skills": { "sklheal": 16 } } },
+    { "id": "t-shield", "name": "圣盾", "glyph": "盾", "cost": 1, "desc": "蓄盾 +18 级", "apply": { "skills": { "sklshield": 18 } } },
+    { "id": "t-protect", "name": "守护印记", "glyph": "护", "cost": 1, "desc": "守护 +12 级", "apply": { "skills": { "sklprotect": 12 } } }
   ]
 }

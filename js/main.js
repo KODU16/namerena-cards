@@ -6,7 +6,7 @@ import * as Tracking from './player-data.js';
 import * as Saves from './saves.js';
 import * as UI from './ui.js';
 import { el, cardEl, renderBattleShell, sleep, statLine } from './ui.js';
-import { skillMeta } from './skills.js';
+import { skillMeta, effectiveSkillLevel } from './skills.js';
 import { workshopAccount, workshopNameValid } from './workshop.js';
 import { HEROES } from './heroes.js';
 
@@ -683,10 +683,10 @@ function forgeAtCamp() {
         onclick: () => {
           const res = G.campForge(state, charId, s.id);
           closeSheet();
-          toast(res ? (skillMetaName(s.id) + ' 锻造完成：熟练度 ' + res.lv + '，消耗 ×' + res.mpMul.toFixed(2)) : '锻造失败', 2400);
+          toast(res ? (skillMetaName(s.id) + ' 锻造完成：熟练度 ' + effectiveSkillLevel(res.lv) + '，消耗 ×' + res.mpMul.toFixed(2)) : '锻造失败', 2400);
           mapScreen();
         },
-      }, el('b', {}, skillMetaName(s.id)), el('small', {}, '熟练度 ' + s.lv + (s.forge ? (' · 已锻 ' + s.forge + ' 次') : ''))))),
+      }, el('b', {}, skillMetaName(s.id)), el('small', {}, '熟练度 ' + effectiveSkillLevel(s.lv) + (s.forge ? (' · 已锻 ' + s.forge + ' 次') : ''))))),
     ));
   };
   sheet(el('div', {}, el('h2', {}, '选一个角色锻造'),
@@ -912,7 +912,7 @@ async function buildForgeCard(event) {
       el('div', { class: 'forge__meta' },
         el('div', { class: 'muted' }, statLine(card)),
         el('div', { class: 'skills-full' }, (card.skillList || []).map((s) =>
-          el('span', { class: 'skill-tag cat-' + s.cat, title: skillMeta(s.id).desc }, skillMeta(s.id).name + ' ' + s.lv))),
+          el('span', { class: 'skill-tag cat-' + s.cat, title: skillMeta(s.id).desc }, skillMeta(s.id).name + ' ' + effectiveSkillLevel(s.lv)))),
         el('button', { class: 'primary', type: 'button', onclick: async (addEvent) => {
           const addButton = addEvent.currentTarget; addButton.disabled = true;
           try {

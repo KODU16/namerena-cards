@@ -1,4 +1,4 @@
-﻿// 技能元数据：名称/分类/一句话说明。数值实现见 combat.js。
+﻿// 技能元数据：名称/分类/一句话说明，实际结算由 tswn Runtime 执行。
 // 技能 id 与 tswn_core 的 ol overlay 完全一致（0..34）。
 
 export const CAT = {
@@ -51,6 +51,13 @@ export const SKILLS = {
 };
 
 export const SKILL_IDS = Object.keys(SKILLS);
+
+// 原始熟练度可继续叠加并存档；只在展示、概率和战斗计算边界取有效值。
+export const EFFECTIVE_SKILL_LIMIT = 106;
+export function effectiveSkillLevel(value) {
+  const level = Number(value);
+  return Number.isFinite(level) ? Math.max(0, Math.min(EFFECTIVE_SKILL_LIMIT, Math.round(level))) : 0;
+}
 
 // 兼容引擎写法：core.skill.assassinate / sklassassinate / Assassinate → sklassassinate
 export function normalizeSkillId(id) {

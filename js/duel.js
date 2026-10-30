@@ -2,7 +2,7 @@
 // 前端只负责「轮到玩家单位时，从手牌里选一张写进强制队列」。
 import { el, sleep, handCardEl } from './ui.js';
 import { emojiImg } from './emoji.js';
-import { skillMeta } from './skills.js';
+import { skillMeta, effectiveSkillLevel } from './skills.js';
 import { potionPreview } from './game.js';
 import { playSkillFX } from './fx.js';
 import { battleDisplayStats } from './engine.js';
@@ -16,7 +16,7 @@ const ACTIVE_ID = {
 export const NORMAL_ID = 255;
 
 export const previewCost = (lv) => (lv >= 45 ? 3 : lv >= 15 ? 2 : 1);
-const weightOf = (lv) => 1 + lv / 6;
+const weightOf = (lv) => 1 + effectiveSkillLevel(lv) / 6;
 
 // 引擎 state 里的技能名是 `core.skill.fire` 这种导出名，转成 overlay 的 sklfire
 function skillsOf(unit, champion) {
@@ -52,7 +52,7 @@ export function drawHand(skills, rng, count = 3, exclude = null) {
     idx = Math.min(idx, pool.length - 1);
     const [picked] = pool.splice(idx, 1);
     const cost = Math.max(1, Math.round(rollMpCost(rng) * (picked.mpMul || 1)));
-    out.push({ id: picked.id, lv: picked.lv, cost });
+    out.push({ id: picked.id, lv: effectiveSkillLevel(picked.lv), cost });
   }
   return out;
 }
@@ -451,7 +451,7 @@ export class DuelView {
     });
     const skills = (state.skills || []).map(([name, lv]) => {
       const id = 'skl' + String(name).replace(/^core[.]skill[.]/, '');
-      return el('span', { class: 'skill-tag', title: skillMeta(id).desc }, skillMeta(id).name + ' 熟练度' + lv);
+      return el('span', { class: 'skill-tag', title: skillMeta(id).desc }, skillMeta(id).name + ' 熟练度' + effectiveSkillLevel(lv));
     });
     overlay.replaceChildren(el('div', { class: 'sheet' },
       el('h2', {}, state.display_name),
