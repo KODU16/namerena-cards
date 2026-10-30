@@ -1,0 +1,1325 @@
+diff --git a/Cargo.toml b/Cargo.toml
+index b6d81a36..47e98057 100644
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -20,6 +20,12 @@ exclude = ["crates/tswn_name_ranker"]
+ lto = "fat"
+ codegen-units = 1
+ 
++# 仅网站 WASM 使用体积优化，不改变 CLI、openbox 等原生 release 构建。
++[profile.release-wasm]
++inherits = "release"
++opt-level = "z"
++strip = "symbols"
++
+ [profile.release-fast]
+ inherits = "release"
+ lto = "thin"
+diff --git a/FORK.md b/FORK.md
+new file mode 100644
+index 00000000..9eb50961
+--- /dev/null
++++ b/FORK.md
+@@ -0,0 +1,36 @@
++# 卡牌引擎补丁说明
++
++以 shenjackyuanjie/tswn-core 的 5237f2b30a46b6658c6aefd49b2c4e97a2b81080 为基线。卡牌改动与审查修复通过 cards 仓库中的 source.patch 归档；本次不再提交引擎分支。
++
++## 构建
++
++使用 GNU 工具链及 MinGW，安装 wasm32-unknown-unknown 和匹配的 wasm-bindgen-cli 后：
++
++~~~powershell
++cargo build -p tswn_wasm --target wasm32-unknown-unknown --profile release-wasm
++wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/release-wasm/tswn_wasm.wasm
++node tools/test-forced.mjs dist
++~~~
++
++release-wasm 独立设置体积优化和符号裁剪，不影响 workspace 的普通 release。产物使用标准 .wasm 扩展名。
++
++## 行动与暂停
++
++battle_replay_forced(raw, new Uint32Array([actor, skill, packed, ...]), options) 只接收完整三元组。
++skill 为主动技能公开编号 0..24，255 表示普通攻击；被动及非法编号报错。
++packed 的低 8 位是 MP 消耗（0 表示现场掷值），高 8 位是药水编号：0 无药水、1..7 攻防速敏魔抗智、9 体力、10 MP；其它编号或溢出报错。
++药水与同一条行动绑定，属性药水按实体分别保存，到该实体下次行动前还原，暂停等待指令不提前消耗药效。
++合法技能无法生效时，回放明确记录退化为普通攻击；无可攻击目标时保留行动并暂停。
++
++controlled_team 指定 runtime 队伍编号（取自 initial_states）。该队伍本体和分身等待指令，幻影、使魔、丧尸自动行动。潜行背刺等引擎强制动作优先。
++暂停返回 stop_reason="paused"、paused_actor，status 仍为 running，不能视为终局。
++BattleSession 的同名选项同样生效，调用 paused_actor() 取实体，再 submit_action(actor,skill,packed) 后调用 next_frame() 继续。
++暂停会还原准备阶段的随机流、行动条和药水状态，续行与一次性批量回放一致。会话交错推进不会共享控制或药水状态。
++
++start_hp_pct 必须是正的有限倍率且同时指定 controlled_team，支持 0.5 等小于 1 的值，仅修改该队伍开局 HP；max_hp 不变。
++BattlePlayerState.skills 是技能导出名与当前熟练度的二元组数组。TypeScript、Python DTO 与 C 的 paused 枚举已同步；C V1 options 保持原 ABI，以默认值填充新增选项。
++
++## 验证
++
++Rust 行为回归覆盖封包校验、角色药水交叠与失效、流式和批量回放一致、交错会话隔离、开局 HP 边界。
++tools/test-forced.mjs 对编译后的真实 WASM 执行相应验证。默认不指定 controlled_team 的战斗不执行卡牌专用潜行修复。
+diff --git a/crates/tswn_capi/include/tswn_capi.h b/crates/tswn_capi/include/tswn_capi.h
+index 963a95af..57340edb 100644
+--- a/crates/tswn_capi/include/tswn_capi.h
++++ b/crates/tswn_capi/include/tswn_capi.h
+@@ -120,7 +120,8 @@ typedef enum tswn_battle_status_t {
+ } tswn_battle_status_t;
+ typedef enum tswn_battle_stop_reason_t {
+     TSWN_BATTLE_STOP_NONE = 0, TSWN_BATTLE_STOP_WINNER = 1,
+-    TSWN_BATTLE_STOP_MAX_ROUNDS = 2, TSWN_BATTLE_STOP_NO_PROGRESS = 3
++    TSWN_BATTLE_STOP_MAX_ROUNDS = 2, TSWN_BATTLE_STOP_NO_PROGRESS = 3,
++    TSWN_BATTLE_STOP_PAUSED = 4
+ } tswn_battle_stop_reason_t;
+ 
+ /* 覆写字段前先初始化。default 永久仅写 V1，并设置 struct_size=V1_SIZE；
+diff --git a/crates/tswn_capi/src/battle_api.rs b/crates/tswn_capi/src/battle_api.rs
+index 341cd270..f0d18e77 100644
+--- a/crates/tswn_capi/src/battle_api.rs
++++ b/crates/tswn_capi/src/battle_api.rs
+@@ -67,6 +67,7 @@ pub enum tswn_battle_stop_reason_t {
+     TSWN_BATTLE_STOP_WINNER = 1,
+     TSWN_BATTLE_STOP_MAX_ROUNDS = 2,
+     TSWN_BATTLE_STOP_NO_PROGRESS = 3,
++    TSWN_BATTLE_STOP_PAUSED = 4,
+ }
+ 
+ #[allow(
+@@ -299,6 +300,7 @@ pub unsafe extern "C" fn tswn_battle_session_stop_reason(
+                 Some(BattleStopReason::Winner) => tswn_battle_stop_reason_t::TSWN_BATTLE_STOP_WINNER,
+                 Some(BattleStopReason::MaxRounds) => tswn_battle_stop_reason_t::TSWN_BATTLE_STOP_MAX_ROUNDS,
+                 Some(BattleStopReason::NoProgress) => tswn_battle_stop_reason_t::TSWN_BATTLE_STOP_NO_PROGRESS,
++                Some(BattleStopReason::Paused) => tswn_battle_stop_reason_t::TSWN_BATTLE_STOP_PAUSED,
+             })
+         };
+         Ok(())
+@@ -389,6 +391,7 @@ mod tests {
+             eval_rq: 0.5,
+             max_rounds: 1,
+             include_icons: true,
++            ..BattleOptions::default()
+         };
+         let old = SimulatedOldBattleOptionsV1 {
+             struct_size: size_of::<SimulatedOldBattleOptionsV1>() as u32,
+diff --git a/crates/tswn_capi/src/high_api.rs b/crates/tswn_capi/src/high_api.rs
+index 062e6f08..5d1fe314 100644
+--- a/crates/tswn_capi/src/high_api.rs
++++ b/crates/tswn_capi/src/high_api.rs
+@@ -689,6 +689,7 @@ pub unsafe extern "C" fn tswn_battle_replay_json(
+                 eval_rq,
+                 include_icons: include_icons != 0,
+                 max_rounds,
++                ..core_cli_api::BattleOptions::default()
+             },
+         )
+         .map_err(cli_api_error)?;
+diff --git a/crates/tswn_core/src/cli_api/battle/driver.rs b/crates/tswn_core/src/cli_api/battle/driver.rs
+index c5a769ff..f1bbff93 100644
+--- a/crates/tswn_core/src/cli_api/battle/driver.rs
++++ b/crates/tswn_core/src/cli_api/battle/driver.rs
+@@ -11,6 +11,7 @@ pub(super) struct BattleDriver {
+     pub frames_emitted: usize,
+     pub stop_reason: Option<BattleStopReason>,
+     pub failure: Option<CliApiError>,
++    pub forced: crate::runtime::forced_action::ForcedState,
+     max_rounds: usize,
+     no_progress_rounds: usize,
+ }
+@@ -23,6 +24,8 @@ pub(super) struct RoundStep {
+ 
+ impl BattleDriver {
+     pub fn from_raw(raw: &str, options: BattleOptions) -> CliApiResult<Self> {
++        // 即使初始化失败也消费暂存指令，避免污染随后创建的会话。
++        let pending_actions = crate::runtime::forced_action::take_pending_actions();
+         if raw.trim().is_empty() {
+             return Err(invalid_input("raw_input is empty"));
+         }
+@@ -33,9 +36,36 @@ impl BattleDriver {
+             return Err(CliApiError::InvalidArgument("battle eval_rq must be finite".into()));
+         }
+         let (groups, seed) = RuntimeRunner::split_namerena_into_groups(raw.to_owned());
+-        let runner = RuntimeRunner::new_from_groups_with_seed_and_eval_rq(&groups, &seed, options.eval_rq)
++        if let Some(pct) = options.start_hp_pct {
++            if !pct.is_finite() || pct <= 0.0 || options.controlled_team.is_none() {
++                return Err(CliApiError::InvalidArgument(
++                    "start_hp_pct requires a controlled_team and a positive finite multiplier".into(),
++                ));
++            }
++        }
++        let mut runner = RuntimeRunner::new_from_groups_with_seed_and_eval_rq(&groups, &seed, options.eval_rq)
+             .map_err(|e| CliApiError::RunnerInit(e.to_string()))?;
+-        Self::new(runner, options.max_rounds)
++        for command in &pending_actions {
++            if runner.runtime().entities.get(crate::runtime::EntityIdx(command.actor)).is_none() {
++                return Err(CliApiError::InvalidArgument("forced actor does not exist".into()));
++            }
++        }
++        if let Some(team) = options.controlled_team {
++            if !runner.runtime().entities.iter().any(|(_, entity)| entity.runtime.team == team) {
++                return Err(CliApiError::InvalidArgument("controlled_team does not exist".into()));
++            }
++        }
++        if let Some(pct) = options.start_hp_pct {
++            for entity in runner.runtime_mut().entities.iter_all_mut() {
++                if Some(entity.runtime.team) == options.controlled_team && entity.runtime.alive {
++                    entity.runtime.hp = (entity.template.max_hp as f64 * pct).round().clamp(1.0, i32::MAX as f64) as i32;
++                }
++            }
++        }
++        let mut driver = Self::new(runner, options.max_rounds)?;
++        driver.forced.controlled_team = options.controlled_team;
++        driver.forced.queue = pending_actions;
++        Ok(driver)
+     }
+ 
+     pub fn new(runner: RuntimeRunner, max_rounds: usize) -> CliApiResult<Self> {
+@@ -50,6 +80,7 @@ impl BattleDriver {
+             frames_emitted: 0,
+             no_progress_rounds: 0,
+             failure: None,
++            forced: Default::default(),
+         })
+     }
+ 
+@@ -73,7 +104,18 @@ impl BattleDriver {
+             return Err(error);
+         }
+         let round_index = self.rounds_advanced;
+-        let updates = self.runner.main_round();
++        // 暂停不消耗准备阶段的 RNG 和行动条，补交指令后重放同一行动。
++        let checkpoint = self.forced.controlled_team.map(|_| (self.runner.clone(), self.forced.clone()));
++        let updates = crate::runtime::forced_action::with_state(&mut self.forced, || self.runner.main_round());
++        if self.forced.paused_actor.is_some() {
++            if let Some((runner, forced)) = checkpoint {
++                let paused_actor = self.forced.paused_actor;
++                self.runner = runner;
++                self.forced = forced;
++                self.forced.paused_actor = paused_actor;
++            }
++            return Ok(None);
++        }
+         self.rounds_advanced += 1;
+         let visible = !updates.updates.is_empty() || self.runner.have_winner();
+         self.no_progress_rounds = if visible { 0 } else { self.no_progress_rounds + 1 };
+diff --git a/crates/tswn_core/src/cli_api/battle/dto.rs b/crates/tswn_core/src/cli_api/battle/dto.rs
+index 4afd2472..7b3bc5e8 100644
+--- a/crates/tswn_core/src/cli_api/battle/dto.rs
++++ b/crates/tswn_core/src/cli_api/battle/dto.rs
+@@ -14,6 +14,10 @@ pub struct BattleOptions {
+     pub include_icons: bool,
+     /// 正整数的 Runtime 推进回合上限，包含空回合；默认 20,000。
+     pub max_rounds: usize,
++    /// 玩家受控队伍：该队伍的本体与分身必须等前端下指令，否则战斗暂停。
++    pub controlled_team: Option<usize>,
++    /// 开局体力倍率（如 1.25 表示以 125% 体力开场）；只作用于受控队伍。
++    pub start_hp_pct: Option<f64>,
+ }
+ 
+ impl Default for BattleOptions {
+@@ -22,6 +26,8 @@ impl Default for BattleOptions {
+             eval_rq: crate::namerena::eval_name::DEFAULT_EVAL_RQ,
+             include_icons: false,
+             max_rounds: BINDING_COMPLETION_MAX_ROUNDS,
++            controlled_team: None,
++            start_hp_pct: None,
+         }
+     }
+ }
+@@ -29,6 +35,8 @@ impl Default for BattleOptions {
+ #[derive(Debug, Clone, PartialEq, Serialize)]
+ /// 完整收集同一 [`super::BattleSession`] 的规范回放。
+ pub struct BattleReplay {
++    /// 玩家受控单位把战斗逼停时，这里是等待指令的实体 id。
++    pub paused_actor: Option<usize>,
+     pub status: BattleStatus,
+     pub stop_reason: BattleStopReason,
+     pub rounds_advanced: usize,
+@@ -99,6 +107,8 @@ pub struct BattlePlayerState {
+     pub active: bool,
+     /// 人类可读的状态描述；完整载荷可从机制状态查阅。
+     pub status_labels: Vec<String>,
++    /// 当前技能熟练度（导出名, 等级）；分身等派生单位是衰减后的值。
++    pub skills: Vec<(String, u32)>,
+ }
+ 
+ impl ReplayState for BattlePlayerState {
+@@ -115,6 +125,7 @@ impl ReplayState for BattlePlayerState {
+     fn with_shield(&self, shield: i32) -> Self {
+         Self {
+             shield: if self.alive { shield.max(0) } else { 0 },
++            skills: self.skills.clone(),
+             ..self.clone()
+         }
+     }
+@@ -216,6 +227,7 @@ pub enum BattleStopReason {
+     Winner,
+     MaxRounds,
+     NoProgress,
++    Paused,
+ }
+ #[derive(Debug, Clone, PartialEq, Serialize)]
+ /// 正常 terminal 结果，包含胜利或截断信息；调用失败通过错误通道处理。
+diff --git a/crates/tswn_core/src/cli_api/battle/replay.rs b/crates/tswn_core/src/cli_api/battle/replay.rs
+index 2ccdaefa..d6e0722d 100644
+--- a/crates/tswn_core/src/cli_api/battle/replay.rs
++++ b/crates/tswn_core/src/cli_api/battle/replay.rs
+@@ -2,17 +2,38 @@ use super::{BattleSession, dto::*};
+ use crate::cli_api::{CliApiError, CliApiResult};
+ 
+ /// 收集规范会话，但不引入另一套执行策略。
+-pub fn battle_replay(raw: &str, options: BattleOptions) -> CliApiResult<BattleReplay> {
++pub fn battle_replay(raw: &str, options: BattleOptions) -> CliApiResult<BattleReplay> { battle_replay_inner(raw, options) }
++
++fn battle_replay_inner(raw: &str, options: BattleOptions) -> CliApiResult<BattleReplay> {
+     let mut session = BattleSession::new(raw, options)?;
+     let initial_states = session.initial_states().to_vec();
+     let mut frames = Vec::new();
+     while let Some(frame) = session.next_frame()? {
+         frames.push(frame);
+     }
++    // 玩家单位把战斗逼停：不是终局，回放截到这里，等前端下指令后重新模拟。
++    if let Some(paused_actor) = session.paused_actor() {
++        return Ok(BattleReplay {
++            paused_actor: Some(paused_actor as usize),
++            status: BattleStatus::Running,
++            stop_reason: BattleStopReason::Paused,
++            rounds_advanced: session.rounds_advanced(),
++            frames_emitted: session.frames_emitted(),
++            finished: false,
++            truncated: false,
++            initial_states,
++            frames,
++            final_states: session.current_states().to_vec(),
++            winner_ids: Vec::new(),
++            winner_team_indices: Vec::new(),
++            state_granularity: "round",
++        });
++    }
+     let result = session
+         .result()
+         .ok_or_else(|| CliApiError::Internal("session ended without a result".into()))?;
+     Ok(BattleReplay {
++        paused_actor: None,
+         status: result.status,
+         stop_reason: result.stop_reason,
+         rounds_advanced: result.rounds_advanced,
+@@ -27,7 +48,6 @@ pub fn battle_replay(raw: &str, options: BattleOptions) -> CliApiResult<BattleRe
+         state_granularity: "round",
+     })
+ }
+-
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+diff --git a/crates/tswn_core/src/cli_api/battle/session.rs b/crates/tswn_core/src/cli_api/battle/session.rs
+index fefc009d..ce7035cc 100644
+--- a/crates/tswn_core/src/cli_api/battle/session.rs
++++ b/crates/tswn_core/src/cli_api/battle/session.rs
+@@ -34,6 +34,7 @@ pub struct BattleSession {
+     initial_states: Vec<BattlePlayerState>,
+     current_states: Vec<BattlePlayerState>,
+     icon_cache: HashMap<String, String>,
++    paused: Option<u32>,
+ }
+ 
+ impl BattleSession {
+@@ -57,6 +58,7 @@ impl BattleSession {
+             current_states: initial_states.clone(),
+             initial_states,
+             icon_cache,
++            paused: None,
+         })
+     }
+ 
+@@ -85,7 +87,9 @@ impl BattleSession {
+         }
+     }
+     /// 正常终止原因；运行中及 Runtime 失败后均为 `None`。
+-    pub fn stop_reason(&self) -> Option<BattleStopReason> { self.driver.stop_reason }
++    pub fn stop_reason(&self) -> Option<BattleStopReason> {
++        self.paused.map(|_| BattleStopReason::Paused).or(self.driver.stop_reason)
++    }
+     /// 是否已产生正常 terminal BattleResult；Runtime failure 不属于正常终止。
+     pub fn is_done(&self) -> bool { self.driver.stop_reason.is_some() }
+     /// Runtime error 后为 true；后续推进返回相同错误，调用方应停止推进并释放会话。
+@@ -107,11 +111,12 @@ impl BattleSession {
+         if let Some(error) = &self.driver.failure {
+             return Err(error.clone());
+         }
+-        if self.is_done() {
++        if self.is_done() || self.paused.is_some() {
+             return Ok(None);
+         }
+         loop {
+             let Some(step) = self.driver.advance_round()? else {
++                self.paused = self.driver.forced.paused_actor;
+                 return Ok(None);
+             };
+             let round_index = step.round_index;
+@@ -125,12 +130,30 @@ impl BattleSession {
+                 frame
+             });
+             self.current_states = states;
+-            if frame.is_some() || self.is_done() {
++            if frame.is_some() || self.is_done() || self.paused.is_some() {
+                 return Ok(frame);
+             }
+         }
+     }
+ 
++    /// 受控单位把战斗逼停时，返回等待玩家指令的实体 id。
++    pub fn paused_actor(&self) -> Option<u32> { self.paused }
++
++    /// 为当前暂停实体补交指令；暂停不是终局，推进会重新执行同一个行动。
++    pub fn submit_action(&mut self, actor: u32, skill: u32, packed_mp: u32) -> CliApiResult<()> {
++        if self.paused != Some(actor) {
++            return Err(crate::cli_api::CliApiError::InvalidArgument(
++                "actor is not waiting for an action".into(),
++            ));
++        }
++        let actions = crate::runtime::forced_action::decode_actions(&[actor, skill, packed_mp])
++            .map_err(|message| crate::cli_api::CliApiError::InvalidArgument(message.into()))?;
++        self.driver.forced.queue.extend(actions);
++        self.driver.forced.paused_actor = None;
++        self.paused = None;
++        Ok(())
++    }
++
+     /// 正常终止后返回拥有最终快照的结果；运行中或粘性失败时为 `None`。
+     ///
+     /// 重复查询不推进战斗，但每次都会复制最终快照及其字符串。需要多次使用结果时
+@@ -168,6 +191,27 @@ pub(super) fn states_from_runner(
+         .into_iter()
+         .map(|snapshot| {
+             let mut state = state_from_snapshot(snapshot, false);
++            state.skills = runner
++                .runtime()
++                .entities
++                .get(crate::runtime::entity::EntityIdx(state.id as u32))
++                .map(|entity| {
++                    let loadout = &entity.template.skills;
++                    loadout
++                        .skills()
++                        .iter()
++                        .enumerate()
++                        .filter_map(|(lane, id)| {
++                            let level = loadout.level_at(lane).unwrap_or(0);
++                            if level == 0 {
++                                return None;
++                            }
++                            let name = runner.runtime().registry.skill(*id)?.export_name.clone();
++                            Some((name, level))
++                        })
++                        .collect()
++                })
++                .unwrap_or_default();
+             if include_icons {
+                 state.icon_png_base64 = Some(match icon_cache.get(&state.icon_key) {
+                     Some(icon) => icon.clone(),
+@@ -187,6 +231,7 @@ fn state_from_snapshot(snapshot: RuntimePlayerSnapshot, include_icons: bool) ->
+     let icon_key = snapshot.id_key_name.clone();
+     let icon_png_base64 = include_icons.then(|| render_icon_b64_from_name(&icon_key));
+     BattlePlayerState {
++        skills: Vec::new(),
+         id: snapshot.id,
+         team_index: snapshot.team_index,
+         input_team_index: snapshot.input_team_index,
+@@ -689,7 +734,11 @@ seed:7@!"#;
+             without_icon.icon_png_base64 = None;
+             assert_eq!(&without_icon, plain);
+         }
+-        assert_eq!(state_from_snapshot(snapshots[1].clone(), true), with_icons[1],);
++        // 纯快照没有技能槽位；图标投影比较只覆盖快照本身负责的字段。
++        assert!(!with_icons[1].skills.is_empty());
++        let mut projected_snapshot = with_icons[1].clone();
++        projected_snapshot.skills.clear();
++        assert_eq!(state_from_snapshot(snapshots[1].clone(), true), projected_snapshot);
+         let filled_cache = cache.clone();
+         assert_eq!(states_from_runner(&runner, true, &mut cache), with_icons);
+         assert_eq!(cache, filled_cache);
+@@ -817,3 +866,126 @@ seed:7@!"#;
+         }
+     }
+ }
++
++// 覆盖实际暂停续行和多实体药水失效，不冻结源码或静态配置。
++#[cfg(test)]
++mod card_control_tests {
++    use super::*;
++    use crate::runtime::forced_action;
++    const RAW: &str = "one@red+ol:{\"attrs\":[40,40,140,40,40,40,100,20000],\"skills\":{},\"name_factor_enabled\":false}\ntwo@red+ol:{\"attrs\":[40,40,140,40,40,40,100,20000],\"skills\":{},\"name_factor_enabled\":false}\n\nenemy@blue+ol:{\"attrs\":[10,40,100,40,40,40,100,20000],\"skills\":{},\"name_factor_enabled\":false}\nseed:card-regression@!";
++    fn options() -> BattleOptions {
++        BattleOptions {
++            controlled_team: Some(0),
++            max_rounds: 2000,
++            ..BattleOptions::default()
++        }
++    }
++    fn pause(session: &mut BattleSession) -> Vec<BattleReplayFrame> {
++        let mut frames = Vec::new();
++        while let Some(frame) = session.next_frame().unwrap() {
++            frames.push(frame);
++        }
++        assert!(session.paused_actor().is_some());
++        assert_eq!(session.stop_reason(), Some(BattleStopReason::Paused));
++        assert!(!session.is_done());
++        frames
++    }
++    #[test]
++    fn streaming_resume_matches_batch_and_potions_expire_per_actor() {
++        let mut session = BattleSession::new(RAW, options()).unwrap();
++        let mut independent = BattleSession::new(RAW, options()).unwrap();
++        let mut commands = Vec::new();
++        let mut frames = pause(&mut session);
++        let initial = session.initial_states().to_vec();
++        let mut counts = HashMap::<u32, usize>::new();
++        let mut overlap = false;
++        for turn in 0..10 {
++            let actor = session.paused_actor().unwrap();
++            let before = session.model_state().unwrap();
++            assert!(session.next_frame().unwrap().is_none());
++            assert_eq!(before, session.model_state().unwrap());
++            // 交错推进另一会话，不能影响当前会话的待发动作或药水。
++            if turn == 0 {
++                pause(&mut independent);
++            }
++            let count = counts.entry(actor).or_default();
++            let packed = if *count == 0 { 1 << 8 } else { 0 };
++            *count += 1;
++            session.submit_action(actor, 255, packed).unwrap();
++            commands.extend([actor, 255, packed]);
++            let added = pause(&mut session);
++            let mut boosted = 0;
++            for state in session.current_states().iter().filter(|s| s.team_index == 0) {
++                let base = initial.iter().find(|s| s.id == state.id).unwrap().attack;
++                let n = counts.get(&(state.id as u32)).copied().unwrap_or(0);
++                let expected = if n == 1 { base + (base / 4).max(8) } else { base };
++                assert_eq!(state.attack, expected, "turn {turn}, actor {}", state.id);
++                boosted += usize::from(n == 1);
++            }
++            overlap |= boosted == 2;
++            frames.extend(added);
++        }
++        assert!(overlap, "两个角色的药水必须能同时生效");
++        assert!(counts.values().all(|n| *n >= 2));
++        forced_action::set_actions(forced_action::decode_actions(&commands).unwrap());
++        let replay = super::super::battle_replay(RAW, options()).unwrap();
++        assert_eq!(replay.frames, frames);
++        assert_eq!(replay.final_states, session.current_states());
++        assert_eq!(replay.paused_actor, session.paused_actor().map(|id| id as usize));
++        assert!(independent.paused_actor().is_some());
++    }
++    #[test]
++    fn fractional_hp_is_team_scoped_and_invalid_options_are_rejected() {
++        let base = BattleSession::new(RAW, options()).unwrap();
++        let half = BattleSession::new(
++            RAW,
++            BattleOptions {
++                start_hp_pct: Some(0.5),
++                ..options()
++            },
++        )
++        .unwrap();
++        for (a, b) in base.initial_states().iter().zip(half.initial_states()) {
++            assert_eq!(
++                b.hp,
++                if a.team_index == 0 {
++                    (a.max_hp as f64 * 0.5).round() as i32
++                } else {
++                    a.hp
++                }
++            );
++        }
++        for pct in [0.0, -1.0, f64::NAN, f64::INFINITY] {
++            assert!(
++                BattleSession::new(
++                    RAW,
++                    BattleOptions {
++                        start_hp_pct: Some(pct),
++                        ..options()
++                    }
++                )
++                .is_err()
++            );
++        }
++        assert!(
++            BattleSession::new(
++                RAW,
++                BattleOptions {
++                    start_hp_pct: Some(1.2),
++                    ..BattleOptions::default()
++                }
++            )
++            .is_err()
++        );
++        assert!(
++            BattleSession::new(
++                RAW,
++                BattleOptions {
++                    controlled_team: Some(50),
++                    ..options()
++                }
++            )
++            .is_err()
++        );
++    }
++}
+diff --git a/crates/tswn_core/src/runtime/combat/round.rs b/crates/tswn_core/src/runtime/combat/round.rs
+index 05132896..6b0a6d5d 100644
+--- a/crates/tswn_core/src/runtime/combat/round.rs
++++ b/crates/tswn_core/src/runtime/combat/round.rs
+@@ -73,7 +73,19 @@ impl CombatRuntime {
+         }
+         #[cfg(not(feature = "no_debug"))]
+         let action_rng_before = RngCheckpoint::from_rc4(&self.rng);
++        // 药水持续到服用者的下一次行动，不因其他单位行动而失效。
++        self.revert_active_potion(action.actor);
+         let smart = self.roll_actor_smart(action.actor);
++        // 潜行 pending 的 pre-action 槽位可能在技能表重建（升级/合并/状态刷新）时被丢掉，
++        // tswn 自己在施放时会 ensure 一次，这里在每次行动前补回来，
++        // 之后完全交给引擎的 pre_action 规则判断要不要背刺、会不会被识破。
++        if crate::runtime::forced_action::controlled_team().is_some_and(|team| self.is_controlled_actor(action.actor, team)) {
++            if let Some(pending) = self.entities.get(action.actor).and_then(|entity| entity.runtime.assassinate) {
++                if let Some(entity) = self.entities.get_mut(action.actor) {
++                    entity.template.skills.ensure_pre_action_lane(pending.fixed_lane);
++                }
++            }
++        }
+         let plain_skill_pre_action = legacy_plain_action
+             .then(|| self.run_plain_skill_pre_action_accumulator(action.actor))
+             .unwrap_or_default();
+@@ -105,7 +117,12 @@ impl CombatRuntime {
+                 return None;
+             }
+             let forced_pre_action_skill = plain_skill_pre_action.forced_skill.is_some();
+-            let Some(prepared) = self.prepare_plain_action(action.actor, smart, plain_skill_pre_action) else {
++            let prepared = self.prepare_plain_action(action.actor, smart, plain_skill_pre_action);
++            if let Some((actor, reason)) = crate::runtime::forced_action::take_fallback() {
++                updates.add_newline();
++                updates.add(RuntimeFrame::replay_update(actor as usize, actor as usize, reason, 0));
++            }
++            let Some(prepared) = prepared else {
+                 return Some(self.finish_round_with_capture::<CAPTURE_UPDATES>(None, updates));
+             };
+             match &prepared {
+@@ -347,12 +364,103 @@ impl CombatRuntime {
+             .unwrap_or(false)
+     }
+ 
++    /// 玩家操控的单位：受控队伍里的本体（默认 kind）与分身。
++    /// 幻影 / 使魔 / 丧尸属于召唤物，仍由引擎自动行动。
++    fn is_controlled_actor(&self, actor: EntityIdx, team: usize) -> bool {
++        let Some(entity) = self.entities.get(actor) else {
++            return false;
++        };
++        if entity.template.team != team {
++            return false;
++        }
++        match self.registry.player_kind(entity.runtime.kind) {
++            None => true,
++            Some(spec) => spec.export_name == crate::runtime::profile::DEFAULT_CORE_CLONE_KIND_EXPORT,
++        }
++    }
++
+     pub fn prepare_plain_action(
+         &mut self,
+         actor: EntityIdx,
+         smart: bool,
+         pre_action: PlainSkillPreActionOutcome,
+     ) -> Option<PreparedPlainAction> {
++        crate::runtime::forced_action::hit();
++        // 狂暴（含被附体）期间由引擎接管：不接收玩家指令、也不停下来要牌。
++        let berserk_forced = !pre_action.clear_forced_action && self.has_plain_berserk_state(actor);
++        let mut berserk_submitted = false;
++        // 卡牌玩法注入：轮到指定实体时优先执行玩家排好的行动。
++        // 但引擎自己有强制动作时（潜行→背刺的第二步）必须先让引擎走完，
++        // 否则玩家能在这段窗口里插别的技能，背刺就永远放不出来。
++        if pre_action.forced_skill.is_none() {
++            if let Some(command) = crate::runtime::forced_action::take(actor.0 as u32) {
++                let forced_skill = command.skill;
++                let forced_mp = command.mp;
++                if command.potion > 0 {
++                    self.apply_potion(actor, command.potion);
++                }
++                if berserk_forced {
++                    // 狂暴：玩家这一手只用来推进节奏，真正动作由引擎接管
++                    berserk_submitted = true;
++                } else {
++                    // 玩家抽到这张牌时已经掷过消耗；没有就按 tswn 现场掷。
++                    let req_mp = match forced_mp {
++                        Some(cost) => cost as i32,
++                        None => {
++                            let req_mp_byte = self.rng.next_u8();
++                            (req_mp_byte & 15) as i32 + 8
++                        }
++                    };
++                    let (mp, attack) = {
++                        let entity = self
++                            .entities
++                            .get(actor)
++                            .unwrap_or_else(|| panic!("unknown forced action actor: {}", actor.0));
++                        (entity.runtime.magic_point, entity.runtime.attack)
++                    };
++                    // 玩家点名要用这个技能：目标选择按「不挑目标」的宽松口径，
++                    // 避免因为 AI 的 smart 过滤（例如瘟疫只挑 160~400 血的目标）而放不出来。
++                    let prepared = if mp >= req_mp {
++                        self.prepare_forced_builtin_skill(actor, forced_skill, smart)
++                    } else {
++                        None
++                    };
++                    if let Some(prepared) = prepared {
++                        if let Some(entity) = self.entities.get_mut(actor) {
++                            entity.runtime.magic_point -= req_mp;
++                        }
++                        return Some(PreparedPlainAction::BuiltinSkill(prepared));
++                    }
++                    if forced_skill != 255 {
++                        crate::runtime::forced_action::record_fallback(actor.0 as u32, "[1]的指定技能无法生效，改为普通攻击");
++                    }
++                    let target = self
++                        .select_plain_default_attack_target(actor, smart)
++                        .or_else(|| self.select_plain_default_attack_target(actor, false));
++                    let Some(target) = target else {
++                        crate::runtime::forced_action::set_pause(actor.0 as u32);
++                        return None;
++                    };
++                    return Some(PreparedPlainAction::BasicAttack {
++                        target,
++                        use_magic: false,
++                        amount: attack,
++                    });
++                }
++            }
++        }
++
++        // 受控单位：只有在引擎没有强制动作、且不是「狂暴已收到玩家这一手」时才暂停。
++        if pre_action.forced_skill.is_none() && !berserk_submitted {
++            if let Some(team) = crate::runtime::forced_action::controlled_team() {
++                // 玩家操控的单位（本体 + 分身）：没有排好的指令就停在这里，绝不代替玩家行动。
++                // 召唤物（幻影 / 使魔 / 丧尸）不在此列，仍按 tswn 的规则自动行动。
++                if self.is_controlled_actor(actor, team) {
++                    crate::runtime::forced_action::set_pause(actor.0 as u32);
++                    return None;
++                }
++            }
++        }
+         if let Some(forced_skill) = pre_action.forced_skill {
+             return Some(PreparedPlainAction::BuiltinSkill(forced_skill));
+         }
+@@ -511,6 +619,55 @@ impl CombatRuntime {
+         }
+     }
+ 
++    /// 喝药：加强当前角色一项属性一回合（不占行动）+ 少量回血
++    fn apply_potion(&mut self, actor: EntityIdx, code: u32) {
++        // code = 属性下标 + 1（0 表示没喝药）
++        let field = ((code & 0xF) as usize).saturating_sub(1);
++        let Some(entity) = self.entities.get_mut(actor) else { return };
++        if field == 9 {
++            // 9 = 能量药水：回复 40 点 MP（上限 100）
++            entity.runtime.magic_point = (entity.runtime.magic_point + 40).min(100);
++            return;
++        }
++        if field >= 8 {
++            // 8 = 体力药水：回复 25% 最大体力
++            let heal = (entity.template.max_hp / 4).max(10);
++            entity.runtime.hp = (entity.runtime.hp + heal).min(entity.template.max_hp);
++            return;
++        }
++        let slot = match field {
++            0 => &mut entity.runtime.attack,
++            1 => &mut entity.runtime.defense,
++            2 => &mut entity.runtime.speed,
++            3 => &mut entity.runtime.agility,
++            4 => &mut entity.runtime.magic,
++            5 => &mut entity.runtime.resistance,
++            _ => &mut entity.runtime.wisdom,
++        };
++        let delta = (*slot / 4).max(8);
++        *slot += delta;
++        crate::runtime::forced_action::set_active_potion(actor.0 as u32, field as u8, delta);
++    }
++
++    /// 还原上一回合的药水加成
++    fn revert_active_potion(&mut self, actor: EntityIdx) {
++        let Some((field, delta)) = crate::runtime::forced_action::take_active_potion(actor.0 as u32) else {
++            return;
++        };
++        let entity = self.entities.get_mut(actor);
++        let Some(entity) = entity else { return };
++        match field {
++            0 => entity.runtime.attack -= delta,
++            1 => entity.runtime.defense -= delta,
++            2 => entity.runtime.speed -= delta,
++            3 => entity.runtime.agility -= delta,
++            4 => entity.runtime.magic -= delta,
++            5 => entity.runtime.resistance -= delta,
++            6 => entity.runtime.wisdom -= delta,
++            _ => {}
++        }
++    }
++
+     pub fn has_plain_berserk_state(&self, actor: EntityIdx) -> bool {
+         self.entities.get(actor).is_some_and(|entity| {
+             entity
+@@ -624,6 +781,92 @@ impl CombatRuntime {
+         debug_assert!(removed, "runtime berserk state disappeared before state clear");
+     }
+ 
++    /// 按技能 id 构造一次主动技能行动（卡牌玩法强制出招）。
++    ///
++    /// 只校验该技能在当前 loadout 中的等级是否大于 0，并用与自动选择相同的
++    /// 目标选择函数；队列为空时 Runtime 行为与上游完全一致。
++    pub fn prepare_forced_builtin_skill(
++        &mut self,
++        actor: EntityIdx,
++        skill_id: u32,
++        smart: bool,
++    ) -> Option<PreparedBuiltinSkillAction> {
++        let builtin_skill = public_builtin_skill(skill_id)?;
++        let fixed_lane = {
++            let entity = self.entities.get(actor)?;
++            let loadout = &entity.template.skills;
++            let mut found = None;
++            for (lane, id) in loadout.skills().iter().enumerate() {
++                if self.builtin_active_skill(*id) == Some(builtin_skill) {
++                    found = Some(lane);
++                    break;
++                }
++            }
++            let lane = found?;
++            if loadout.level_at(lane).unwrap_or(0) == 0 {
++                return None;
++            }
++            lane
++        };
++        // 目标与命中都交给 tswn：优先用引擎这一回合掷出的 smart 口径；
++        // 只有当这个口径一个目标都选不出来时才退到宽松口径，避免玩家点名的技能变成普攻。
++        let mut targets = self.select_forced_skill_targets(actor, builtin_skill, smart);
++        if targets.is_empty() {
++            targets = self.select_forced_skill_targets(actor, builtin_skill, false);
++        }
++        let allows_empty_targets = builtin_skill == BuiltinActiveSkill::Assassinate
++            && self.entities.get(actor).is_some_and(|entity| entity.runtime.assassinate.is_some());
++        if targets.is_empty() && !allows_empty_targets {
++            return None;
++        }
++        Some(PreparedBuiltinSkillAction {
++            selected: SelectedBuiltinSkill {
++                skill: builtin_skill,
++                fixed_lane,
++            },
++            targets,
++        })
++    }
++
++    fn select_forced_skill_targets(
++        &mut self,
++        actor: EntityIdx,
++        builtin_skill: BuiltinActiveSkill,
++        smart: bool,
++    ) -> PreparedTargetList {
++        match builtin_skill {
++            BuiltinActiveSkill::Fire
++            | BuiltinActiveSkill::Thunder
++            | BuiltinActiveSkill::Absorb
++            | BuiltinActiveSkill::Poison
++            | BuiltinActiveSkill::Critical
++            | BuiltinActiveSkill::SummonExplode => self.select_plain_default_enemy_targets(actor, smart),
++            BuiltinActiveSkill::Berserk => self.select_plain_berserk_targets(actor, smart),
++            BuiltinActiveSkill::Quake => {
++                self.select_plain_default_enemy_targets_with_count(actor, smart, if smart { 6 } else { 5 })
++            }
++            BuiltinActiveSkill::Ice => self.select_plain_ice_targets(actor, smart),
++            BuiltinActiveSkill::Rapid => self.select_plain_rapid_targets(actor, smart),
++            BuiltinActiveSkill::Half => self.select_plain_half_targets(actor, smart),
++            BuiltinActiveSkill::Shadow => smallvec::smallvec![actor],
++            BuiltinActiveSkill::Charm => self.select_plain_charm_targets(actor, smart),
++            BuiltinActiveSkill::Curse => self.select_plain_curse_targets(actor, smart),
++            BuiltinActiveSkill::Haste => self.select_plain_haste_targets(actor, smart),
++            BuiltinActiveSkill::Heal => self.select_plain_heal_targets(actor, smart),
++            BuiltinActiveSkill::Slow => self.select_plain_slow_targets(actor, smart),
++            BuiltinActiveSkill::Exchange => self.select_plain_exchange_targets(actor, smart),
++            BuiltinActiveSkill::Revive => self.select_plain_revive_targets(actor, smart),
++            BuiltinActiveSkill::Disperse => self.select_plain_disperse_targets(actor, smart),
++            BuiltinActiveSkill::Iron => smallvec::smallvec![actor],
++            BuiltinActiveSkill::Clone => smallvec::smallvec![actor],
++            BuiltinActiveSkill::Charge => smallvec::smallvec![actor],
++            BuiltinActiveSkill::Accumulate => smallvec::smallvec![actor],
++            BuiltinActiveSkill::Assassinate => self.select_plain_assassinate_targets(actor, smart),
++            BuiltinActiveSkill::Summon => smallvec::smallvec![actor],
++            BuiltinActiveSkill::Possess => self.select_plain_possess_targets(actor, smart),
++        }
++    }
++
+     pub fn scan_plain_action_skill_probabilities(&mut self, actor: EntityIdx, smart: bool) -> Option<PreparedBuiltinSkillAction> {
+         let (scan_len, cached_scan) = {
+             let skills = &self
+@@ -935,3 +1178,36 @@ impl CombatRuntime {
+         roll < level
+     }
+ }
++
++/// 卡牌前端使用的公开技能编号（overlay 里的 0..34）→ 引擎内置主动技能。
++/// 25..34 是防御/触发类技能，不参与「主动出招」，返回 None。
++fn public_builtin_skill(id: u32) -> Option<BuiltinActiveSkill> {
++    Some(match id {
++        0 => BuiltinActiveSkill::Fire,
++        1 => BuiltinActiveSkill::Ice,
++        2 => BuiltinActiveSkill::Thunder,
++        3 => BuiltinActiveSkill::Quake,
++        4 => BuiltinActiveSkill::Absorb,
++        5 => BuiltinActiveSkill::Poison,
++        6 => BuiltinActiveSkill::Rapid,
++        7 => BuiltinActiveSkill::Critical,
++        8 => BuiltinActiveSkill::Half,
++        9 => BuiltinActiveSkill::Exchange,
++        10 => BuiltinActiveSkill::Berserk,
++        11 => BuiltinActiveSkill::Charm,
++        12 => BuiltinActiveSkill::Haste,
++        13 => BuiltinActiveSkill::Slow,
++        14 => BuiltinActiveSkill::Curse,
++        15 => BuiltinActiveSkill::Heal,
++        16 => BuiltinActiveSkill::Revive,
++        17 => BuiltinActiveSkill::Disperse,
++        18 => BuiltinActiveSkill::Iron,
++        19 => BuiltinActiveSkill::Charge,
++        20 => BuiltinActiveSkill::Accumulate,
++        21 => BuiltinActiveSkill::Assassinate,
++        22 => BuiltinActiveSkill::Summon,
++        23 => BuiltinActiveSkill::Clone,
++        24 => BuiltinActiveSkill::Shadow,
++        _ => return None,
++    })
++}
+diff --git a/crates/tswn_core/src/runtime/entity/runtime.rs b/crates/tswn_core/src/runtime/entity/runtime.rs
+index 72a22d28..87f49e11 100644
+--- a/crates/tswn_core/src/runtime/entity/runtime.rs
++++ b/crates/tswn_core/src/runtime/entity/runtime.rs
+@@ -652,6 +652,9 @@ impl EntityArena {
+         Self { entities }
+     }
+ 
++    /// 遍历所有存活槽位（可变），用于开局体力倍率等一次性调整
++    pub fn iter_all_mut(&mut self) -> impl Iterator<Item = &mut EntityRecord> { self.entities.iter_mut().flatten() }
++
+     pub fn len(&self) -> usize { self.entities.len() }
+ 
+     pub fn is_empty(&self) -> bool { self.entities.is_empty() }
+diff --git a/crates/tswn_core/src/runtime/forced_action.rs b/crates/tswn_core/src/runtime/forced_action.rs
+new file mode 100644
+index 00000000..751c60a5
+--- /dev/null
++++ b/crates/tswn_core/src/runtime/forced_action.rs
+@@ -0,0 +1,133 @@
++//! 卡牌指令按会话保存；线程局部状态仅在一次推进期间借给 Runtime，退出即还原。
++use std::cell::{Cell, RefCell};
++use std::collections::BTreeMap;
++
++#[derive(Debug, Clone, Copy)]
++pub struct ForcedAction {
++    pub actor: u32,
++    pub skill: u32,
++    pub mp: Option<u32>,
++    pub potion: u32,
++}
++
++#[derive(Debug, Clone, Default)]
++pub struct ForcedState {
++    pub queue: Vec<ForcedAction>,
++    pub controlled_team: Option<usize>,
++    pub paused_actor: Option<u32>,
++    active_potions: BTreeMap<u32, (u8, i32)>,
++    fallback: Option<(u32, &'static str)>,
++}
++
++thread_local! {
++    static ACTIVE: RefCell<ForcedState> = RefCell::new(ForcedState::default());
++    static PENDING: RefCell<Vec<ForcedAction>> = const { RefCell::new(Vec::new()) };
++    static HITS: Cell<u32> = const { Cell::new(0) };
++    static TAKEN: Cell<u32> = const { Cell::new(0) };
++}
++
++/// 校验三元组完整性、主动技能编号和打包字段，拒绝静默丢弃尾部数据。
++pub fn decode_actions(actions: &[u32]) -> Result<Vec<ForcedAction>, &'static str> {
++    if !actions.len().is_multiple_of(3) {
++        return Err("actions must contain complete actor/skill/mp triples");
++    }
++    actions
++        .chunks_exact(3)
++        .map(|a| {
++            if a[1] > 24 && a[1] != 255 {
++                return Err("forced skill must be active id 0..24 or normal attack 255");
++            }
++            let potion = a[2] >> 8;
++            if a[2] > 0xffff || !matches!(potion, 0..=7 | 9 | 10) {
++                return Err("invalid packed potion code");
++            }
++            let cost = a[2] & 0xff;
++            Ok(ForcedAction {
++                actor: a[0],
++                skill: a[1],
++                mp: (cost > 0).then_some(cost),
++                potion,
++            })
++        })
++        .collect()
++}
++
++pub fn set_actions(actions: Vec<ForcedAction>) { PENDING.with(|cell| *cell.borrow_mut() = actions); }
++pub fn take_pending_actions() -> Vec<ForcedAction> { PENDING.with(|cell| std::mem::take(&mut *cell.borrow_mut())) }
++pub fn clear() { PENDING.with(|cell| cell.borrow_mut().clear()); }
++
++/// 作用域守卫保证错误或 unwind 不会把当前会话的控制队伍、药水泄漏给另一场对局。
++pub fn with_state<R>(state: &mut ForcedState, f: impl FnOnce() -> R) -> R {
++    struct Restore<'a> {
++        state: &'a mut ForcedState,
++        previous: ForcedState,
++    }
++    impl Drop for Restore<'_> {
++        fn drop(&mut self) { *self.state = ACTIVE.with(|cell| cell.replace(std::mem::take(&mut self.previous))); }
++    }
++    let previous = ACTIVE.with(|cell| cell.replace(std::mem::take(state)));
++    let _restore = Restore { state, previous };
++    f()
++}
++
++pub fn controlled_team() -> Option<usize> { ACTIVE.with(|cell| cell.borrow().controlled_team) }
++pub fn set_pause(actor: u32) { ACTIVE.with(|cell| cell.borrow_mut().paused_actor = Some(actor)); }
++pub fn pause_pending() -> bool { ACTIVE.with(|cell| cell.borrow().paused_actor.is_some()) }
++pub fn take(actor: u32) -> Option<ForcedAction> {
++    ACTIVE.with(|cell| {
++        let mut state = cell.borrow_mut();
++        let index = state.queue.iter().position(|a| a.actor == actor)?;
++        TAKEN.with(|count| count.set(count.get() + 1));
++        Some(state.queue.remove(index))
++    })
++}
++pub fn set_active_potion(actor: u32, field: u8, delta: i32) {
++    ACTIVE.with(|cell| {
++        cell.borrow_mut().active_potions.insert(actor, (field, delta));
++    });
++}
++pub fn take_active_potion(actor: u32) -> Option<(u8, i32)> { ACTIVE.with(|cell| cell.borrow_mut().active_potions.remove(&actor)) }
++pub fn record_fallback(actor: u32, reason: &'static str) {
++    ACTIVE.with(|cell| cell.borrow_mut().fallback = Some((actor, reason)));
++}
++pub fn take_fallback() -> Option<(u32, &'static str)> { ACTIVE.with(|cell| cell.borrow_mut().fallback.take()) }
++pub fn hit() { HITS.with(|cell| cell.set(cell.get() + 1)); }
++pub fn hits() -> u32 { HITS.with(|cell| cell.get()) }
++pub fn taken() -> u32 { TAKEN.with(|cell| cell.get()) }
++
++// 非法包必须在推进之前报错，不能丢尾部或把被动技能当主动技能执行。
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[test]
++    fn rejects_incomplete_invalid_and_overflow_packets() {
++        for packet in [
++            vec![1],
++            vec![1, 0],
++            vec![1, 25, 0],
++            vec![1, 254, 0],
++            vec![1, 0, 8 << 8],
++            vec![1, 0, 11 << 8],
++            vec![1, 0, 1 << 16],
++        ] {
++            assert!(decode_actions(&packet).is_err(), "{packet:?}");
++        }
++        let queue = decode_actions(&[1, 255, 0, 1, 0, (1 << 8) | 23]).unwrap();
++        let mut state = ForcedState {
++            queue,
++            ..Default::default()
++        };
++        with_state(&mut state, || {
++            assert_eq!(take(1).unwrap().potion, 0);
++            let second = take(1).unwrap();
++            assert_eq!(second.potion, 1);
++            assert_eq!(second.mp, Some(23));
++            set_active_potion(1, 0, 10);
++            set_active_potion(2, 1, 15);
++            assert_eq!(take_active_potion(3), None);
++            assert_eq!(take_active_potion(1), Some((0, 10)));
++            assert_eq!(take_active_potion(2), Some((1, 15)));
++        });
++        assert_eq!(controlled_team(), None);
++    }
++}
+diff --git a/crates/tswn_core/src/runtime/mod.rs b/crates/tswn_core/src/runtime/mod.rs
+index 89ebce8a..36356cb5 100644
+--- a/crates/tswn_core/src/runtime/mod.rs
++++ b/crates/tswn_core/src/runtime/mod.rs
+@@ -38,6 +38,7 @@ mod cqp;
+ pub mod effect;
+ pub mod entity;
+ pub mod extension;
++pub mod forced_action;
+ mod handlers;
+ pub mod lang;
+ pub mod model_state;
+diff --git a/crates/tswn_py/src/battle.rs b/crates/tswn_py/src/battle.rs
+index 89abf531..c3820bc7 100644
+--- a/crates/tswn_py/src/battle.rs
++++ b/crates/tswn_py/src/battle.rs
+@@ -14,6 +14,7 @@ pub(crate) fn options(eval_rq: Option<f64>, include_icons: bool, max_rounds: Opt
+         eval_rq: eval_rq.unwrap_or(defaults.eval_rq),
+         include_icons,
+         max_rounds: max_rounds.unwrap_or(defaults.max_rounds),
++        ..defaults
+     }
+ }
+ 
+diff --git a/crates/tswn_py/tswn_py/_types_battle.pyi b/crates/tswn_py/tswn_py/_types_battle.pyi
+index eba270ed..db6337cd 100644
+--- a/crates/tswn_py/tswn_py/_types_battle.pyi
++++ b/crates/tswn_py/tswn_py/_types_battle.pyi
+@@ -2,9 +2,11 @@
+ from typing import Literal, TypedDict
+ 
+ BattleStatus = Literal["running", "finished", "truncated"]
+-BattleStopReason = Literal["winner", "max_rounds", "no_progress"]
++BattleStopReason = Literal["winner", "max_rounds", "no_progress", "paused"]
+ 
+ class BattleReplay(TypedDict):
++    # 暂停实体可以继续提交行动。
++    paused_actor: int | None
+     status: BattleStatus
+     stop_reason: BattleStopReason
+     rounds_advanced: int
+@@ -19,6 +21,8 @@ class BattleReplay(TypedDict):
+     state_granularity: Literal["round"]
+ 
+ class BattlePlayerState(TypedDict):
++    # 技能导出名与当前熟练度。
++    skills: list[tuple[str, int]]
+     id: int
+     team_index: int
+     input_team_index: int | None
+diff --git a/crates/tswn_wasm/src/battle.rs b/crates/tswn_wasm/src/battle.rs
+index dac231be..cc2af96a 100644
+--- a/crates/tswn_wasm/src/battle.rs
++++ b/crates/tswn_wasm/src/battle.rs
+@@ -52,6 +52,12 @@ impl BattleSession {
+     /// 同步推进至下一可见帧；正常结束或截断后返回 JS null，可重复调用。
+     /// Runtime 失败会保留 sticky error 并重复抛错，应停止推进并释放会话。
+     pub fn next_frame(&mut self) -> WasmResult<JsValue> { dto_to_js(&self.inner.next_frame().map_err(cli_api_error)?) }
++    /// 当前等待指令的实体；暂停不是终局。
++    pub fn paused_actor(&self) -> Option<u32> { self.inner.paused_actor() }
++    /// 为暂停实体提交与批量接口相同的指令，再调用 next_frame 继续。
++    pub fn submit_action(&mut self, actor: u32, skill: u32, packed_mp: u32) -> WasmResult<()> {
++        self.inner.submit_action(actor, skill, packed_mp).map_err(cli_api_error)
++    }
+     #[wasm_bindgen(unchecked_return_type = "BattleStatus")]
+     pub fn status(&self) -> WasmResult<JsValue> { dto_to_js(&self.inner.status()) }
+     #[wasm_bindgen(unchecked_return_type = "BattleStopReason | null")]
+diff --git a/crates/tswn_wasm/src/battle_types.d.ts b/crates/tswn_wasm/src/battle_types.d.ts
+index da4c2dec..192aab2d 100644
+--- a/crates/tswn_wasm/src/battle_types.d.ts
++++ b/crates/tswn_wasm/src/battle_types.d.ts
+@@ -1,6 +1,6 @@
+ // 规范 core DTO 形状。没有单独的 Rust 绑定 schema。
+ export type BattleStatus = "running" | "finished" | "truncated";
+-export type BattleStopReason = "winner" | "max_rounds" | "no_progress";
++export type BattleStopReason = "winner" | "max_rounds" | "no_progress" | "paused";
+ export type BattleMinionKind = "clone" | "summon" | "shadow" | "zombie";
+ export type BattleUpdateType = "win" | "none" | "next_line";
+ export type BattleTone = "normal" | "damage" | "recover" | "knockout" | "status_exit";
+@@ -8,6 +8,8 @@ export type BattleReplayTextPartKind = "text" | "highlight" | "player" | "data";
+ export type BattleReplayOptions = BattleOptions;
+ 
+ export interface BattleReplay {
++    /** 等待指令的实体；暂停可继续，不是终局。 */
++    paused_actor: number | null;
+     status: BattleStatus;
+     stop_reason: BattleStopReason;
+     rounds_advanced: number;
+@@ -23,6 +25,8 @@ export interface BattleReplay {
+ }
+ 
+ export interface BattlePlayerState {
++    /** 技能导出名与当前熟练度。 */
++    skills: Array<[string, number]>;
+     id: number;
+     team_index: number;
+     input_team_index: number | null;
+diff --git a/crates/tswn_wasm/src/fight.rs b/crates/tswn_wasm/src/fight.rs
+index be9b5c80..726ca916 100644
+--- a/crates/tswn_wasm/src/fight.rs
++++ b/crates/tswn_wasm/src/fight.rs
+@@ -291,6 +291,8 @@ mod tests {
+             alive: true,
+             active: true,
+             status_labels: Vec::new(),
++            // 图标/归属投影样例不提供技能，显式保留空技能快照。
++            skills: Vec::new(),
+         };
+         let original = state.clone();
+         let legacy = state_from_core(&state);
+diff --git a/crates/tswn_wasm/src/lib.rs b/crates/tswn_wasm/src/lib.rs
+index 20338ccb..5cce98a4 100644
+--- a/crates/tswn_wasm/src/lib.rs
++++ b/crates/tswn_wasm/src/lib.rs
+@@ -370,6 +370,36 @@ pub fn battle_replay(raw_input: String, options: Option<Ts<BattleReplayOptions>>
+     battle::dto_to_js(&replay)
+ }
+ 
++/// 与 battle_replay 相同的回放，但允许卡牌前端为某个实体按顺序强制技能。
++///
++/// actions 为完整的 actor/skill/packed_mp 三元组，药水放在 packed_mp 高字节。
++/// 受控队伍指令耗尽后暂停，非法编号或不完整三元组返回 INVALID_ARGUMENT。
++#[wasm_bindgen(unchecked_return_type = "BattleReplay")]
++pub fn battle_replay_forced(
++    raw_input: String,
++    actions: Vec<u32>,
++    options: Option<Ts<BattleReplayOptions>>,
++) -> WasmResult<JsValue> {
++    install_panic_hook();
++    let options = ts_in(options)?;
++    let actions = tswn_core::runtime::forced_action::decode_actions(&actions).map_err(error::invalid_argument)?;
++    // 即使解析 raw 失败也清除尚未被会话接走的指令，不污染下一场对局。
++    struct ClearPending;
++    impl Drop for ClearPending {
++        fn drop(&mut self) { tswn_core::runtime::forced_action::clear(); }
++    }
++    let _clear_pending = ClearPending;
++    tswn_core::runtime::forced_action::set_actions(actions);
++    let result = tswn_core::cli_api::battle_replay(&raw_input, options.to_core());
++    battle::dto_to_js(&result.map_err(error::cli_api_error)?)
++}
++
++#[wasm_bindgen]
++pub fn forced_hits() -> u32 { tswn_core::runtime::forced_action::hits() }
++
++#[wasm_bindgen]
++pub fn forced_taken() -> u32 { tswn_core::runtime::forced_action::taken() }
++
+ #[wasm_bindgen]
+ /// 将单名转换为 DIY 文本；old/minions 省略时为 false，冲突选项由 core 校验。
+ pub fn to_diy(name: String, old: Option<bool>, minions: Option<bool>) -> WasmResult<String> {
+diff --git a/crates/tswn_wasm/src/model.rs b/crates/tswn_wasm/src/model.rs
+index 677714ae..8352a6cb 100644
+--- a/crates/tswn_wasm/src/model.rs
++++ b/crates/tswn_wasm/src/model.rs
+@@ -67,6 +67,12 @@ pub struct BattleOptions {
+     pub include_icons: Option<bool>,
+     #[tsify(optional)]
+     pub max_rounds: Option<usize>,
++    /// 玩家受控队伍编号；传了就会在轮到该队伍本体/分身时暂停等指令。
++    #[tsify(optional)]
++    pub controlled_team: Option<usize>,
++    /// 开局体力倍率（只作用于受控队伍），1.25 = 125%
++    #[tsify(optional)]
++    pub start_hp_pct: Option<f64>,
+ }
+ 
+ impl Default for BattleOptions {
+@@ -75,6 +81,8 @@ impl Default for BattleOptions {
+             eval_rq: None,
+             include_icons: None,
+             max_rounds: None,
++            controlled_team: None,
++            start_hp_pct: None,
+         }
+     }
+ }
+@@ -89,6 +97,8 @@ impl BattleOptions {
+         if let Some(max_rounds) = self.max_rounds {
+             options.max_rounds = max_rounds;
+         }
++        options.controlled_team = self.controlled_team;
++        options.start_hp_pct = self.start_hp_pct;
+         options
+     }
+ }
+diff --git a/docs/reference/public-api.md b/docs/reference/public-api.md
+index f474a931..1ea95ab7 100644
+--- a/docs/reference/public-api.md
++++ b/docs/reference/public-api.md
+@@ -177,3 +177,11 @@ FeatureEncoder 与 WinProbFeatures（tswn_core::encoder；全八族核心张量
+ 当前 [FeatureEncoder](../../crates/tswn_core/src/encoder/encode.rs) 写入 global / entity / template / lane / state / slot / list / extra 八族，完整注册表见 [TENSOR_SPECS](../../crates/tswn_core/src/encoder/batch.rs)。[tswn-pwp encode](../../crates/tswn_pwp/src/encode.rs) 导出版本 2 流式训练包，包含完整 encoder manifest、features/exact/labels/audit 四个通道、逐行源位置和文件摘要；[NumPy loader](../../scripts/read_encoded_batches.py) 校验文件后逐批读取已编码数组。
+ 
+ 完整数据格式、支持域和训练包约定见 [FeatureEncoder 规格](../design/feature-encoder-spec.md#14-接口边界)，运行流程见 [PWP README](../../crates/tswn_pwp/README.md#离线张量编码)。在线 Python/WASM 编码绑定、模型训练与推理属于后续目标，继续复用同一核心 encoder 和契约。
++
++## 卡牌控制扩展
++
++BattleOptions 新增 controlled_team 和 start_hp_pct。前者对 BattleSession 与 battle_replay 一致生效；后者要求指定受控队伍和正有限倍率，支持小于 1，仅改变该队伍开局 HP。
++
++暂停时 stop_reason 为 paused、status 为 running，回放包含 paused_actor；BattlePlayerState.skills 为技能导出名及当前熟练度的数组。WASM 流式会话通过 paused_actor() 查询，submit_action(actor, skill, packed_mp) 后继续 next_frame()。暂停不会消费待执行行动的随机流或药效。
++
++battle_replay_forced 的 actions 为 Uint32Array 三元组，技能编号 0..24 或普攻 255，packed_mp 低 8 位为 MP、高 8 位为药水编号（0、1..7、9、10）。不完整或非法封包报错；不可施放技能退化普攻时记录原因。药水按实体于其下次行动前失效。完整构建和接口示例见 FORK.md。
+diff --git a/tools/test-forced.mjs b/tools/test-forced.mjs
+new file mode 100644
+index 00000000..64d19dcd
+--- /dev/null
++++ b/tools/test-forced.mjs
+@@ -0,0 +1,72 @@
++// 使用真实 WASM 回归暂停续行、指令封包和药水生命周期。
++import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
++import path from 'node:path';
++import { pathToFileURL } from 'node:url';
++const dir = path.resolve(process.argv[2] || 'dist');
++const wasm = await import(pathToFileURL(path.join(dir, 'tswn_wasm.js')).href);
++wasm.initSync({ module: readFileSync(path.join(dir, 'tswn_wasm_bg.wasm')) });
++const line = (name, speed, skills = {}) => name + '@test+ol:' + JSON.stringify({attrs:[40,40,speed,40,40,40,100,20000],skills,name_factor_enabled:false});
++const raw = line('one',140,{sklfire:60}) + '\n' + line('two',140) + '\n\n' + line('enemy',100) + '\nseed:card-regression@!';
++const options = {controlled_team:0,max_rounds:2000};
++const paused = wasm.battle_replay_forced(raw,new Uint32Array(),options);
++assert.equal(paused.stop_reason,'paused');
++assert.equal(typeof paused.paused_actor,'number');
++assert.ok(paused.initial_states.some(s=>s.skills.some(([name,lv])=>name==='core.skill.fire' && lv===60)));
++for (const packet of [[1],[1,0],[1,25,0],[1,0,8<<8],[1,0,11<<8],[1,0,1<<16]]) {
++  assert.throws(()=>wasm.battle_replay_forced(raw,new Uint32Array(packet),options));
++}
++for (const pct of [0,-1,Infinity,NaN]) assert.throws(()=>wasm.battle_replay(raw,{...options,start_hp_pct:pct}));
++assert.throws(()=>wasm.battle_replay(raw,{start_hp_pct:1.2}));
++const half = wasm.battle_replay_forced(raw,new Uint32Array(),{...options,start_hp_pct:0.5});
++for(const state of half.initial_states) assert.equal(state.hp,state.team_index===0 ? Math.round(state.max_hp*0.5) : state.max_hp);
++const session = new wasm.BattleSession(raw,options), other = new wasm.BattleSession(raw,options);
++const frames=[], commands=[], counts=new Map();
++let overlap=false,fire=false;
++function advance(s,out){ for(let f;(f=s.next_frame())!=null;)out.push(f); assert.equal(s.stop_reason(),'paused'); assert.equal(s.is_done(),false); }
++advance(session,frames);
++for(let turn=0;turn<10;turn++) {
++  const actor=session.paused_actor(),count=counts.get(actor)||0;
++  if(turn===0) advance(other,[]);
++  const isFire=count===0 && session.current_states().find(s=>s.id===actor).skills.some(([name])=>name==='core.skill.fire');
++  const skill=isFire?0:255,packed=(count===0?1<<8:0)|23;
++  fire ||= isFire;
++  counts.set(actor,count+1);commands.push(actor,skill,packed);
++  session.submit_action(actor,skill,packed);advance(session,frames);
++  let boosted=0;
++  for(const state of session.current_states().filter(s=>s.team_index===0)) {
++    const base=paused.initial_states.find(s=>s.id===state.id).attack;
++    const n=counts.get(state.id)||0;
++    assert.equal(state.attack,n===1?base+Math.max(8,Math.trunc(base/4)):base);
++    boosted+=Number(n===1);
++  }
++  overlap ||= boosted===2;
++}
++assert.ok(overlap);
++assert.ok(fire);
++const replay=wasm.battle_replay_forced(raw,new Uint32Array(commands),options);
++assert.deepEqual(replay.frames,frames);
++assert.deepEqual(replay.final_states,session.current_states());
++assert.equal(replay.paused_actor,session.paused_actor());
++// 缺少技能的合法主动编号会明确记录退化普攻的原因。
++const unavailable=wasm.battle_replay_forced(raw,new Uint32Array([paused.paused_actor,24,23]),options);
++assert.ok(unavailable.frames.flatMap(f=>f.updates).some(u=>u.message_rendered.includes('改为普通攻击')));
++
++// 先耗尽 MP；能量药水必须让紧接着的技能成功，不能等技能结束才回复。
++const immediateRaw=line('caster',240,{sklfire:60})+'\n\n'+line('dummy',40)+'\nseed:immediate-potion@!';
++const opening=wasm.battle_replay_forced(immediateRaw,new Uint32Array(),options);
++const caster=opening.paused_actor,initialMp=opening.final_states.find(s=>s.id===caster).magic_point;
++const drain=[caster,0,initialMp];
++const drained=wasm.battle_replay_forced(immediateRaw,new Uint32Array(drain),options);
++const before=drained.final_states.find(s=>s.id===caster).magic_point;
++assert.ok(before<50 && before+40>=50);
++const energy=wasm.battle_replay_forced(immediateRaw,new Uint32Array([...drain,caster,0,(10<<8)|50]),options);
++const newUpdates=energy.frames.slice(drained.frames.length).flatMap(f=>f.updates);
++assert.ok(newUpdates.some(u=>u.caster_id===caster && u.message_rendered.includes('火球')));
++assert.ok(!newUpdates.some(u=>u.message_rendered.includes('改为普通攻击')));
++const magic=wasm.battle_replay_forced(immediateRaw,new Uint32Array([caster,0,(5<<8)|initialMp]),options);
++const baseMagic=opening.final_states.find(s=>s.id===caster).magic;
++assert.equal(magic.final_states.find(s=>s.id===caster).magic,baseMagic+Math.max(8,Math.trunc(baseMagic/4)));
++
++session.free();other.free();
++console.log(JSON.stringify({turns:10,streamMatchesBatch:true,potionOverlap:overlap,fire,invalidPackets:'rejected',fractionalHp:'passed',immediatePotion:'passed'}));

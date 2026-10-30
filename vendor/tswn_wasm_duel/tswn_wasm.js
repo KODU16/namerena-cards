@@ -137,6 +137,14 @@ export class BattleSession {
         }
     }
     /**
+     * 当前等待指令的实体；暂停不是终局。
+     * @returns {number | undefined}
+     */
+    paused_actor() {
+        const ret = wasm.battlesession_paused_actor(this.__wbg_ptr);
+        return ret === Number.MAX_SAFE_INTEGER ? undefined : ret;
+    }
+    /**
      * 读取正常 terminal 结果，运行中或失败时返回 JS null。
      * @returns {BattleResult | null}
      */
@@ -194,6 +202,25 @@ export class BattleSession {
                 throw takeObject(r1);
             }
             return takeObject(r0);
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
+     * 为暂停实体提交与批量接口相同的指令，再调用 next_frame 继续。
+     * @param {number} actor
+     * @param {number} skill
+     * @param {number} packed_mp
+     */
+    submit_action(actor, skill, packed_mp) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            wasm.battlesession_submit_action(retptr, this.__wbg_ptr, actor, skill, packed_mp);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
         } finally {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
@@ -569,8 +596,8 @@ export function battle_replay(raw_input, options) {
 /**
  * 与 battle_replay 相同的回放，但允许卡牌前端为某个实体按顺序强制技能。
  *
- * forced_skills 是技能 id 队列：每次轮到 actor_id 行动时消费一个；
- * 队列耗尽后恢复 Runtime 原本的概率选择。
+ * actions 为完整的 actor/skill/packed_mp 三元组，药水放在 packed_mp 高字节。
+ * 受控队伍指令耗尽后暂停，非法编号或不完整三元组返回 INVALID_ARGUMENT。
  * @param {string} raw_input
  * @param {Uint32Array} actions
  * @param {BattleOptions | null} [options]

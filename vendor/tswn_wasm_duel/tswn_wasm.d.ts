@@ -37,7 +37,7 @@ export interface BattleOptions {
 
 // 规范 core DTO 形状。没有单独的 Rust 绑定 schema。
 export type BattleStatus = "running" | "finished" | "truncated";
-export type BattleStopReason = "winner" | "max_rounds" | "no_progress";
+export type BattleStopReason = "winner" | "max_rounds" | "no_progress" | "paused";
 export type BattleMinionKind = "clone" | "summon" | "shadow" | "zombie";
 export type BattleUpdateType = "win" | "none" | "next_line";
 export type BattleTone = "normal" | "damage" | "recover" | "knockout" | "status_exit";
@@ -45,6 +45,8 @@ export type BattleReplayTextPartKind = "text" | "highlight" | "player" | "data";
 export type BattleReplayOptions = BattleOptions;
 
 export interface BattleReplay {
+    /** 等待指令的实体；暂停可继续，不是终局。 */
+    paused_actor: number | null;
     status: BattleStatus;
     stop_reason: BattleStopReason;
     rounds_advanced: number;
@@ -60,6 +62,8 @@ export interface BattleReplay {
 }
 
 export interface BattlePlayerState {
+    /** 技能导出名与当前熟练度。 */
+    skills: Array<[string, number]>;
     id: number;
     team_index: number;
     input_team_index: number | null;
@@ -483,12 +487,20 @@ export class BattleSession {
      */
     next_frame(): BattleReplayFrame | null;
     /**
+     * 当前等待指令的实体；暂停不是终局。
+     */
+    paused_actor(): number | undefined;
+    /**
      * 读取正常 terminal 结果，运行中或失败时返回 JS null。
      */
     result(): BattleResult | null;
     rounds_advanced(): number;
     status(): BattleStatus;
     stop_reason(): BattleStopReason | null;
+    /**
+     * 为暂停实体提交与批量接口相同的指令，再调用 next_frame 继续。
+     */
+    submit_action(actor: number, skill: number, packed_mp: number): void;
 }
 
 /**
@@ -548,8 +560,8 @@ export function battle_replay(raw_input: string, options?: BattleOptions | null)
 /**
  * 与 battle_replay 相同的回放，但允许卡牌前端为某个实体按顺序强制技能。
  *
- * forced_skills 是技能 id 队列：每次轮到 actor_id 行动时消费一个；
- * 队列耗尽后恢复 Runtime 原本的概率选择。
+ * actions 为完整的 actor/skill/packed_mp 三元组，药水放在 packed_mp 高字节。
+ * 受控队伍指令耗尽后暂停，非法编号或不完整三元组返回 INVALID_ARGUMENT。
  */
 export function battle_replay_forced(raw_input: string, actions: Uint32Array, options?: BattleOptions | null): BattleReplay;
 
@@ -676,10 +688,12 @@ export interface InitOutput {
     readonly battlesession_is_truncated: (a: number) => number;
     readonly battlesession_new: (a: number, b: number, c: number, d: number) => void;
     readonly battlesession_next_frame: (a: number, b: number) => void;
+    readonly battlesession_paused_actor: (a: number) => number;
     readonly battlesession_result: (a: number, b: number) => void;
     readonly battlesession_rounds_advanced: (a: number) => number;
     readonly battlesession_status: (a: number, b: number) => void;
     readonly battlesession_stop_reason: (a: number, b: number) => void;
+    readonly battlesession_submit_action: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly core_version: (a: number) => void;
     readonly default_custom_runtime_normalized_run: (a: number, b: number, c: number, d: number) => void;
     readonly default_eval_rq: () => number;

@@ -2,7 +2,7 @@
 
 > 在线试玩：https://kodu16.github.io/namerena-cards/
 > 源码：https://github.com/KODU16/namerena-cards
-> 引擎源码（本地 fork）：https://github.com/KODU16/tswn-core
+> 引擎源码及补丁复现：[构建说明](vendor/tswn_wasm_duel/BUILD.md)
 
 把「名字竞技场」（namerena）的角色构建结果做成卡牌，一路往上打到该组第 1 名。
 
