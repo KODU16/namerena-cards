@@ -84,7 +84,12 @@ export class Duel {
     this.champion = champion;
     this.team = team || [champion];
     this.enemies = enemies;
-    this.queues = new Map();
+    // 一场战斗持有一个运行时，新动作只推进当前状态，不再重放历史指令。
+    this.session = null;
+    this.replay = null;
+    this.frames = [];
+    this.needsAdvance = true;
+    this.disposed = false;
   }
 
   baseFor(state) {
@@ -103,28 +108,52 @@ export class Duel {
       || this.team.find((card) => card.name === unit.id_name) || this.champion;
   }
 
-  flatPairs(extra = []) {
-    const triples = [];
-    for (const [unit, queue] of this.queues) {
-      for (const item of queue) {
-        const mp = (item.mp || 0) & 0xff;
-        const potion = (item.potion || 0) & 0xff;
-        triples.push(unit, item.skill ?? item, mp | (potion << 8));
+  // simulate 保留原调用名；仅在新指令提交后，从当前会话继续取新增战报。
+  simulate() {
+    if (this.replay && !this.needsAdvance) return this.replay;
+    if (this.disposed) throw new Error('战斗会话已释放');
+    try {
+      if (!this.session) {
+        this.session = new this.wasm.BattleSession(this.input, {
+          include_icons: false,
+          max_rounds: 20000,
+          controlled_team: this.playerTeam,
+          start_hp_pct: this.startHpPct || undefined,
+        });
+        this.initialStates = this.session.initial_states();
       }
+      for (let frame; (frame = this.session.next_frame()) != null;) this.frames.push(frame);
+      const result = this.session.result();
+      this.replay = {
+        status: this.session.status(),
+        stop_reason: this.session.stop_reason(),
+        paused_actor: this.session.paused_actor() ?? null,
+        rounds_advanced: this.session.rounds_advanced(),
+        frames_emitted: this.session.frames_emitted(),
+        finished: this.session.is_finished(),
+        truncated: this.session.is_truncated(),
+        initial_states: this.initialStates,
+        // 保存已返回快照的数组边界，旧战报对象原样保留。
+        frames: this.frames.slice(),
+        final_states: this.session.current_states(),
+        winner_ids: result?.winner_ids || [],
+        winner_team_indices: result?.winner_team_indices || [],
+        state_granularity: 'round',
+      };
+      this.needsAdvance = false;
+      if (this.session.is_done()) this.dispose();
+      return this.replay;
+    } catch (error) {
+      this.dispose();
+      throw error;
     }
-    for (const [unit, skill] of extra) triples.push(unit, skill, 0);
-    return triples;
   }
 
-  simulate(extra = []) {
-    return this.wasm.battle_replay_forced(this.input, this.flatPairs(extra), {
-      include_icons: false,
-      max_rounds: 20000,
-      // 受控队伍：轮到本体/分身却没指令时，引擎会停下来等玩家
-      controlled_team: this.playerTeam,
-      // 篝火休息：受控队伍以 125% 体力开场（超过 100% 时治疗无效）
-      start_hp_pct: this.startHpPct || undefined,
-    });
+  // 结算或离开战斗时释放 WASM 运行时；普通战报 DTO 仍可用于显示和导出。
+  dispose() {
+    this.session?.free();
+    this.session = null;
+    this.disposed = true;
   }
 
   // 玩家可操作单位：本体 + 分身；幻影/丧尸/使魔由引擎自行行动
@@ -152,14 +181,14 @@ export class Duel {
     const replay = this.simulate();
     const frames = replay.frames || [];
     if (replay.paused_actor != null) {
-      const states = frames.length ? frames[frames.length - 1].states : replay.initial_states;
+      const states = replay.final_states || (frames.length ? frames[frames.length - 1].states : replay.initial_states);
       const unit = (states || []).find((s) => s.id === replay.paused_actor)
         || (replay.initial_states || []).find((s) => s.id === replay.paused_actor);
       if (window.__ncLog) {
         window.__ncLog.push({
           t: new Date().toISOString(),
           kind: 'duel.paused',
-          data: { frames: frames.length, actor: replay.paused_actor, name: unit?.id_name },
+          data: { frames: frames.length, actor: replay.paused_actor, name: unit?.id_name, rounds: replay.rounds_advanced, mode: 'session' },
         });
       }
       return { replay, index: frames.length, unit: unit || null };
@@ -171,12 +200,16 @@ export class Duel {
   }
 
   queue(unitId, skillId, mp = 0, potion = null) {
+    if (!this.session && !this.disposed) this.simulate();
+    if (this.disposed || !this.session) throw new Error('战斗会话已结束');
     const code = ((potion == null ? this.pendingPotion : potion) || 0) & 0xff;
+    // 指令直接交给正等待出牌的当前实体，分身已经存在于这个运行时中。
+    this.session.submit_action(unitId, skillId, (mp & 0xff) | (code << 8));
     this.pendingPotion = 0;
-    const q = this.queues.get(unitId) || [];
-    q.push({ skill: skillId, mp, potion: code });
-    this.queues.set(unitId, q);
+    this.needsAdvance = true;
+    if (window.__ncLog) window.__ncLog.push({ t: new Date().toISOString(), kind: 'duel.action', data: { actor: unitId, skill: skillId, mp, potion: code } });
   }
+
 }
 
 // ————————————————————— 面板
@@ -753,6 +786,7 @@ export class DuelView {
       ? winnerIds.some((id) => mine.includes(id))
       : winnerTeams.includes(0);
     if (window.__ncLog) window.__ncLog.push({ t: new Date().toISOString(), kind: 'duel.judge', data: { mine, winnerIds, winnerTeams, won } });
+    this.duel.dispose();
     this.onFinish({ won, replay: rep });
   }
 }

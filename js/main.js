@@ -276,6 +276,8 @@ async function openSaves() {
   await paint();
 }
 function home() {
+  // 放弃或结束战斗后及时释放持久会话。
+  duelView?.duel.dispose();
   duelView = null;
   nav('home', () => UI.renderHome(root, state, {
     versions: { wasm: state.wasm || '0.5.6', core: state.core || '0.7.0' },
@@ -472,7 +474,10 @@ async function fight() {
   const wasm = engineWasm();
   let initial;
   try {
-    initial = wasm.battle_replay_forced(input, [], { include_icons: false, max_rounds: 20000 });
+    // 仅查询开局身份与队伍，不自动跑完整场战斗。
+    const probe = new wasm.BattleSession(input, { include_icons: false, max_rounds: 20000 });
+    try { initial = { initial_states: probe.initial_states() }; }
+    finally { probe.free(); }
   } catch (e) {
     console.error(e);
     return toast(`这场对局无法开始：${e.message || e}`);

@@ -17,10 +17,10 @@ index b6d81a36..47e98057 100644
  lto = "thin"
 diff --git a/FORK.md b/FORK.md
 new file mode 100644
-index 00000000..9eb50961
+index 00000000..83abd9e0
 --- /dev/null
 +++ b/FORK.md
-@@ -0,0 +1,36 @@
+@@ -0,0 +1,42 @@
 +# 卡牌引擎补丁说明
 +
 +以 shenjackyuanjie/tswn-core 的 5237f2b30a46b6658c6aefd49b2c4e97a2b81080 为基线。卡牌改动与审查修复通过 cards 仓库中的 source.patch 归档；本次不再提交引擎分支。
@@ -57,6 +57,12 @@ index 00000000..9eb50961
 +
 +Rust 行为回归覆盖封包校验、角色药水交叠与失效、流式和批量回放一致、交错会话隔离、开局 HP 边界。
 +tools/test-forced.mjs 对编译后的真实 WASM 执行相应验证。默认不指定 controlled_team 的战斗不执行卡牌专用潜行修复。
++
++## 持久战斗会话
++
++网站实战创建 BattleSession 后持续持有同一运行时。每次出牌仅 submit_action，再调用 next_frame 取得新增战报；生命、MP、分身、状态和随机流从当前边界继续，等待出牌期间不推进。结算或退出时 free。battle_replay_forced 仅供离线回放与回归对照，不用于每次出牌。
++
++批量兼容接口的队列可引用之后生成的分身，不能用开局实体表提前拒绝其 id；指令仅在 Runtime 实际调度该实体时消费。Rust 回归覆盖分身连续出牌以及持久会话与离线回放结果一致。
 diff --git a/crates/tswn_capi/include/tswn_capi.h b/crates/tswn_capi/include/tswn_capi.h
 index 963a95af..57340edb 100644
 --- a/crates/tswn_capi/include/tswn_capi.h
@@ -112,7 +118,7 @@ index 062e6f08..5d1fe314 100644
          )
          .map_err(cli_api_error)?;
 diff --git a/crates/tswn_core/src/cli_api/battle/driver.rs b/crates/tswn_core/src/cli_api/battle/driver.rs
-index c5a769ff..f1bbff93 100644
+index c5a769ff..d4adfc2a 100644
 --- a/crates/tswn_core/src/cli_api/battle/driver.rs
 +++ b/crates/tswn_core/src/cli_api/battle/driver.rs
 @@ -11,6 +11,7 @@ pub(super) struct BattleDriver {
@@ -132,7 +138,7 @@ index c5a769ff..f1bbff93 100644
          if raw.trim().is_empty() {
              return Err(invalid_input("raw_input is empty"));
          }
-@@ -33,9 +36,36 @@ impl BattleDriver {
+@@ -33,9 +36,33 @@ impl BattleDriver {
              return Err(CliApiError::InvalidArgument("battle eval_rq must be finite".into()));
          }
          let (groups, seed) = RuntimeRunner::split_namerena_into_groups(raw.to_owned());
@@ -147,11 +153,8 @@ index c5a769ff..f1bbff93 100644
 +        let mut runner = RuntimeRunner::new_from_groups_with_seed_and_eval_rq(&groups, &seed, options.eval_rq)
              .map_err(|e| CliApiError::RunnerInit(e.to_string()))?;
 -        Self::new(runner, options.max_rounds)
-+        for command in &pending_actions {
-+            if runner.runtime().entities.get(crate::runtime::EntityIdx(command.actor)).is_none() {
-+                return Err(CliApiError::InvalidArgument("forced actor does not exist".into()));
-+            }
-+        }
++        // 重放队列可引用战斗中才生成的分身，不能用开局实体表拒绝其 id。
++        // 指令只在 Runtime 实际调度该实体时按 actor 取用。
 +        if let Some(team) = options.controlled_team {
 +            if !runner.runtime().entities.iter().any(|(_, entity)| entity.runtime.team == team) {
 +                return Err(CliApiError::InvalidArgument("controlled_team does not exist".into()));
@@ -171,7 +174,7 @@ index c5a769ff..f1bbff93 100644
      }
  
      pub fn new(runner: RuntimeRunner, max_rounds: usize) -> CliApiResult<Self> {
-@@ -50,6 +80,7 @@ impl BattleDriver {
+@@ -50,6 +77,7 @@ impl BattleDriver {
              frames_emitted: 0,
              no_progress_rounds: 0,
              failure: None,
@@ -179,7 +182,7 @@ index c5a769ff..f1bbff93 100644
          })
      }
  
-@@ -73,7 +104,18 @@ impl BattleDriver {
+@@ -73,7 +101,18 @@ impl BattleDriver {
              return Err(error);
          }
          let round_index = self.rounds_advanced;
@@ -310,7 +313,7 @@ index 2ccdaefa..d6e0722d 100644
  mod tests {
      use super::*;
 diff --git a/crates/tswn_core/src/cli_api/battle/session.rs b/crates/tswn_core/src/cli_api/battle/session.rs
-index fefc009d..ce7035cc 100644
+index fefc009d..f77f0434 100644
 --- a/crates/tswn_core/src/cli_api/battle/session.rs
 +++ b/crates/tswn_core/src/cli_api/battle/session.rs
 @@ -34,6 +34,7 @@ pub struct BattleSession {
@@ -435,7 +438,7 @@ index fefc009d..ce7035cc 100644
          let filled_cache = cache.clone();
          assert_eq!(states_from_runner(&runner, true, &mut cache), with_icons);
          assert_eq!(cache, filled_cache);
-@@ -817,3 +866,126 @@ seed:7@!"#;
+@@ -817,3 +866,162 @@ seed:7@!"#;
          }
      }
  }
@@ -506,6 +509,42 @@ index fefc009d..ce7035cc 100644
 +        assert_eq!(replay.final_states, session.current_states());
 +        assert_eq!(replay.paused_actor, session.paused_actor().map(|id| id as usize));
 +        assert!(independent.paused_actor().is_some());
++    }
++    // 批量重放从开局重新创建实体，队列中的分身 id 必须等召唤后再消费。
++    #[test]
++    fn replay_accepts_commands_for_clones_created_after_initialization() {
++        let raw = "caster@red+ol:{\"attrs\":[40,40,200,40,40,40,100,20000],\"skills\":{\"sklclone\":106},\"name_factor_enabled\":false}\n\nenemy@blue+ol:{\"attrs\":[10,40,80,40,40,40,40,20000],\"skills\":{},\"name_factor_enabled\":false}\nseed:3719276890@!";
++        let baseline = BattleSession::new(raw, BattleOptions::default()).unwrap();
++        let team = baseline
++            .initial_states()
++            .iter()
++            .find(|s| s.input_team_index == Some(0))
++            .unwrap()
++            .team_index;
++        let options = BattleOptions {
++            controlled_team: Some(team),
++            ..options()
++        };
++        let mut session = BattleSession::new(raw, options).unwrap();
++        let mut frames = pause(&mut session);
++        let initial_ids: Vec<_> = session.initial_states().iter().map(|s| s.id as u32).collect();
++        let mut commands = Vec::new();
++        let mut clone_turns = 0;
++        for turn in 0..12 {
++            let actor = session.paused_actor().unwrap();
++            if !initial_ids.contains(&actor) {
++                clone_turns += 1;
++            }
++            let (skill, mp) = if turn == 0 { (23, 8) } else { (255, 0) };
++            session.submit_action(actor, skill, mp).unwrap();
++            commands.extend([actor, skill, mp]);
++            frames.extend(pause(&mut session));
++            forced_action::set_actions(forced_action::decode_actions(&commands).unwrap());
++            let replay = super::super::battle_replay(raw, options).unwrap();
++            assert_eq!(replay.frames, frames);
++            assert_eq!(replay.paused_actor, session.paused_actor().map(|id| id as usize));
++        }
++        assert!(clone_turns >= 2, "分身需要能重复出牌并继续行动");
 +    }
 +    #[test]
 +    fn fractional_hp_is_team_scoped_and_invalid_options_are_rejected() {

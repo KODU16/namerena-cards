@@ -34,3 +34,9 @@ BattlePlayerState.skills 是技能导出名与当前熟练度的二元组数组�
 
 Rust 行为回归覆盖封包校验、角色药水交叠与失效、流式和批量回放一致、交错会话隔离、开局 HP 边界。
 tools/test-forced.mjs 对编译后的真实 WASM 执行相应验证。默认不指定 controlled_team 的战斗不执行卡牌专用潜行修复。
+
+## 持久战斗会话
+
+网站实战创建 BattleSession 后持续持有同一运行时。每次出牌仅 submit_action，再调用 next_frame 取得新增战报；生命、MP、分身、状态和随机流从当前边界继续，等待出牌期间不推进。结算或退出时 free。battle_replay_forced 仅供离线回放与回归对照，不用于每次出牌。
+
+批量兼容接口的队列可引用之后生成的分身，不能用开局实体表提前拒绝其 id；指令仅在 Runtime 实际调度该实体时消费。Rust 回归覆盖分身连续出牌以及持久会话与离线回放结果一致。
