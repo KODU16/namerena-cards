@@ -169,7 +169,7 @@ export const HEROES = [{
   description: '第九届武术大赛冠军',
   scores: { pp: 8428, pd: 9071, qp: 5920, qd: 5986, sum: 29405 },
 },
-  // 第十一至十三届冠军按年份归档；后两位使用本次提供的同一张立绘。
+  // 第十一至十三届冠军按年份归档，立绘分别对应各届角色。
 {
   "id": "lingyun-2ehkr7oyz1jvy1",
   "year": 2022,
@@ -205,7 +205,7 @@ export const HEROES = [{
   "year": 2024,
   "name": "Dsuv2quzuq5m7cw",
   "clan": "Splay",
-  "portrait": "assets/heroes/cedfk9a-asunder.webp",
+  "portrait": "assets/heroes/dsuv2quzuq5m7cw-splay.webp",
   "description": "第十三届武术大赛冠军",
   "scores": {
     "pp": 8251,
@@ -213,5 +213,51 @@ export const HEROES = [{
     "qp": 5845,
     "qd": 6636,
     "sum": 29844
+  }
+},
+// 第十四至十六届冠军保留原始特殊字符姓名、年份与榜单评分。
+{
+  "id": "ai00160064077909-abruce",
+  "year": 2024,
+  "name": "爱00160064077909",
+  "clan": "abruce",
+  "portrait": "assets/heroes/ai00160064077909-abruce.webp",
+  "description": "第十四届武术大赛冠军",
+  "scores": {
+    "pp": 8054,
+    "pd": 9019,
+    "qp": 5905,
+    "qd": 6697,
+    "sum": 29675
+  }
+},
+{
+  "id": "alphabeta-02pjt42k-returnvoid",
+  "year": 2024,
+  "name": "<αβ>-02pjt42k",
+  "clan": "ReturnVoid",
+  "portrait": "assets/heroes/alphabeta-02pjt42k-returnvoid.webp",
+  "description": "第十五届武术大赛冠军",
+  "scores": {
+    "pp": 8318,
+    "pd": 9199,
+    "qp": 6462,
+    "qd": 7390,
+    "sum": 31369
+  }
+},
+{
+  "id": "hanxu-inequality-tigerstar",
+  "year": 2025,
+  "name": "涵虚不等式 PFVKEUPBU",
+  "clan": "TigerStar",
+  "portrait": "assets/heroes/hanxu-inequality-tigerstar.webp",
+  "description": "第十六届武术大赛冠军",
+  "scores": {
+    "pp": 8718,
+    "pd": 9282,
+    "qp": 6844,
+    "qd": 7322,
+    "sum": 32166
   }
 }];
