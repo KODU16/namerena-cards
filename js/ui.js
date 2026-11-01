@@ -2,7 +2,7 @@
 import { CAT, SKILLS, skillMeta, effectiveSkillLevel } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote, scaleTactic } from './game.js';
-import { makeCard, cardDisplayStats } from './engine.js';
+import { makeCard, cardDisplayStats, displayEightSum } from './engine.js';
 import { emojiImg, mapIconSvg } from './emoji.js';
 // 生成和绘制共用尺寸，保持节点半径和几何约束一致。
 import { MAP_LAYOUT, mapNodeRadius } from './map.js';
@@ -1121,6 +1121,7 @@ export function renderMap(root, state, h) {
                   : n.kind === 'chest' ? '宝箱'
                   : '试炼';
     return `<g class="${cls.join(' ')}" data-id="${n.id}" transform="translate(${p.x},${p.y})">
+      ${isCurrent ? `<circle class="map-node__current-ring" r="${r + 10}"></circle>` : ''}
       <g class="map-node__art">
         <!-- 保留原圆形命中区域与连线避让半径，仅将图案宽高翻倍。 -->
         <circle class="map-node__hit" r="${r}"></circle>
@@ -1148,6 +1149,7 @@ export function renderMap(root, state, h) {
           el('button', { class: 'ghost map__bag', type: 'button', onclick: () => h.onInventory && h.onInventory() }, '物品栏'),
         ),
         el('div', { class: 'map__legend' },
+          el('span', { class: 'map-legend map-legend--current' }, '当前位置'),
           el('span', { class: 'map-legend map-legend--avail' }, '可前往'),
           el('span', { class: 'map-legend map-legend--ladder' }, '天梯'),
           el('span', { class: 'map-legend map-legend--filler' }, '试炼'),
@@ -1185,8 +1187,16 @@ export function renderMap(root, state, h) {
   const body = root.querySelector('.map__body');
   if (body) {
     body.innerHTML = svg;
-    body.scrollTop = body.scrollHeight;
-    body.scrollLeft = (body.scrollWidth - body.clientWidth) / 2;
+    // 每次返回地图都把当前节点置于可视区域中央，而非回到最底部。
+    const centerCurrent = () => {
+      const target = body.querySelector('.map-node.is-current .map-node__current-ring') || body.querySelector('.map-node--start .map-node__hit');
+      if (!target) return;
+      const nodeBox = target.getBoundingClientRect(), viewport = body.getBoundingClientRect();
+      body.scrollTop += (nodeBox.top + nodeBox.bottom - viewport.top - viewport.bottom) / 2;
+      body.scrollLeft += (nodeBox.left + nodeBox.right - viewport.left - viewport.right) / 2;
+    };
+    centerCurrent();
+    requestAnimationFrame(centerCurrent);
     let dragging = false;
     let moved = 0;
     let sx = 0;
@@ -1261,13 +1271,8 @@ export function dispStats(s) {
   return cardDisplayStats(s);
 }
 
-// 八围：七围 + 体力
-export function eightSumOf(card) {
-  const s = card?.stats;
-  if (!s) return 0;
-  const d = dispStats(s);
-  return Math.round(d.atk + d.def + d.spd + d.agi + d.mag + d.res + d.wis + d.hp);
-}
+// 所有表情、测号和角色库使用同一折合后的八围。
+export function eightSumOf(card) { return displayEightSum(card?.stats); }
 
 // 固定路径由发布构建替换为内容指纹路径，图标修改后不会命中旧切片缓存。
 const GRADE_ICONS = [null, 'assets/grade-1.png', 'assets/grade-2.png', 'assets/grade-3.png'];
@@ -1301,14 +1306,14 @@ export function fullCharRow(card) {
   const bonusMap = arguments[1] || {};
   const line = (label, key, v) => {
     const delta = key ? Math.round(bonusMap[key] || 0) : 0;
-    return el('span', { class: 'fullrow__stat' }, label + ' ' + v,
+    return el('span', { class: 'fullrow__stat' }, label + ' ', el('b', { 'data-stat': key }, v),
       card.eliteMult > 1 ? el('i', { class: 'fullrow__plus' }, '*' + card.eliteMult) : null,
       delta ? el('i', { class: 'fullrow__plus' + (delta < 0 ? ' is-neg' : '') }, (delta > 0 ? '+' : '') + delta) : null);
   };
   const bar = (cls, label, pct) => el('div', { class: 'fullrow__bar ' + cls, title: label },
     el('i', { style: 'width:' + Math.max(0, Math.min(100, pct)) + '%' }),
-    el('span', {}, label, cls === 'fullrow__bar--hp' && card.eliteMult > 1 ? el('i', { class: 'elite-mult' }, '*' + card.eliteMult) : null));
-  return el('div', { class: 'fullrow' },
+    el('span', {}, cls === 'fullrow__bar--hp' ? ['血量 ', el('b', { 'data-stat': 'hp' }, hp)] : label, cls === 'fullrow__bar--hp' && card.eliteMult > 1 ? el('i', { class: 'elite-mult' }, '*' + card.eliteMult) : null));
+  return el('div', { class: 'fullrow', 'data-char-id': card.id },
     el('div', { class: 'fullrow__head' },
       card.icon ? el('img', { class: 'fullrow__icon', src: card.icon, alt: '' }) : null,
       el('b', {}, (card.name || '') + '@' + (card.clan || '')),
@@ -1321,8 +1326,37 @@ export function fullCharRow(card) {
       line('攻', 'atk', disp.atk), line('防', 'def', disp.def), line('速', 'spd', disp.spd), line('敏', 'agi', disp.agi),
       line('魔', 'mag', disp.mag), line('抗', 'res', disp.res), line('智', 'wis', disp.wis)),
     el('div', { class: 'fullrow__skills' }, (card.skillList || []).length
-      ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: skillMeta(sk.id).desc }, skillMeta(sk.id).name + ' ' + effectiveSkillLevel(sk.lv)))
-      : el('span', { class: 'muted small' }, '无技能')));
+      ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: skillMeta(sk.id).desc }, skillMeta(sk.id).name + ' ', el('b', { 'data-skill': sk.id }, effectiveSkillLevel(sk.lv))))
+      : el('span', { class: 'muted small' }, '无技能')),
+    el('div', { class: 'fullrow__sum', title: '外显七围 + 体力 / 3' }, '八围 ', el('b', {}, eightSumOf(card))));
+}
+
+// 换装浮字使用最终外显属性与有效熟练度，分别提示增加和减少。
+export function cardValueSnapshot(card) {
+  return { stats: cardDisplayStats(card?.stats), skills: Object.fromEntries((card?.skillList || []).map((s) => [s.id, effectiveSkillLevel(s.lv)])) };
+}
+export function showCardChanges(charId, before, after) {
+  for (const row of document.querySelectorAll('.fullrow[data-char-id]')) {
+    if (row.dataset.charId !== charId) continue;
+    const flash = (target, delta) => {
+      if (!target || !delta) return;
+      const box = target.getBoundingClientRect();
+      if (!box.width || box.bottom < 0 || box.top > innerHeight) return;
+      const float = el('em', { class: 'value-change' + (delta < 0 ? ' is-negative' : ''), style: { left: (box.left + box.width / 2) + 'px', top: box.top + 'px' } }, (delta > 0 ? '+' : '') + delta);
+      document.body.append(float); setTimeout(() => float.remove(), 1400);
+    };
+    for (const key of Object.keys(after.stats)) flash(row.querySelector('[data-stat="' + key + '"]'), after.stats[key] - before.stats[key]);
+    for (const id of new Set([...Object.keys(before.skills), ...Object.keys(after.skills)])) {
+      const delta = (after.skills[id] || 0) - (before.skills[id] || 0);
+      if (!delta) continue;
+      let target = row.querySelector('[data-skill="' + id + '"]');
+      if (!target) {
+        const ghost = el('span', { class: 'fullrow__skill' }, skillMeta(id).name + ' ', target = el('b', {}, '0'));
+        row.querySelector('.fullrow__skills')?.append(ghost);setTimeout(() => ghost.remove(), 1400);
+      }
+      flash(target, delta);
+    }
+  }
 }
 
 // ————————————————————— 分数徽标
@@ -1429,6 +1463,12 @@ export function inventorySheet(state, h = {}) {
     { id: 'weapons', name: '武器' },
   ];
   const body = el('div', { class: 'inv__body' });
+  const changeEquipment = (charId, operation) => {
+    const card = state.collection.find((c) => c.id === charId), before = cardValueSnapshot(card);
+    operation(); paint('chars');
+    const after = cardValueSnapshot(card);
+    requestAnimationFrame(() => showCardChanges(charId, before, after));
+  };
   const tabBar = el('div', { class: 'inv__tabs' });
   const del = (kind, id, label) => el('button', {
     class: 'ghost inv__del',
@@ -1451,7 +1491,18 @@ export function inventorySheet(state, h = {}) {
                 el('div', {}, '加成：' + (card.weaponInfo.deltas.length ? card.weaponInfo.deltas.map((d) => d.label + (d.delta > 0 ? '+' : '') + d.delta).join('、') : '无')),
                 card.weaponInfo.added.length ? el('div', {}, '新技能：' + card.weaponInfo.added.map((a) => skillMeta(a.id).name + '(' + effectiveSkillLevel(a.lv) + ')').join('、')) : null,
                 (card.weaponInfo.removed || []).length ? el('div', {}, '失去技能：' + card.weaponInfo.removed.map((a) => skillMeta(a.id).name).join('、')) : null) : null,
-              card.weapon ? el('button', { class: 'ghost', type: 'button', onclick: () => { h.onUnequip && h.onUnequip(card.id); paint('chars'); } }, '卸下') : null,
+              el('select', { class: 'inv__pick', 'aria-label': '更换武器 ' + card.name, onchange: (ev) => {
+                const value = ev.target.value;
+                if (value === '__equipped__') return;
+                changeEquipment(card.id, () => value ? h.onEquipWeapon?.(value, card.id) : h.onUnequip?.(card.id));
+              } }, el('option', { value: '', selected: !card.weapon }, '无武器'),
+              card.weapon ? el('option', { value: '__equipped__', selected: true }, '已装备 · ' + card.weapon) : null,
+              ...(state.weapons || []).map((w) => el('option', { value: w.id }, w.name))),
+              card.weapon ? el('button', { class: 'ghost', type: 'button', onclick: () => changeEquipment(card.id, () => h.onUnequip?.(card.id)) }, '卸下武器') : null,
+              h.onToggleTeam ? ((run.teamSize || 1) > 1 && !inTeam && (run.teamIds || []).length >= run.teamSize
+                ? el('select', { class: 'inv__pick', 'aria-label': '切换出战 ' + card.name, onchange: (ev) => { if (ev.target.value) { h.onToggleTeam(card.id, ev.target.value); paint('chars'); } } },
+                    el('option', { value: '' }, '替换出战角色…'), ...(run.teamIds || []).map((id) => el('option', { value: id }, '替换 ' + (state.collection.find((c) => c.id === id)?.name || id))))
+                : el('button', { class: 'ghost', type: 'button', onclick: () => { h.onToggleTeam(card.id); paint('chars'); } }, inTeam ? '取消出战' : '设为出战')) : null,
               inTeam ? el('span', { class: 'muted small' }, '出战中') : del('card', card.id, card.name)));
         })),
         el('p', { class: 'muted small' }, '出战中的角色不能销毁；悬停角色卡可看完整技能与八围'));
@@ -1484,7 +1535,7 @@ export function inventorySheet(state, h = {}) {
       body.replaceChildren(list.length
         ? el('div', { class: 'inv__grid' }, list.map((w) => el('div', { class: 'inv__item' },
           el('b', {}, '⚔ ' + w.name),
-          el('select', { class: 'inv__pick', onchange: (ev) => { if (ev.target.value) { h.onEquipWeapon && h.onEquipWeapon(w.id, ev.target.value); paint('weapons'); } } },
+          el('select', { class: 'inv__pick', onchange: (ev) => { if (ev.target.value) changeEquipment(ev.target.value, () => h.onEquipWeapon?.(w.id, ev.target.value)); } },
             el('option', { value: '' }, '装备给…'),
             ...(state.collection || []).map((c) => el('option', { value: c.id }, c.name + '@' + c.clan))),
           del('weapon', w.id, w.name))))

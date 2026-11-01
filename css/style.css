@@ -21,7 +21,7 @@
   --shadow: 0 16px 36px -22px rgba(33, 64, 82, .45);
   --shadow-soft: 0 6px 18px -12px rgba(33, 64, 82, .35);
   --radius: 14px;
-  --button-bg: #3187b5;
+  --button-bg: #c8e8fa;
   --sans: "Microsoft YaHei", Consolas, Menlo, Monaco, "Lucida Console", "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace, serif;
   --mono: Consolas, Menlo, Monaco, "Lucida Console", "Liberation Mono", "DejaVu Sans Mono", "Courier New", monospace;
 }
@@ -70,7 +70,7 @@ button {
   font-style: normal;
   font-size: 16px;
   padding: 4px 10px;
-  color: #fff;
+  color: #303943;
   cursor: pointer;
   box-shadow: 0 0 3px 0 rgba(0, 0, 0, .25);
   outline: none;
@@ -80,7 +80,7 @@ button:hover:not(:disabled) { box-shadow: 0 0 5px 0 rgba(0, 0, 0, .5); }
 button.primary:hover:not(:disabled),
 button.secondary:hover:not(:disabled),
 button.ghost:hover:not(:disabled) {
-  background: linear-gradient(0deg, var(--button-bg) 0%, #63add2 100%);
+  background: linear-gradient(0deg, var(--button-bg) 0%, #e6f5fd 100%);
 }
 button:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
 
@@ -96,10 +96,10 @@ button.primary:hover:not(:disabled) {
   box-shadow: 0 0 5px 0 rgba(18, 119, 174, .55);
 }
 /* 可点击的次级操作使用明亮蓝色，与主按钮的深蓝及禁用态区分。 */
-button.secondary { background: #398cbd; }
-button.ghost { background: #5a9fc8; border-color: #d6edfa; }
-button.ghost:hover:not(:disabled) { background: linear-gradient(0deg, #438ebd 0%, #79b9dd 100%); }
-button.primary:disabled, button.secondary:disabled, button.ghost:disabled { background: #a9b6c0; border-color: #d5dfe5; color: #f5f7f9; }
+button.secondary { background: #c8e8fa; color: #303943; }
+button.ghost { background: #dceffc; border-color: #afd5ed; color: #303943; }
+button.ghost:hover:not(:disabled) { background: #c3e5f8; }
+button.primary:disabled, button.secondary:disabled, button.ghost:disabled { background: #dce3e8; border-color: #c5d0d8; color: #46545f; }
 button.big { font-size: 16px; padding: 9px 22px; }
 
 /* ——— 透明 32×32 像素图标，使用独立单元边界 */
@@ -1036,8 +1036,8 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
 .map__layers small { display: block; font-size: 10px; color: var(--muted); letter-spacing: .12em; }
 .map__layers b { font-size: 13px; }
 .map__bag { white-space: nowrap; }
-.inv__tabs { display: flex; gap: 6px; margin: 10px 0; }
-.inv__tab.is-active { background: var(--sky-2); color: #fff; }
+.inv__tabs { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.inv__tab.is-active { background: #add8f0; color: #283944; border-color: #62abd2; }
 .inv__body { max-height: 56vh; overflow: auto; }
 .inv__char { margin-bottom: 8px; }
 .inv__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
@@ -1360,3 +1360,20 @@ body[data-screen="heroes"] .screen { max-width: none; }
 /* 窄屏减少列数以保留卡面信息，同样自动换行而不横向滚动。 */
 @media (max-width: 1020px) { .heroes__rail, .heroes__rail--duo { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 620px) { .heroes__rail, .heroes__rail--duo { grid-template-columns: 1fr; } }
+
+/* 次级按钮保持浅蓝底与深灰文字，物品说明也采用可读的对比度。 */
+button.ghost.inv__item { background: #dceffc; color: #303943; }
+button.ghost .muted, button.ghost small { color: #465d6c; }
+/* 独立描边避免被隐藏的节点命中圈规则覆盖。 */
+.map-node.is-current circle.map-node__current-ring { opacity: 1; fill: none; stroke: #8acbf0; stroke-width: 5; visibility: visible; pointer-events: none; }
+.fullrow__sum { padding-top: 5px; border-top: 1px solid var(--line-soft); color: #426174; font-size: 11px; text-align: right; }
+.fullrow__stats b, .fullrow__skill b { font-weight: inherit; }
+.inv__ops { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.inv__ops .inv__wd { flex-basis: 100%; }
+/* 固定定位的浮字越过卡牌和面板裁剪边界，在数值上方向上淡出。 */
+.value-change { position: fixed; z-index: 200; pointer-events: none; font: 700 14px var(--mono); font-style: normal; color: #087cc4; text-shadow: 0 1px 2px #fff; animation: value-change-rise 1.35s ease-out both; }
+.value-change.is-negative { color: #cf3838; }
+@keyframes value-change-rise { 0% { opacity: 1; transform: translate(-50%, -20%); } 100% { opacity: 0; transform: translate(-50%, -220%); } }
+@media (prefers-reduced-motion: reduce) { .value-change { animation: value-change-rise 1.35s linear both; } }
+
+.map-legend--current::before { border: 3px solid #8acbf0; background: none; }

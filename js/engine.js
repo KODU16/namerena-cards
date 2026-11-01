@@ -52,6 +52,12 @@ export function cardDisplayStats(stats = {}) {
   return Object.fromEntries(['hp', 'atk', 'def', 'spd', 'agi', 'mag', 'res', 'wis'].map((key) => [key, Math.round(stats[key] || 0)]));
 }
 
+// 八围统一使用外显七围，体力按三分之一折合；不混入 Runtime 的速度偏移。
+export function displayEightSum(stats = {}) {
+  const d = cardDisplayStats(stats);
+  return Math.round((d.atk + d.def + d.spd + d.agi + d.mag + d.res + d.wis + d.hp / 3) * 10) / 10;
+}
+
 export function battleDisplayStats(state = {}) {
   const fields = { atk: 'attack', def: 'defense', spd: 'speed', agi: 'agility', mag: 'magic', res: 'resistance', wis: 'wisdom' };
   return { hp: Math.round(state.max_hp || 0), ...Object.fromEntries(Object.entries(fields).map(([key, field]) =>

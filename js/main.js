@@ -387,25 +387,22 @@ function prep() {
       mapScreen();
     },
     onEquipWeapon: (weaponId, charId) => {
+      const card = state.collection.find((c) => c.id === charId), before = UI.cardValueSnapshot(card);
       const w = G.equipWeapon(state, weaponId, charId);
       if (w) toast('已装备 ' + w.name, 1500);
       prep();
+      requestAnimationFrame(() => UI.showCardChanges(charId, before, UI.cardValueSnapshot(card)));
     },
     onUnequip: (charId) => {
+      const card = state.collection.find((c) => c.id === charId), before = UI.cardValueSnapshot(card);
       const w = G.unequipWeapon(state, charId);
       if (w) toast('已卸下 ' + w, 1500);
       prep();
+      requestAnimationFrame(() => UI.showCardChanges(charId, before, UI.cardValueSnapshot(card)));
     },
     onToggleTeam: (id) => {
-      if ((state.run.downed || []).includes(id)) return toast('这名角色已经倒下，本局不能再出战');
-      const picked = (state.collection || []).find((c) => c.id === id);
-      if (picked && state.run.clan && picked.clan !== state.run.clan) return toast('战队不同：本局只能用 @' + state.run.clan + ' 的角色', 2200);
-      const ids = state.run.teamIds;
-      const i = ids.indexOf(id);
-      if (i >= 0) ids.splice(i, 1);
-      else if (ids.length < state.run.teamSize) ids.push(id);
-      else return toast('出战人数已满');
-      G.persist(state);
+      const result = G.toggleTeamMember(state, id);
+      if (!result.ok) toast(result.reason);
       prep();
     },
     onForgeHover: (id, ev) => {
@@ -610,7 +607,7 @@ function afterBattle(won) {
     toast(`第 ${state.run.layer - 1} 层通过，进入第 ${state.run.layer} 层`, 2600);
     return mapScreen();
   }
-  const offers = G.rollRewards(state, (state.run.seed + state.run.index * 7919) >>> 0, node?.kind === 'elite');
+  const offers = G.rollRewards(state, (state.run.seed + state.run.index * 7919) >>> 0, node?.kind === 'elite', node?.kind === 'filler' || node?.kind === 'elite');
   nav('reward', () => UI.renderReward(root, state, offers, {
     onPickOffer: (o) => { G.applyReward(state, o); mapScreen(); },
   }));
@@ -619,50 +616,31 @@ function afterBattle(won) {
 // ————————————————————— 地图
 
 function openInventory() {
-  const reopen = () => {
-    sheet(UI.inventorySheet(state, {
-      cardBonus: (cc) => G.cardBonus(state, cc),
-      onDestroy: (kind, id, label) => {
-        const ok = G.destroyItem(state, kind, id);
-        toast(ok ? '已销毁 ' + (label || '') : '不能销毁（出战中的角色/无效对象）', 1800);
-        return ok;
-      },
-      onEquipWeapon: (weaponId, charId) => {
-        const w = G.equipWeapon(state, weaponId, charId);
-        toast(w ? '已装备 ' + w.name : '装备失败', 1600);
-        render();
-      },
-      onUnequip: (charId) => {
-        const w = G.unequipWeapon(state, charId);
-        toast(w ? '已卸下 ' + w : '没有武器', 1600);
-        render();
-      },
-    }));
-    document.querySelector('.sheet')?.classList.add('sheet--full');
-  };
-  const render = () => {
-    const inv = UI.inventorySheet(state, {
-      cardBonus: (cc) => G.cardBonus(state, cc),
-      onDestroy: (kind, id, label) => {
-        const ok = G.destroyItem(state, kind, id);
-        toast(ok ? '已销毁 ' + (label || '') : '不能销毁（出战中的角色/无效对象）', 1800);
-        return ok;
-      },
-      onEquipWeapon: (weaponId, charId) => {
-        const w = G.equipWeapon(state, weaponId, charId);
-        toast(w ? '已装备 ' + w.name : '装备失败', 1600);
-        reopen();
-      },
-      onUnequip: (charId) => {
-        const w = G.unequipWeapon(state, charId);
-        toast(w ? '已卸下 ' + w : '没有武器', 1600);
-        reopen();
-      },
-    });
-    overlay.replaceChildren(el('div', { class: 'sheet sheet--full' }, inv));
-    overlay.classList.remove('hidden');
-  };
-  reopen();
+  // 角色页内完成切换及换装，由面板保留当前交互并播放属性浮字。
+  sheet(UI.inventorySheet(state, {
+    cardBonus: (card) => G.cardBonus(state, card),
+    onDestroy: (kind, id, label) => {
+      const ok = G.destroyItem(state, kind, id);
+      toast(ok ? '已销毁 ' + (label || '') : '不能销毁（出战中的角色/无效对象）', 1800);
+      return ok;
+    },
+    onEquipWeapon: (weaponId, charId) => {
+      const w = G.equipWeapon(state, weaponId, charId);
+      toast(w ? '已装备 ' + w.name : '装备失败', 1600);
+      return w;
+    },
+    onUnequip: (charId) => {
+      const w = G.unequipWeapon(state, charId);
+      toast(w ? '已卸下 ' + w : '没有武器', 1600);
+      return w;
+    },
+    onToggleTeam: (charId, replaceId) => {
+      const result = G.toggleTeamMember(state, charId, replaceId);
+      if (!result.ok) toast(result.reason);
+      return result;
+    },
+  }));
+  document.querySelector('.sheet')?.classList.add('sheet--full');
 }
 
 // 篝火锻造：先选角色，再选技能
@@ -723,7 +701,7 @@ function mapScreen() {
           const showResult = (res) => out.replaceChildren(
             el('div', { class: 'muted small' }, '扫描 ' + res.scanned + ' 个名字'),
             UI.charRowEl(res.card),
-            el('div', { class: 'muted small' }, '已加入角色库：' + res.name + '（八围 ' + res.sum + '）'));
+            el('div', { class: 'muted small' }, '已加入角色库：' + res.name + '（八围 ' + G.eightSum(res.card) + '）'));
           const scanButton = el('button', { class: 'primary', type: 'button', disabled: !!node.cpuScanUsed }, node.cpuScanUsed ? '已测号' : '测号（仅一次）');
           // 按钮立即锁定；实际次数由节点持久状态校验，不能靠重新打开弹窗绕过。
           scanButton.addEventListener('click', () => {

@@ -1,5 +1,5 @@
 ﻿// 局内状态、爬塔流程与存档。
-import { makeCard, hydrateCard, iconFor, statsWithWeapon, buildWithWeapon, applyRunBuff, runMultiplier } from './engine.js';
+import { makeCard, hydrateCard, iconFor, statsWithWeapon, buildWithWeapon, applyRunBuff, runMultiplier, displayEightSum } from './engine.js';
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
 
 // 给一张卡套上开局保底倍率，并把倍率记在卡上供界面显示加成
@@ -36,13 +36,20 @@ export const POTIONS = [
   { id: 'mp', name: '能量药水', field: 9, stat: '魔力', color: '#3a7bd5' },
 ];
 
-// 试炼敌人可能携带的武器：随机字符串，掉落进物品栏后可装备
-const WEAPON_CHARS = '试作残章旧梦远山寒潭星屑铁锈月影风铃霜刃木纹砂砾'.split('');
+// 多种命名形态共享确定性 RNG，避免短小汉字池反复出现相同元素。
+const WEAPON_CHARS = [...'试作残章旧梦远山寒潭星屑铁锈月影风铃霜刃木纹砂砾苍穹雷鸣龙骨流火幽冥青岚银羽赤曜玄玉碧海琉璃虹光翠竹墨痕黎明深渊晨曦暮雨雪原落日长歌白露逐浪孤舟渡鸦百炼赤铜秘银曜石天枢夜航繁花荆棘紫电金砂飞鸿青松烈焰远征回响南烛北斗清霁微尘虹霓流萤磐岩余烬折光岚影榆桑珑珀澄澈'];
+const WEAPON_ASCII = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 export function randomWeapon(rng) {
-  const len = 2 + Math.floor(rng() * 3);
-  let s = '';
-  for (let i = 0; i < len; i++) s += WEAPON_CHARS[Math.floor(rng() * WEAPON_CHARS.length)];
-  return s;
+  const pick = (pool) => pool[Math.floor(rng() * pool.length)];
+  const mode = Math.floor(rng() * 4);
+  const length = (mode === 0 ? 2 : 4) + Math.floor(rng() * (mode === 0 ? 6 : 9));
+  if (mode === 2) {
+    return pick(['苍穹','逐日','极光','幽蓝','流星','秘仪','无名','旅人','落樱','破晓','归途','天外','焚夜','琥珀','深潮','北辰'])
+      + pick(['剑','刃','枪','弓','杖','铃','琴','伞','轮','扇','镰','钩','锤','戟','戈','印'])
+      + (rng() < 0.5 ? '·' + Array.from({length:3},()=>pick(WEAPON_ASCII)).join('') : pick(['残响','誓言','序曲','遗物','追忆','终章','回声','青史','星轨','流年','彼岸','余温']));
+  }
+  const pool = mode === 0 ? WEAPON_CHARS : mode === 1 ? WEAPON_ASCII : [...WEAPON_CHARS,...WEAPON_ASCII];
+  return Array.from({length},()=>pick(pool)).join('');
 }
 
 // 描述与实际 tswn 药水槽位一致；“魔力”属性和施法能量 MP 分开说明。
@@ -749,6 +756,22 @@ export function equipWeapon(state, weaponId, charId) {
   return weapon;
 }
 
+// 备战和物品栏共用出战限制；单人直接切换，双人可指定替换位置。
+export function toggleTeamMember(state, charId, replaceId = null) {
+  const run = state.run, card = state.collection.find((c) => c.id === charId);
+  if (!run || !card) return { ok:false, reason:'没有可用的出战队伍' };
+  if ((run.downed || []).includes(charId)) return { ok:false, reason:'这名角色已经倒下，本局不能再出战' };
+  if (run.clan && card.clan !== run.clan) return { ok:false, reason:'本局只能用 @' + run.clan + ' 的角色' };
+  const ids = run.teamIds || (run.teamIds = []), index = ids.indexOf(charId);
+  if (index >= 0) ids.splice(index, 1);
+  else if (ids.length < (run.teamSize || 1)) ids.push(charId);
+  else if ((run.teamSize || 1) === 1) ids.splice(0, 1, charId);
+  else if (replaceId && ids.includes(replaceId)) ids.splice(ids.indexOf(replaceId), 1, charId);
+  else return { ok:false, reason:'请选择要替换的出战角色' };
+  persist(state);
+  return { ok:true };
+}
+
 // 物品栏销毁
 export function destroyItem(state, kind, id) {
   if (kind === 'card') {
@@ -822,12 +845,8 @@ export function addScorePoints(state, points) {
   return Math.round(points);
 }
 
-// 八围：七围 + 体力，速用引擎内部值（对外展示是 -124 的折合值）
-export function eightSum(card) {
-  const s = card?.stats;
-  if (!s) return 0;
-  return Math.round((s.atk || 0) + (s.def || 0) + (s.spd || 0) + (s.agi || 0) + (s.mag || 0) + (s.res || 0) + (s.wis || 0) + (s.hp || 0));
-}
+// 测号、卡面和表情评级共用同一八围口径。
+export function eightSum(card) { return displayEightSum(card?.stats); }
 
 // 电脑节点：一台随机 CPU，八围随机（显示名-八围），速度 = 八围 × 10
 export function makeCpu(rng) {
@@ -1238,7 +1257,7 @@ function rollRewardPoints(run, rng, elite = false) {
 }
 
 // 战斗奖励从完整奖池抽取三项供玩家选择。
-export function rollRewards(state, seed, elite = false) {
+export function rollRewards(state, seed, elite = false, guaranteeScore = false) {
   const r = mulberry32(seed);
   const run = state.run;
   const progress = Math.min(1, Math.max(0, ((run.layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
@@ -1264,21 +1283,24 @@ export function rollRewards(state, seed, elite = false) {
   }
   const potionMeta = POTIONS[Math.floor(r() * POTIONS.length)];
   const scorePoints = rollRewardPoints(run, r, elite);
-  // 全类型奖池，洗匀后抽 3 个
+  // 保留两个非分数随机奖励，分数固定占一项并随机排列位置。
   const pool = [
     { kind: 'skill', skill: { id: skillId, lv, uid: `sk-${seed}-${Math.floor(r() * 1e9)}` } },
     { kind: 'card', card },
     { kind: 'potion', potion: { id: potionMeta.id, n: elite ? 3 : 1 } },
     { kind: 'weapon', weapon: { id: 'w-rw-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } },
-    { kind: 'score', points: scorePoints },
   ];
   if (tactic) pool.push({ kind: 'tactic', tactic, power });
   if (elite) {
     pool.push({ kind: 'weapon', weapon: { id: 'w-rw-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
-    pool.push({ kind: 'score', points: Math.round(scorePoints * 0.6) });
   }
-  const offers = shuffle(pool, r).slice(0, 3);
-  return offers;
+  const candidates = pool.filter((offer) => offer.kind !== 'card' || offer.card);
+  const score = { kind: 'score', points: scorePoints };
+  if (guaranteeScore) return shuffle([score, ...shuffle(candidates, r).slice(0, 2)], r);
+  // 补给和非试炼奖励保留原随机奖池，宝箱仍独立结算额外分数。
+  candidates.push(score);
+  if (elite) candidates.push({ kind: 'score', points: Math.round(scorePoints * 0.6) });
+  return shuffle(candidates, r).slice(0, 3);
 }
 export function applyReward(state, offer) {
   if (!state.run) return;
