@@ -168,4 +168,50 @@ export const HEROES = [{
   portrait: 'assets/heroes/f-syqhmyv.webp',
   description: '第九届武术大赛冠军',
   scores: { pp: 8428, pd: 9071, qp: 5920, qd: 5986, sum: 29405 },
+},
+  // 第十一至十三届冠军按年份归档；后两位使用本次提供的同一张立绘。
+{
+  "id": "lingyun-2ehkr7oyz1jvy1",
+  "year": 2022,
+  "name": "2EHKR7OYZ1JVY1",
+  "clan": "霛雲",
+  "portrait": "assets/heroes/lingyun-2ehkr7oyz1jvy1.webp",
+  "description": "第十一届武术大赛冠军",
+  "scores": {
+    "pp": 8299,
+    "pd": 9275,
+    "qp": 6256,
+    "qd": 7386,
+    "sum": 31216
+  }
+},
+{
+  "id": "cedfk9a-asunder",
+  "year": 2024,
+  "name": "-cedfk9a",
+  "clan": "Asunder",
+  "portrait": "assets/heroes/cedfk9a-asunder.webp",
+  "description": "第十二届武术大赛冠军",
+  "scores": {
+    "pp": 8341,
+    "pd": 9044,
+    "qp": 6157,
+    "qd": 6619,
+    "sum": 30161
+  }
+},
+{
+  "id": "dsuv2quzuq5m7cw-splay",
+  "year": 2024,
+  "name": "Dsuv2quzuq5m7cw",
+  "clan": "Splay",
+  "portrait": "assets/heroes/cedfk9a-asunder.webp",
+  "description": "第十三届武术大赛冠军",
+  "scores": {
+    "pp": 8251,
+    "pd": 9112,
+    "qp": 5845,
+    "qd": 6636,
+    "sum": 29844
+  }
 }];
