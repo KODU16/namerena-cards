@@ -1,4 +1,5 @@
-﻿// 局内状态、爬塔流程与存档。
+import { acquireAbility, normalizeAbilities, rollAbility, abilityDescription, abilityKey } from './abilities.js';
+// 局内状态、爬塔流程与存档。
 import { makeCard, hydrateCard, iconFor, statsWithWeapon, buildWithWeapon, applyRunBuff, runMultiplier, displayEightSum } from './engine.js';
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
 
@@ -116,6 +117,7 @@ export function createState() {
     ladderSource: 'snapshot',
     collection: [],
     ownedTactics: [],
+    abilities: [],
     run: null,
     best: 0,
     customCards: [],
@@ -133,6 +135,7 @@ export function loadSave(state) {
     state.collection = (s.collection || []).map((c) => hydrateSaved(c)).filter(Boolean);
     state.ownedTactics = (s.ownedTactics || []);
     state.tacticPower = s.tacticPower || {};
+    state.abilities = normalizeAbilities(s.abilities);
     state.weapons = Array.isArray(s.weapons) ? s.weapons : [];
     state.customCards = (s.customCards || []).map((c) => hydrateSaved(c)).filter(Boolean);
     if (s.run && s.run.status === 'active') {
@@ -187,6 +190,7 @@ export function snapshot(state) {
     collection: (state.collection || []).map(slim),
     ownedTactics: state.ownedTactics,
     tacticPower: state.tacticPower || {},
+    abilities: normalizeAbilities(state.abilities),
     customCards: (state.customCards || []).map(slim),
     weapons: state.weapons || [],
     run: state.run,
@@ -200,6 +204,7 @@ export function restoreSnapshot(state, data) {
   state.collection = (data.collection || []).map((c) => hydrateSaved(c)).filter(Boolean);
   state.ownedTactics = data.ownedTactics || [];
   state.tacticPower = data.tacticPower || {};
+  state.abilities = normalizeAbilities(data.abilities);
   state.customCards = (data.customCards || []).map((c) => hydrateSaved(c)).filter(Boolean);
   state.weapons = Array.isArray(data.weapons) ? data.weapons : [];
   const run = data.run || null;
@@ -227,6 +232,7 @@ export function persist(state) {
       collection: state.collection.map(slim),
       ownedTactics: state.ownedTactics,
       tacticPower: state.tacticPower || {},
+      abilities: normalizeAbilities(state.abilities),
       customCards: state.customCards.map(slim),
       weapons: state.weapons || [],
       run: state.run,
@@ -511,6 +517,7 @@ export function clearNode(state) {
 
 // 奖励摘要覆盖完整奖池，供补给和宝箱回执显示真实所得与存放位置。
 export function rewardSummary(offer) {
+  if (offer.kind === 'ability') return { label: '能力卡「' + offer.ability.name + '」', detail: abilityDescription(offer.ability), destination: '获得即永久生效；完全相同效果只保留高值，可在物品栏销毁。' };
   if (offer.kind === 'skill') return { label: '技能卡「' + skillMeta(offer.skill.id).name + '」', detail: '熟练度 ' + effectiveSkillLevel(offer.skill.lv), destination: '已放入技能卡栏，可在锻造时使用。' };
   if (offer.kind === 'tactic') return { label: '战术卡「' + offer.tactic.name + '」', detail: scaleTactic(offer.tactic, offer.power || 1).desc, destination: '已加入战术卡栏，同名保留更强的一张。' };
   if (offer.kind === 'potion') return { label: (potionById(offer.potion.id)?.name || '药水') + ' ×' + (offer.potion.n || 1), detail: potionDescription(potionById(offer.potion.id)), destination: '已放入物品栏，可在战斗中使用。' };
@@ -529,7 +536,7 @@ export function enterEvent(state, nodeId) {
   run.selectedId = nodeId;
   clearNode(state);
   const r = mulberry32((run.seed ^ (run.index * 40503) ^ 0x5f3759df) >>> 0);
-  const offers = rollRewards(state, (run.seed ^ (run.index * 2654435761)) >>> 0);
+  const offers = rollRewards(state, (run.seed ^ (run.index * 2654435761)) >>> 0, false, false, node.kind === 'event');
   // 宝箱物品不含分数，也不抽取未生成成功的角色卡；额外分数独立结算。
   const pool = offers.filter((offer) => (offer.kind !== 'card' || offer.card) && (node.kind !== 'chest' || offer.kind !== 'score'));
   const pick = pool[Math.floor(r() * pool.length)];
@@ -774,7 +781,11 @@ export function toggleTeamMember(state, charId, replaceId = null) {
 
 // 物品栏销毁
 export function destroyItem(state, kind, id) {
-  if (kind === 'card') {
+  if (kind === 'ability') {
+    const before = (state.abilities || []).length;
+    state.abilities = (state.abilities || []).filter((a) => abilityKey(a) !== id);
+    if (state.abilities.length === before) return false;
+  } else if (kind === 'card') {
     if ((state.run?.teamIds || []).includes(id)) return false;
     const before = state.collection.length;
     state.collection = state.collection.filter((c) => c.id !== id);
@@ -1014,6 +1025,8 @@ export function rollShop(state, seed, layer = 1) {
   const pool = (state.tacticsPool || []).filter((t) => !(state.ownedTactics || []).includes(t.id));
   const tactic = pool.length ? pool[Math.floor(r() * pool.length)] : null;
   if (tactic) items.push({ kind: 'tactic', price: priceOf(1500), tactic, power: Math.round((1 + progress) * 10) / 10 });
+  // 蓝色能力卡比普通技能/战术卡稍贵，仅在商店或补给生成。
+  items.push({kind:'ability',price:priceOf(1750),ability:rollAbility(r)});
   if (r() < .08) items.push({ kind: 'skill', rarity: 'gold', price: priceOf(4500),
     skill: { id: 'skldisperse', lv: 1 + Math.floor(r() * 2), uid: 'shop-purify-' + seed, playerDisperse: true } });
   return items.map((item, i) => ({ ...item, id: 'shop-' + seed + '-' + i, rarity: item.rarity || 'blue' }));
@@ -1045,6 +1058,10 @@ function curseReward(item, units, rng) {
   if (reward.skill) reward.skill.lv = reward.rarity === 'gold' ? Math.min(2, Math.max(1, Math.round(strength))) : Math.max(1, Math.round(reward.skill.lv * strength));
   if (reward.potion) reward.potion.n = Math.max(1, Math.round(2 * strength));
   if (reward.tactic) reward.power = Math.round((1 + strength) * 10) / 10;
+  // 诅咒商人的能力强度随代价变化，仍保持蓝色的轻度增强范围。
+  if (reward.ability) reward.ability.value = reward.ability.effect.kind === 'mp'
+    ? Math.max(1, Math.min(4, Math.round(reward.ability.value * strength)))
+    : Math.round((1 + Math.max(.02, Math.min(.16, (reward.ability.value - 1) * strength))) * 100) / 100;
   if (reward.card) {
     // 新角色的额外强度写入永久锻造，避免领取后的保底重算将它覆盖。
     reward.card.forge = Object.fromEntries(STAT_LABELS.map(([key]) => [key, Math.round(units * (key === 'hp' ? 1.5 : .5))]));
@@ -1257,7 +1274,7 @@ function rollRewardPoints(run, rng, elite = false) {
 }
 
 // 战斗奖励从完整奖池抽取三项供玩家选择。
-export function rollRewards(state, seed, elite = false, guaranteeScore = false) {
+export function rollRewards(state, seed, elite = false, guaranteeScore = false, allowAbility = false) {
   const r = mulberry32(seed);
   const run = state.run;
   const progress = Math.min(1, Math.max(0, ((run.layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
@@ -1294,6 +1311,7 @@ export function rollRewards(state, seed, elite = false, guaranteeScore = false) 
   if (elite) {
     pool.push({ kind: 'weapon', weapon: { id: 'w-rw-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
   }
+  if (allowAbility) pool.push({kind:'ability',rarity:'blue',ability:rollAbility(r)});
   const candidates = pool.filter((offer) => offer.kind !== 'card' || offer.card);
   const score = { kind: 'score', points: scorePoints };
   if (guaranteeScore) return shuffle([score, ...shuffle(candidates, r).slice(0, 2)], r);
@@ -1304,7 +1322,9 @@ export function rollRewards(state, seed, elite = false, guaranteeScore = false) 
 }
 export function applyReward(state, offer) {
   if (!state.run) return;
-  if (offer.kind === 'skill') {
+  if (offer.kind === 'ability') {
+    acquireAbility(state, offer.ability);
+  } else if (offer.kind === 'skill') {
     state.run.skillCards = state.run.skillCards || [];
     state.run.skillCards.push(offer.skill);
   } else if (offer.kind === 'tactic' && offer.tactic) {

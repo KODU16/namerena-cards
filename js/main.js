@@ -118,6 +118,8 @@ function help() {
       el('li', {}, el('b', {}, '开局。'), ' 你只决定战队名（不能含 !）；自身名字随机，属性、技能和熟练度都是抽出来的。'),
       el('li', {}, el('b', {}, '每回合。'), ' 从技能组里抽 3 张技能卡和一份能量；主动技点选打出，能量不足的牌会变灰。普通攻击 0 能量、永远可用。'),
       el('li', {}, el('b', {}, '被动自动。'), ' 反击、反弹、护身符不占手牌，满足条件时自行发动；蓄盾则在每回合开始时按熟练度自动累积。'),
+      // 能力规则与战术熟练度加成分开说明，避免误解蓝色加号。
+      el('li', {}, el('b', {}, '能力卡。'), ' 仅从补给和商店获得，持有即永久生效，可在物品栏销毁。完全相同效果只保留高值；能力只降低 MP 消耗或独立增强技能数值，不改变熟练度。受强化的手牌技能名会显示为蓝色粗体并带 +。'),
       el('li', {}, el('b', {}, '行动节奏。'), ' 每打出一次，对手会立刻应手一次；你也可以点「结束回合」提前收手。双方每回合的行动次数相同。'),
       el('li', {}, el('b', {}, '对手。'), ' 开战前从天梯 1A 抓取：取最底下第一个正分成员作为第一位对手，之后沿排名向上。'),
       el('li', {}, el('b', {}, '地图。'), ' 每层是一张随机有向图：只能往前走，所有路都汇聚到该层名次最高的天梯选手；赢下终点进入下一层，共 10 层。'),
@@ -494,7 +496,7 @@ async function fight() {
   });
   // 战斗蓝字以天然属性 + 永久锻造为基线，实际值已包含武器、保底与战术。
   const battleTeam = team.map((c) => ({ ...c, battleBase: G.curseBaseStats(c) }));
-  const duel = new Duel({ wasm, iconFor }, { input, playerTeam: me.team_index, champion: team[0], team: battleTeam, enemies: opp.cards });
+  const duel = new Duel({ wasm, iconFor }, { input, playerTeam: me.team_index, champion: team[0], team: battleTeam, enemies: opp.cards, abilities: state.abilities });
   nav('battle', () => {
     renderBattleShell(root, state, null, {
       onSpeed: (x) => {
@@ -784,8 +786,10 @@ function mapScreen() {
           const items = G.shopStock(state);
           const body = el('div', { class: 'inv__grid' }, items.map((it) => el('div', { class: 'inv__item shop-item shop-item--' + it.rarity },
             UI.qualityBadge(it.rarity),
+            it.kind === 'ability' ? UI.abilityIcon(it.ability) : null,
             el('b', {}, it.kind === 'skill' ? '技能卡 ' + skillMeta(it.skill.id).name
               : it.kind === 'card' ? '角色 ' + it.card.name + '@' + it.card.clan
+                : it.kind === 'ability' ? '能力卡 ' + it.ability.name
                 : it.kind === 'weapon' ? '武器 ⚔ ' + it.weapon.name
                   : it.kind === 'potion' ? '药水 ' + (G.potionById(it.potion.id) || {}).name
                     : '战术 ' + (it.tactic?.name || '')),

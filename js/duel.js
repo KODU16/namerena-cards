@@ -1,4 +1,5 @@
-﻿// 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
+import { abilityFor, abilityMpCost, abilityPacket } from './abilities.js';
+// 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
 // 前端只负责「轮到玩家单位时，从手牌里选一张写进强制队列」。
 import { el, sleep, handCardEl } from './ui.js';
 import { emojiImg } from './emoji.js';
@@ -74,7 +75,7 @@ function firstDiff(a, b) {
 }
 
 export class Duel {
-  constructor(engine, { input, playerTeam, champion, team, enemies = [] }) {
+  constructor(engine, { input, playerTeam, champion, team, enemies = [], abilities = [] }) {
     this.engine = engine;
     // 基线使用未套保底/武器/战术的显示属性，保留永久锻造。
     this.baseStats = new Map((team || []).map((c) => [c.name, c.battleBase || c.stats]));
@@ -84,6 +85,7 @@ export class Duel {
     this.champion = champion;
     this.team = team || [champion];
     this.enemies = enemies;
+    this.abilities = abilities;
     // 一场战斗持有一个运行时，新动作只推进当前状态，不再重放历史指令。
     this.session = null;
     this.replay = null;
@@ -120,6 +122,7 @@ export class Duel {
           controlled_team: this.playerTeam,
           start_hp_pct: this.startHpPct || undefined,
         });
+        this.session.set_abilities(abilityPacket(this.abilities));
         this.initialStates = this.session.initial_states();
       }
       for (let frame; (frame = this.session.next_frame()) != null;) this.frames.push(frame);
@@ -695,12 +698,14 @@ export class DuelView {
     // 否则引擎选不到目标会把它降级成普通攻击
     const canRevive = (liveStates || []).some((s) => s.team_index === this.duel.playerTeam && s.alive === false && s.owner_id == null);
     if (!canRevive) exclude.add('sklrevive');
-    const hand = drawHand(skillsOf(state, this.duel.cardFor?.(state, liveStates) || this.duel.champion), this.rng, 3, exclude.size ? exclude : null);
+    // MP 卡面显示最终费用，传给引擎的是原始费用，由结算边界减耗一次。
+    const hand = drawHand(skillsOf(state, this.duel.cardFor?.(state, liveStates) || this.duel.champion), this.rng, 3, exclude.size ? exclude : null)
+      .map((card) => ({...card,baseCost:card.cost,cost:abilityMpCost(this.duel.abilities,card.id,card.cost),ability:abilityFor(this.duel.abilities,card.id).length>0}));
     this.renderEnergy(mp);
     const cards = [
       handCardEl({ id: 'normal', lv: 0 }, { onPlay: (c) => this.choose(decision, c, mp) }),
       ...hand.map((c) => handCardEl(
-        { id: c.id, lv: c.lv, cost: c.cost },
+        { id: c.id, lv: c.lv, cost: c.cost, baseCost: c.baseCost, ability: c.ability },
         { onPlay: (x) => this.choose(decision, x, mp), disabled: c.cost > mp, locked: c.cost > mp },
       )),
     ];
@@ -746,14 +751,14 @@ export class DuelView {
       // 其余手牌向左收拢
       [...this.handEl.children].forEach((el2) => { if (el2 !== node) el2.classList.add('is-discarding'); });
       setTimeout(() => {
-        this.duel.queue(decision.unit.id, id, card.cost || 0, this.pendingPotion || 0);
+        this.duel.queue(decision.unit.id, id, card.baseCost ?? card.cost ?? 0, this.pendingPotion || 0);
         this.pendingPotion = 0;
         if (this.battleContinues()) this.turnBanner('enemy', this.roundOf(decision));
         this.handEl.replaceChildren();
         this.step();
       }, 300);
     } else {
-      this.duel.queue(decision.unit.id, id, card.cost || 0, this.pendingPotion || 0);
+      this.duel.queue(decision.unit.id, id, card.baseCost ?? card.cost ?? 0, this.pendingPotion || 0);
       this.pendingPotion = 0;
       if (this.battleContinues()) this.turnBanner('enemy', this.roundOf(decision));
       this.handEl.replaceChildren();

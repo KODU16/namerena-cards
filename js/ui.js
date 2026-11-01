@@ -1,3 +1,4 @@
+import { abilityDescription, abilityKey } from './abilities.js';
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta, effectiveSkillLevel } from './skills.js';
 import { burstAt } from './fx.js';
@@ -422,7 +423,7 @@ export function handCardEl(card, { onPlay, disabled, locked = false }) {
   },
     el('div', { class: 'hcard__glyph' }, emojiImg(card.id, 'emoji emoji--xl')),
     el('div', { class: 'hcard__body' },
-      el('b', {}, meta.name),
+      el('b', { class: card.ability ? 'hcard__ability-name' : '' }, meta.name + (card.ability ? '+' : '')),
       el('span', { class: 'hcard__lv' }, passive ? '被动 · 自动' : `熟练度 ${effectiveSkillLevel(card.lv)} · 消耗 ${card.cost} MP`),
       el('small', {}, passive ? '条件满足时自动发动，不需要点击。' : meta.desc),
     ),
@@ -607,6 +608,8 @@ export class BattlePlayer {
 // ————————————————————— 奖励 / 结算 / 工坊
 
 // 品质同时以颜色和文字标识，避免只靠颜色区分稀有物品。
+// 能力卡直接使用技能原图标，不加战术卡的羊皮纸底。
+export function abilityIcon(ability) { return emojiImg(ability.effect.skill, 'emoji emoji--xxl ability-icon'); }
 export function qualityBadge(rarity = 'blue') {
   return el('span', { class: 'quality-badge quality-badge--' + rarity }, rarity === 'gold' ? '金色 · 稀有' : '蓝色 · 精良');
 }
@@ -627,6 +630,8 @@ export function curseMerchantSheet(state, h) {
     el('div', { class: 'inv__grid' }, h.stock.length ? h.stock.map((offer) => {
       const summary = rewardSummary(offer);
       return el('div', { class: 'inv__item shop-item shop-item--' + offer.rarity }, qualityBadge(offer.rarity),
+        // 能力卡沿用技能原图标，不套战术卡羊皮纸底。
+        offer.ability ? abilityIcon(offer.ability) : null,
         el('b', {}, summary.label), el('p', { class: 'muted small' }, summary.detail),
         offer.weapon ? el('small', {}, '武器估值 ' + weaponQuote(offer.weapon).value) : null,
         offer.card ? el('small', {}, '永久属性加成：七围 +' + offer.card.forge.atk + ' · HP +' + offer.card.forge.hp) : null,
@@ -699,7 +704,7 @@ export function chestOpeningArt() {
 export function rewardReceipt(offer) {
   const summary = rewardSummary(offer);
   const icon = offer.kind === 'potion' ? potionIcon(potionById(offer.potion.id), 40)
-    : emojiImg(offer.skill?.id || offer.tactic?.id || (offer.kind === 'score' ? 'coin' : offer.kind === 'weapon' ? 'normal' : 'star'), 'emoji emoji--xxl');
+    : emojiImg(offer.ability?.effect.skill || offer.skill?.id || offer.tactic?.id || (offer.kind === 'score' ? 'coin' : offer.kind === 'weapon' ? 'normal' : 'star'), 'emoji emoji--xxl');
   return el('div', { class: 'reward-receipt' },
     el('div', { class: 'reward-receipt__heading' }, icon, el('b', {}, summary.label)),
     offer.card ? fullCharRow(offer.card) : el('p', {}, summary.detail),
@@ -1459,6 +1464,7 @@ export function inventorySheet(state, h = {}) {
     { id: 'chars', name: '角色库' },
     { id: 'forge', name: '锻造卡' },
     { id: 'tactics', name: '战术卡' },
+    { id: 'abilities', name: '能力卡' },
     { id: 'potions', name: '药水' },
     { id: 'weapons', name: '武器' },
   ];
@@ -1522,6 +1528,9 @@ export function inventorySheet(state, h = {}) {
           return el('div', { class: 'inv__item' }, el('b', {}, t?.name || tid), el('small', {}, t ? scaleTactic(t, power).desc : ''), del('tactic', tid, t?.name || tid));
         }))
         : el('p', { class: 'muted' }, '还没有战术卡'));
+    } else if (id === 'abilities') {
+      body.replaceChildren(el('p',{class:'muted small'},'获得即生效，拥有期间永久作用于出战角色；完全相同效果仅保留高值，销毁即失效。'),
+        (state.abilities || []).length ? el('div',{class:'inv__grid'},state.abilities.map(a=>el('div',{class:'inv__item ability-card'},qualityBadge('blue'),abilityIcon(a),el('b',{},a.name),el('p',{},abilityDescription(a)),del('ability',abilityKey(a),a.name)))) : el('p',{class:'muted'},'还没有能力卡，可通过补给和商店获得。'));
     } else if (id === 'potions') {
       const list = (run.potions || []).filter((p) => p.n > 0);
       body.replaceChildren(list.length

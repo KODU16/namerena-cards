@@ -1377,3 +1377,9 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
 @media (prefers-reduced-motion: reduce) { .value-change { animation: value-change-rise 1.35s linear both; } }
 
 .map-legend--current::before { border: 3px solid #8acbf0; background: none; }
+
+/* 能力卡使用透明技能原图，强化的手牌名称以蓝色粗体标识。 */
+.ability-icon { background-color: transparent; border: 0; box-shadow: none; }
+.ability-card { border-color: #83bce3; background: #f0f8fe; color: var(--ink); }
+.ability-card p { font-size: 12px; }
+.hcard .hcard__ability-name { color: #087cc4; font-weight: 800; }

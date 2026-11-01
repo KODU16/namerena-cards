@@ -17,10 +17,10 @@ index b6d81a36..47e98057 100644
  lto = "thin"
 diff --git a/FORK.md b/FORK.md
 new file mode 100644
-index 00000000..83abd9e0
+index 00000000..89d60f1d
 --- /dev/null
 +++ b/FORK.md
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,50 @@
 +# 卡牌引擎补丁说明
 +
 +以 shenjackyuanjie/tswn-core 的 5237f2b30a46b6658c6aefd49b2c4e97a2b81080 为基线。卡牌改动与审查修复通过 cards 仓库中的 source.patch 归档；本次不再提交引擎分支。
@@ -63,6 +63,14 @@ index 00000000..83abd9e0
 +网站实战创建 BattleSession 后持续持有同一运行时。每次出牌仅 submit_action，再调用 next_frame 取得新增战报；生命、MP、分身、状态和随机流从当前边界继续，等待出牌期间不推进。结算或退出时 free。battle_replay_forced 仅供离线回放与回归对照，不用于每次出牌。
 +
 +批量兼容接口的队列可引用之后生成的分身，不能用开局实体表提前拒绝其 id；指令仅在 Runtime 实际调度该实体时消费。Rust 回归覆盖分身连续出牌以及持久会话与离线回放结果一致。
++
++## 能力卡
++
++受控 BattleSession 在首次推进前调用 set_abilities(Uint32Array)。三元组依次为技能编号、MP 减耗、独立效果倍率（万分比，10000 为原值）；编号顺序见 runtime/forced_action.rs 的 ABILITY_SKILLS。主动技能编号 0..24 与出牌编号一致，25..36 为被动、使魔自爆及附体。非法、重复或残缺封包报错。未配置能力的普通战斗保持原行为。
++
++能力仅属于受控角色原始队伍及其派生单位，交错会话不共享。随机攻击强度在原掷骰后乘算，不增加 RNG 消耗；护盾、护身符、吞噬资源、垂死抗争和隐匿在各自数值结算入口乘算。MP 减耗在技能扣费边界生效，主动技能最低 1 MP，被动最低 0 MP。前端传原始费用，显示减耗后费用，避免扣减两次。
++
++能力不写入技能表，不改变原始或有效熟练度、抽牌权重、技能发动概率；超过 106 的原始熟练度仍按既有有效 106 规则计算。覆盖高值与销毁由网站存档层管理，战斗只接收最终持有效果。
 diff --git a/crates/tswn_capi/include/tswn_capi.h b/crates/tswn_capi/include/tswn_capi.h
 index 963a95af..57340edb 100644
 --- a/crates/tswn_capi/include/tswn_capi.h
@@ -313,7 +321,7 @@ index 2ccdaefa..d6e0722d 100644
  mod tests {
      use super::*;
 diff --git a/crates/tswn_core/src/cli_api/battle/session.rs b/crates/tswn_core/src/cli_api/battle/session.rs
-index fefc009d..f77f0434 100644
+index fefc009d..1b0512f7 100644
 --- a/crates/tswn_core/src/cli_api/battle/session.rs
 +++ b/crates/tswn_core/src/cli_api/battle/session.rs
 @@ -34,6 +34,7 @@ pub struct BattleSession {
@@ -357,7 +365,7 @@ index fefc009d..f77f0434 100644
                  return Ok(None);
              };
              let round_index = step.round_index;
-@@ -125,12 +130,30 @@ impl BattleSession {
+@@ -125,12 +130,42 @@ impl BattleSession {
                  frame
              });
              self.current_states = states;
@@ -370,6 +378,18 @@ index fefc009d..f77f0434 100644
  
 +    /// 受控单位把战斗逼停时，返回等待玩家指令的实体 id。
 +    pub fn paused_actor(&self) -> Option<u32> { self.paused }
++
++    /// 开局配置能力卡；不修改技能组或熟练度，不能在行动后篡改配置。
++    pub fn set_abilities(&mut self, packet: &[u32]) -> CliApiResult<()> {
++        if self.driver.rounds_advanced != 0 || self.driver.forced.controlled_team.is_none() {
++            return Err(crate::cli_api::CliApiError::InvalidArgument(
++                "abilities require an unadvanced controlled session".into(),
++            ));
++        }
++        self.driver.forced.abilities = crate::runtime::forced_action::decode_abilities(packet)
++            .map_err(|message| crate::cli_api::CliApiError::InvalidArgument(message.into()))?;
++        Ok(())
++    }
 +
 +    /// 为当前暂停实体补交指令；暂停不是终局，推进会重新执行同一个行动。
 +    pub fn submit_action(&mut self, actor: u32, skill: u32, packed_mp: u32) -> CliApiResult<()> {
@@ -389,7 +409,7 @@ index fefc009d..f77f0434 100644
      /// 正常终止后返回拥有最终快照的结果；运行中或粘性失败时为 `None`。
      ///
      /// 重复查询不推进战斗，但每次都会复制最终快照及其字符串。需要多次使用结果时
-@@ -168,6 +191,27 @@ pub(super) fn states_from_runner(
+@@ -168,6 +203,27 @@ pub(super) fn states_from_runner(
          .into_iter()
          .map(|snapshot| {
              let mut state = state_from_snapshot(snapshot, false);
@@ -417,7 +437,7 @@ index fefc009d..f77f0434 100644
              if include_icons {
                  state.icon_png_base64 = Some(match icon_cache.get(&state.icon_key) {
                      Some(icon) => icon.clone(),
-@@ -187,6 +231,7 @@ fn state_from_snapshot(snapshot: RuntimePlayerSnapshot, include_icons: bool) ->
+@@ -187,6 +243,7 @@ fn state_from_snapshot(snapshot: RuntimePlayerSnapshot, include_icons: bool) ->
      let icon_key = snapshot.id_key_name.clone();
      let icon_png_base64 = include_icons.then(|| render_icon_b64_from_name(&icon_key));
      BattlePlayerState {
@@ -425,7 +445,7 @@ index fefc009d..f77f0434 100644
          id: snapshot.id,
          team_index: snapshot.team_index,
          input_team_index: snapshot.input_team_index,
-@@ -689,7 +734,11 @@ seed:7@!"#;
+@@ -689,7 +746,11 @@ seed:7@!"#;
              without_icon.icon_png_base64 = None;
              assert_eq!(&without_icon, plain);
          }
@@ -438,7 +458,7 @@ index fefc009d..f77f0434 100644
          let filled_cache = cache.clone();
          assert_eq!(states_from_runner(&runner, true, &mut cache), with_icons);
          assert_eq!(cache, filled_cache);
-@@ -817,3 +866,162 @@ seed:7@!"#;
+@@ -817,3 +878,162 @@ seed:7@!"#;
          }
      }
  }
@@ -601,8 +621,186 @@ index fefc009d..f77f0434 100644
 +        );
 +    }
 +}
+diff --git a/crates/tswn_core/src/runtime/combat/abilities.rs b/crates/tswn_core/src/runtime/combat/abilities.rs
+new file mode 100644
+index 00000000..fae6317f
+--- /dev/null
++++ b/crates/tswn_core/src/runtime/combat/abilities.rs
+@@ -0,0 +1,92 @@
++use super::*;
++impl CombatRuntime {
++    // 根角色的原始队伍决定能力归属，敌方与被魅惑角色不会借用玩家能力。
++    pub(crate) fn ability_value(&self, actor: EntityIdx, skill: &str) -> (u32, f64) {
++        let Some(entity) = self.entities.get(actor) else {
++            return (0, 1.0);
++        };
++        let root = self.entities.get(entity.runtime.root_owner).unwrap_or(entity);
++        crate::runtime::forced_action::ability_value(root.template.team, skill)
++    }
++    pub(crate) fn ability_scope(&self, actor: EntityIdx, skill: &str) -> crate::runtime::forced_action::AbilityScope {
++        let (cost, power) = self.ability_value(actor, skill);
++        let root = self.entities.get(actor).map_or(actor, |e| e.runtime.root_owner);
++        crate::runtime::forced_action::scope_ability(root.0, power, cost)
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    use crate::runtime::forced_action::{self, ForcedState};
++
++    // 比较同一随机流，确保倍率不额外掷骰、不泄漏到敌方或下一次普攻。
++    #[test]
++    fn independent_multiplier_preserves_rng_and_restores_nested_scope() {
++        let runtime = CombatRuntime::from_template(PreparedCombatTemplate::new(vec![
++            PlayerTemplate::new(1, "player", 0, 1000, 100).with_magic(90),
++            PlayerTemplate::new(2, "enemy", 1, 1000, 100).with_magic(90),
++        ]));
++        let mut state = ForcedState::default();
++        state.controlled_team = Some(0);
++        state.abilities = forced_action::decode_abilities(&[0, 2, 10800]).unwrap();
++        forced_action::with_state(&mut state, || {
++            let player = &runtime.entities.get(EntityIdx(0)).unwrap().runtime;
++            let mut rng = RC4::default();
++            let mut expected = rng.clone();
++            let raw = player.get_at(true, &mut expected);
++            {
++                let _outer = runtime.ability_scope(EntityIdx(0), "core.skill.fire");
++                assert_eq!(player.get_at(true, &mut rng), raw * 1.08);
++                assert_eq!(rng.main_val, expected.main_val);
++                assert_eq!((rng.i, rng.j), (expected.i, expected.j));
++                assert_eq!(forced_action::mp_reduction(0), 2);
++                {
++                    let _enemy = runtime.ability_scope(EntityIdx(1), "core.skill.fire");
++                    assert_eq!(forced_action::attack_multiplier(1), 1.0);
++                    assert_eq!(forced_action::mp_reduction(1), 0);
++                }
++                assert_eq!(forced_action::attack_multiplier(0), 1.08);
++            }
++            assert_eq!(forced_action::attack_multiplier(0), 1.0);
++            assert_eq!(forced_action::mp_reduction(0), 0);
++        });
++        assert_eq!(forced_action::ability_value(0, "core.skill.fire"), (0, 1.0));
++    }
++
++    // 被动护盾使用额外乘区，技能等级和未受控队伍的护盾增长保持不变。
++    #[test]
++    fn passive_shield_boost_does_not_write_proficiency() {
++        let mut builder = ExtensionRegistryBuilder::default();
++        let shield = builder
++            .register_skill_with_hooks(
++                "core",
++                "shield",
++                "core.skill.shield",
++                ProcMask::PRE_ACTION,
++                TargetPolicy::None,
++                SkillPriority(0),
++            )
++            .unwrap();
++        let mut runtime = CombatRuntime::from_template(PreparedCombatTemplate::with_registry(
++            vec![
++                PlayerTemplate::new(1, "player", 0, 1000, 100)
++                    .with_skill_loadout(SkillLoadout::from_skill_levels([(shield, 106)])),
++            ],
++            builder.build(),
++        ));
++        runtime.set_skill_handler(shield, run_shield_pre_action_skill);
++        let mut plain = runtime.clone();
++        plain.run_skill_hooks(EntityIdx(0), ProcMask::PRE_ACTION);
++        let raw = plain.entities.get(EntityIdx(0)).unwrap().runtime.shield;
++        let mut state = ForcedState::default();
++        state.controlled_team = Some(0);
++        state.abilities = forced_action::decode_abilities(&[29, 0, 11000]).unwrap();
++        forced_action::with_state(&mut state, || {
++            runtime.run_skill_hooks(EntityIdx(0), ProcMask::PRE_ACTION);
++        });
++        let player = runtime.entities.get(EntityIdx(0)).unwrap();
++        assert_eq!(player.runtime.shield, (raw as f64 * 1.10).round() as i32);
++        assert_eq!(player.template.skills.level_at(0), Some(106));
++    }
++}
+diff --git a/crates/tswn_core/src/runtime/combat/defense.rs b/crates/tswn_core/src/runtime/combat/defense.rs
+index 16b90782..f5eb05e8 100644
+--- a/crates/tswn_core/src/runtime/combat/defense.rs
++++ b/crates/tswn_core/src/runtime/combat/defense.rs
+@@ -205,6 +205,7 @@ impl CombatRuntime {
+                 .get(link.owner)
+                 .is_some_and(|_| self.plain_effective_team(link.owner) == target_team);
+             let trigger_ok = same_group && self.rng.r127() < level;
++            let _ability = self.ability_scope(link.owner, "core.skill.protect");
+             let protector_ready = trigger_ok && self.entity_mp_ready(link.owner);
+ 
+             #[cfg(not(feature = "no_debug"))]
+diff --git a/crates/tswn_core/src/runtime/combat/effects.rs b/crates/tswn_core/src/runtime/combat/effects.rs
+index f1360c53..7b11bb02 100644
+--- a/crates/tswn_core/src/runtime/combat/effects.rs
++++ b/crates/tswn_core/src/runtime/combat/effects.rs
+@@ -498,8 +498,10 @@ impl CombatRuntime {
+         self.ensure_effect_entity("merge", "target", target);
+         let target_skills = self.entities.get(target).unwrap().template.skills.clone();
+         let target_build = self.entities.get(target).unwrap().template.clone_build.clone();
+-        let target_magic_point = self.entities.get(target).unwrap().runtime.magic_point;
+-        let target_move_points = self.entities.get(target).unwrap().runtime.move_state.speed_points;
++        let ability_power = self.ability_value(caster, "core.skill.merge").1;
++        let target_magic_point = (self.entities.get(target).unwrap().runtime.magic_point as f64 * ability_power).round() as i32;
++        let target_move_points =
++            (self.entities.get(target).unwrap().runtime.move_state.speed_points as f64 * ability_power).round() as i32;
+         let (merged, transfer_magic_point, transfer_move_points) = {
+             let caster_entity = self
+                 .entities
+diff --git a/crates/tswn_core/src/runtime/combat/lifecycle.rs b/crates/tswn_core/src/runtime/combat/lifecycle.rs
+index 92e74615..cb214757 100644
+--- a/crates/tswn_core/src/runtime/combat/lifecycle.rs
++++ b/crates/tswn_core/src/runtime/combat/lifecycle.rs
+@@ -259,6 +259,10 @@ impl CombatRuntime {
+         selected_target: Option<EntityIdx>,
+     ) {
+         for entry in entries {
++            let _ability = self.ability_scope(
++                entry.owner,
++                &self.registry.skill(entry.skill_id).expect("skill exists").export_name,
++            );
+             let (handler, capabilities) = if let Some(static_handler) = self.builtin_static_skill_handler(entry.skill_id) {
+                 static_handler
+             } else {
+@@ -325,6 +329,11 @@ impl CombatRuntime {
+         defend_value: &mut RuntimeDefendValue,
+         on_damage: PlainAttackOnDamage,
+     ) {
++        // 防御与反弹钩子也按实际发动者读取独立能力。
++        let _ability = self.ability_scope(
++            entry.owner,
++            &self.registry.skill(entry.skill_id).expect("skill exists").export_name,
++        );
+         let (handler, capabilities) = if let Some(static_handler) = self.builtin_static_skill_handler(entry.skill_id) {
+             static_handler
+         } else {
+diff --git a/crates/tswn_core/src/runtime/combat/mod.rs b/crates/tswn_core/src/runtime/combat/mod.rs
+index 11a65d86..bbc73a59 100644
+--- a/crates/tswn_core/src/runtime/combat/mod.rs
++++ b/crates/tswn_core/src/runtime/combat/mod.rs
+@@ -7,6 +7,7 @@
+ 
+ use super::*;
+ 
++mod abilities;
+ mod attack;
+ mod defense;
+ mod effects;
+diff --git a/crates/tswn_core/src/runtime/combat/passive.rs b/crates/tswn_core/src/runtime/combat/passive.rs
+index f359622c..74031209 100644
+--- a/crates/tswn_core/src/runtime/combat/passive.rs
++++ b/crates/tswn_core/src/runtime/combat/passive.rs
+@@ -238,6 +238,7 @@ impl CombatRuntime {
+                 continue;
+             }
+ 
++            let _ability = self.ability_scope(owner, "core.skill.counter");
+             if !self.entity_mp_ready(owner) {
+                 continue;
+             }
 diff --git a/crates/tswn_core/src/runtime/combat/round.rs b/crates/tswn_core/src/runtime/combat/round.rs
-index 05132896..6b0a6d5d 100644
+index 05132896..fad40698 100644
 --- a/crates/tswn_core/src/runtime/combat/round.rs
 +++ b/crates/tswn_core/src/runtime/combat/round.rs
 @@ -73,7 +73,19 @@ impl CombatRuntime {
@@ -639,7 +837,7 @@ index 05132896..6b0a6d5d 100644
                  return Some(self.finish_round_with_capture::<CAPTURE_UPDATES>(None, updates));
              };
              match &prepared {
-@@ -347,12 +364,103 @@ impl CombatRuntime {
+@@ -347,12 +364,106 @@ impl CombatRuntime {
              .unwrap_or(false)
      }
  
@@ -690,6 +888,9 @@ index 05132896..6b0a6d5d 100644
 +                            (req_mp_byte & 15) as i32 + 8
 +                        }
 +                    };
++                    let reduction = public_builtin_skill(forced_skill)
++                        .map_or(0, |skill| self.ability_value(actor, skill.export_name()).0 as i32);
++                    let req_mp = (req_mp - reduction).max(1);
 +                    let (mp, attack) = {
 +                        let entity = self
 +                            .entities
@@ -743,7 +944,40 @@ index 05132896..6b0a6d5d 100644
          if let Some(forced_skill) = pre_action.forced_skill {
              return Some(PreparedPlainAction::BuiltinSkill(forced_skill));
          }
-@@ -511,6 +619,55 @@ impl CombatRuntime {
+@@ -392,7 +503,12 @@ impl CombatRuntime {
+                 },
+             )
+         };
+-        let can_scan_skills = mp_before >= req_mp;
++        let ability_team = self
++            .entities
++            .get(actor)
++            .and_then(|e| self.entities.get(e.runtime.root_owner))
++            .map_or(usize::MAX, |e| e.template.team);
++        let can_scan_skills = mp_before >= (req_mp - crate::runtime::forced_action::max_ability_cost(ability_team) as i32).max(1);
+         #[cfg(not(feature = "no_debug"))]
+         let probe_action = self.probe_plain_action_matches(actor);
+         #[cfg(not(feature = "no_debug"))]
+@@ -450,8 +566,16 @@ impl CombatRuntime {
+             } else {
+                 self.scan_plain_action_skill_probabilities(actor, smart)
+             };
+-            self.entities.get_mut(actor).unwrap().runtime.magic_point -= req_mp;
+-            selected
++            let reduction = selected
++                .as_ref()
++                .map_or(0, |p| self.ability_value(actor, p.selected.skill.export_name()).0 as i32);
++            let cost = (req_mp - reduction).max(1);
++            if mp_before < cost {
++                None
++            } else {
++                self.entities.get_mut(actor).unwrap().runtime.magic_point -= cost;
++                selected
++            }
+         } else {
+             None
+         };
+@@ -511,6 +635,55 @@ impl CombatRuntime {
          }
      }
  
@@ -799,7 +1033,7 @@ index 05132896..6b0a6d5d 100644
      pub fn has_plain_berserk_state(&self, actor: EntityIdx) -> bool {
          self.entities.get(actor).is_some_and(|entity| {
              entity
-@@ -624,6 +781,92 @@ impl CombatRuntime {
+@@ -624,6 +797,92 @@ impl CombatRuntime {
          debug_assert!(removed, "runtime berserk state disappeared before state clear");
      }
  
@@ -892,7 +1126,7 @@ index 05132896..6b0a6d5d 100644
      pub fn scan_plain_action_skill_probabilities(&mut self, actor: EntityIdx, smart: bool) -> Option<PreparedBuiltinSkillAction> {
          let (scan_len, cached_scan) = {
              let skills = &self
-@@ -935,3 +1178,36 @@ impl CombatRuntime {
+@@ -935,3 +1194,36 @@ impl CombatRuntime {
          roll < level
      }
  }
@@ -929,11 +1163,122 @@ index 05132896..6b0a6d5d 100644
 +        _ => return None,
 +    })
 +}
+diff --git a/crates/tswn_core/src/runtime/combat/skills_offense.rs b/crates/tswn_core/src/runtime/combat/skills_offense.rs
+index 48f2ebcc..1c638b72 100644
+--- a/crates/tswn_core/src/runtime/combat/skills_offense.rs
++++ b/crates/tswn_core/src/runtime/combat/skills_offense.rs
+@@ -7,6 +7,7 @@ impl CombatRuntime {
+         prepared: PreparedBuiltinSkillAction,
+         updates: &mut RunUpdates,
+     ) {
++        let _ability = self.ability_scope(actor, prepared.selected.skill.export_name());
+         match prepared.selected.skill {
+             BuiltinActiveSkill::Fire => {
+                 let target = prepared.targets[0];
+diff --git a/crates/tswn_core/src/runtime/effect/skill_context.rs b/crates/tswn_core/src/runtime/effect/skill_context.rs
+index 1700f510..ff1c1b66 100644
+--- a/crates/tswn_core/src/runtime/effect/skill_context.rs
++++ b/crates/tswn_core/src/runtime/effect/skill_context.rs
+@@ -252,7 +252,13 @@ impl<'a> SkillContext<'a> {
+         if !active {
+             return Ok(false);
+         }
+-        let required_mp = self.rng.r3x3() as i32;
++        let root = self
++            .entities
++            .get(self.owner)
++            .ok_or(EffectContextError::UnknownEntity(self.owner))?
++            .runtime
++            .root_owner;
++        let required_mp = (self.rng.r3x3() as i32 - crate::runtime::forced_action::mp_reduction(root.0)).max(0);
+         let owner = self.entities.get_mut(self.owner).ok_or(EffectContextError::UnknownEntity(self.owner))?;
+         if owner.runtime.magic_point < required_mp {
+             return Ok(false);
+@@ -261,6 +267,12 @@ impl<'a> SkillContext<'a> {
+         Ok(true)
+     }
+ 
++    /// 只读取独立能力乘区，不触碰技能的等级与锻造记录。
++    pub fn ability_multiplier(&self) -> f64 {
++        let root = self.entities.get(self.owner).map_or(self.owner, |e| e.runtime.root_owner);
++        crate::runtime::forced_action::attack_multiplier(root.0)
++    }
++
+     pub fn owner_attack_power(&mut self, use_magic: bool) -> Result<f64, EffectContextError> {
+         let owner = self.entities.get(self.owner).ok_or(EffectContextError::UnknownEntity(self.owner))?;
+         Ok(owner.runtime.get_at(use_magic, self.rng))
 diff --git a/crates/tswn_core/src/runtime/entity/runtime.rs b/crates/tswn_core/src/runtime/entity/runtime.rs
-index 72a22d28..87f49e11 100644
+index 72a22d28..dcbb7c1c 100644
 --- a/crates/tswn_core/src/runtime/entity/runtime.rs
 +++ b/crates/tswn_core/src/runtime/entity/runtime.rs
-@@ -652,6 +652,9 @@ impl EntityArena {
+@@ -286,7 +286,7 @@ impl PlayerRuntime {
+     pub fn active(&self) -> bool { self.alive && self.hp > 0 }
+ 
+     pub fn mp_ready(&mut self, randomer: &mut RC4) -> bool {
+-        let require_mp = randomer.r3x3() as i32;
++        let require_mp = (randomer.r3x3() as i32 - crate::runtime::forced_action::mp_reduction(self.root_owner.0)).max(0);
+         if self.magic_point < require_mp {
+             return false;
+         }
+@@ -304,7 +304,7 @@ impl PlayerRuntime {
+             atk,
+         ) as f64;
+         let b = median_i32_3(randomer.r63() as i32 + 64, randomer.r63() as i32 + 64, atk + 64) as f64;
+-        a * b * self.at_boost()
++        a * b * self.at_boost() * crate::runtime::forced_action::attack_multiplier(self.root_owner.0)
+     }
+ 
+     pub fn magic_defense(&self) -> i32 { self.resistance + 64 }
+@@ -405,7 +405,8 @@ impl EntityRecord {
+     pub fn effective_speed(&self) -> i32 {
+         let mut speed = self.states.effective_speed(self.template.speed);
+         if self.runtime.upgrade_active {
+-            speed += 20;
++            let power = crate::runtime::forced_action::ability_value(self.template.team, "core.skill.upgrade").1;
++            speed += (20.0 * power).round() as i32;
+         }
+         speed
+     }
+@@ -448,13 +449,15 @@ impl EntityRecord {
+         self.runtime.attract_bits = self.template.attract_bits;
+         self.runtime.attract_bits = self.states.effective_attract(self.runtime.attract()).to_bits();
+         if self.runtime.upgrade_active {
+-            self.runtime.attack += 30;
+-            self.runtime.defense += 30;
+-            self.runtime.agility += 30;
+-            self.runtime.magic += 30;
+-            self.runtime.resistance += 30;
+-            self.runtime.speed += 20;
+-            self.runtime.wisdom += 20;
++            // 增益量独立乘算，保留原始技能等级。
++            let power = crate::runtime::forced_action::ability_value(self.template.team, "core.skill.upgrade").1;
++            self.runtime.attack += (30.0 * power).round() as i32;
++            self.runtime.defense += (30.0 * power).round() as i32;
++            self.runtime.agility += (30.0 * power).round() as i32;
++            self.runtime.magic += (30.0 * power).round() as i32;
++            self.runtime.resistance += (30.0 * power).round() as i32;
++            self.runtime.speed += (20.0 * power).round() as i32;
++            self.runtime.wisdom += (20.0 * power).round() as i32;
+         }
+         self.refresh_runtime_at_boost();
+         if let Some(level) = hide_level {
+@@ -465,9 +468,13 @@ impl EntityRecord {
+                 defense: self.runtime.defense,
+                 resistance: self.runtime.resistance,
+             });
+-            self.runtime.attract_bits = (self.runtime.attract() / 10.0).to_bits();
++            self.runtime.attract_bits = (self.runtime.attract()
++                / (10.0 * crate::runtime::forced_action::ability_value(self.template.team, "core.skill.hide").1))
++                .to_bits();
+             if level > 63 {
+-                let boost = (level - 63) as i32;
++                let boost = ((level - 63) as f64
++                    * crate::runtime::forced_action::ability_value(self.template.team, "core.skill.hide").1)
++                    .round() as i32;
+                 self.runtime.agility += boost;
+                 self.runtime.defense += boost;
+                 self.runtime.resistance += boost;
+@@ -652,6 +659,9 @@ impl EntityArena {
          Self { entities }
      }
  
@@ -945,10 +1290,10 @@ index 72a22d28..87f49e11 100644
      pub fn is_empty(&self) -> bool { self.entities.is_empty() }
 diff --git a/crates/tswn_core/src/runtime/forced_action.rs b/crates/tswn_core/src/runtime/forced_action.rs
 new file mode 100644
-index 00000000..751c60a5
+index 00000000..4e52ae58
 --- /dev/null
 +++ b/crates/tswn_core/src/runtime/forced_action.rs
-@@ -0,0 +1,133 @@
+@@ -0,0 +1,245 @@
 +//! 卡牌指令按会话保存；线程局部状态仅在一次推进期间借给 Runtime，退出即还原。
 +use std::cell::{Cell, RefCell};
 +use std::collections::BTreeMap;
@@ -966,6 +1311,8 @@ index 00000000..751c60a5
 +    pub queue: Vec<ForcedAction>,
 +    pub controlled_team: Option<usize>,
 +    pub paused_actor: Option<u32>,
++    /// 能力卡为独立乘区及减耗，不参与技能熟练度读写。
++    pub abilities: BTreeMap<String, (u32, u32)>,
 +    active_potions: BTreeMap<u32, (u8, i32)>,
 +    fallback: Option<(u32, &'static str)>,
 +}
@@ -1082,6 +1429,116 @@ index 00000000..751c60a5
 +        assert_eq!(controlled_team(), None);
 +    }
 +}
++
++/// 编号与卡牌前端一致；附体和使魔自爆保留引擎的实际导出名。
++pub const ABILITY_SKILLS: [&str; 37] = [
++    "fire",
++    "ice",
++    "thunder",
++    "quake",
++    "absorb",
++    "poison",
++    "rapid",
++    "critical",
++    "half",
++    "exchange",
++    "berserk",
++    "charm",
++    "haste",
++    "slow",
++    "curse",
++    "heal",
++    "revive",
++    "disperse",
++    "iron",
++    "charge",
++    "accumulate",
++    "assassinate",
++    "summon",
++    "clone",
++    "shadow",
++    "defend",
++    "protect",
++    "reflect",
++    "reraise",
++    "shield",
++    "counter",
++    "merge",
++    "zombie",
++    "upgrade",
++    "hide",
++    "summon-explode",
++    "possess",
++];
++pub fn ability_export(id: usize) -> Option<String> {
++    ABILITY_SKILLS.get(id).map(|name| {
++        if *name == "possess" {
++            "custom.minion.possess".into()
++        } else {
++            format!("core.skill.{name}")
++        }
++    })
++}
++pub fn decode_abilities(packet: &[u32]) -> Result<BTreeMap<String, (u32, u32)>, &'static str> {
++    if !packet.len().is_multiple_of(3) {
++        return Err("ability packets must contain skill/cost/power triples");
++    }
++    let mut out = BTreeMap::new();
++    for effect in packet.chunks_exact(3) {
++        let Some(name) = ability_export(effect[0] as usize) else {
++            return Err("unknown ability skill");
++        };
++        if effect[1] > 20 || !(10000..=20000).contains(&effect[2]) {
++            return Err("invalid ability strength");
++        }
++        if out.insert(name, (effect[1], effect[2])).is_some() {
++            return Err("duplicate ability skill packet");
++        }
++    }
++    Ok(out)
++}
++pub fn ability_value(team: usize, skill: &str) -> (u32, f64) {
++    ACTIVE.with(|cell| {
++        let state = cell.borrow();
++        if state.controlled_team != Some(team) {
++            return (0, 1.0);
++        }
++        state
++            .abilities
++            .get(skill)
++            .map_or((0, 1.0), |(cost, power)| (*cost, *power as f64 / 10000.0))
++    })
++}
++pub fn max_ability_cost(team: usize) -> u32 {
++    ACTIVE.with(|cell| {
++        let state = cell.borrow();
++        if state.controlled_team != Some(team) {
++            return 0;
++        }
++        state.abilities.values().map(|v| v.0).max().unwrap_or(0)
++    })
++}
++thread_local! { static ABILITY_SCOPE: Cell<(u32,f64,u32)> = const { Cell::new((u32::MAX,1.0,0)) }; }
++/// 技能内的随机攻击乘区按根角色隔离，嵌套反弹/反击退出后恢复原作用域。
++pub struct AbilityScope((u32, f64, u32));
++impl Drop for AbilityScope {
++    fn drop(&mut self) { ABILITY_SCOPE.with(|cell| cell.set(self.0)); }
++}
++pub fn scope_ability(root: u32, power: f64, cost: u32) -> AbilityScope {
++    AbilityScope(ABILITY_SCOPE.with(|cell| cell.replace((root, power, cost))))
++}
++pub fn attack_multiplier(root: u32) -> f64 {
++    ABILITY_SCOPE.with(|cell| {
++        let (owner, power, _) = cell.get();
++        if root == owner { power } else { 1.0 }
++    })
++}
++pub fn mp_reduction(root: u32) -> i32 {
++    ABILITY_SCOPE.with(|cell| {
++        let (owner, _, cost) = cell.get();
++        if root == owner { cost as i32 } else { 0 }
++    })
++}
 diff --git a/crates/tswn_core/src/runtime/mod.rs b/crates/tswn_core/src/runtime/mod.rs
 index 89ebce8a..36356cb5 100644
 --- a/crates/tswn_core/src/runtime/mod.rs
@@ -1094,6 +1551,40 @@ index 89ebce8a..36356cb5 100644
  mod handlers;
  pub mod lang;
  pub mod model_state;
+diff --git a/crates/tswn_core/src/runtime/plain_zombie.rs b/crates/tswn_core/src/runtime/plain_zombie.rs
+index f2bd414a..e6fff4fa 100644
+--- a/crates/tswn_core/src/runtime/plain_zombie.rs
++++ b/crates/tswn_core/src/runtime/plain_zombie.rs
+@@ -67,6 +67,7 @@ impl CombatRuntime {
+             self.mark_zombie_corpse(killed_target);
+             return true;
+         }
++        let _ability = self.ability_scope(caster, "core.skill.zombie");
+         if !self.entity_mp_ready(caster) {
+             return false;
+         }
+diff --git a/crates/tswn_core/src/runtime/profile/hooks.rs b/crates/tswn_core/src/runtime/profile/hooks.rs
+index 4da64b90..2592d011 100644
+--- a/crates/tswn_core/src/runtime/profile/hooks.rs
++++ b/crates/tswn_core/src/runtime/profile/hooks.rs
+@@ -50,7 +50,7 @@ pub fn run_shield_pre_action_skill(context: &mut SkillContext<'_>, entry: &Skill
+         return;
+     }
+     let max = (1 + (level as i32 * 3 / 4)).max(1);
+-    let add = context.rng_next_i32(max) + 1;
++    let add = ((context.rng_next_i32(max) + 1) as f64 * context.ability_multiplier()).round() as i32;
+     context.set_owner_shield(shield + add).expect("runtime shield skill owner must exist");
+ }
+ 
+@@ -83,7 +83,7 @@ pub fn run_reraise_die_skill(context: &mut SkillContext<'_>, entry: &SkillHookPl
+     if context.rng_r127() >= level {
+         return;
+     }
+-    let hp = context.rng_r16() as i32;
++    let hp = (context.rng_r16() as f64 * context.ability_multiplier()).round() as i32;
+     context.reraise_owner(entry, hp).expect("runtime reraise owner must exist");
+     let mut reraise_update = crate::runtime::update::RunUpdate::new(
+         "[0]使用[护身符]抵挡了一次死亡",
 diff --git a/crates/tswn_py/src/battle.rs b/crates/tswn_py/src/battle.rs
 index 89abf531..c3820bc7 100644
 --- a/crates/tswn_py/src/battle.rs
@@ -1133,13 +1624,17 @@ index eba270ed..db6337cd 100644
      team_index: int
      input_team_index: int | None
 diff --git a/crates/tswn_wasm/src/battle.rs b/crates/tswn_wasm/src/battle.rs
-index dac231be..cc2af96a 100644
+index dac231be..b47aacb8 100644
 --- a/crates/tswn_wasm/src/battle.rs
 +++ b/crates/tswn_wasm/src/battle.rs
-@@ -52,6 +52,12 @@ impl BattleSession {
+@@ -52,6 +52,16 @@ impl BattleSession {
      /// 同步推进至下一可见帧；正常结束或截断后返回 JS null，可重复调用。
      /// Runtime 失败会保留 sticky error 并重复抛错，应停止推进并释放会话。
      pub fn next_frame(&mut self) -> WasmResult<JsValue> { dto_to_js(&self.inner.next_frame().map_err(cli_api_error)?) }
++    /// 独立能力乘区与 MP 减耗；三元组为技能编号、减耗量、倍率万分数。
++    pub fn set_abilities(&mut self, packet: Vec<u32>) -> WasmResult<()> {
++        self.inner.set_abilities(&packet).map_err(cli_api_error)
++    }
 +    /// 当前等待指令的实体；暂停不是终局。
 +    pub fn paused_actor(&self) -> Option<u32> { self.inner.paused_actor() }
 +    /// 为暂停实体提交与批量接口相同的指令，再调用 next_frame 继续。

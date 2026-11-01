@@ -15,6 +15,8 @@ node tools/test-forced.mjs dist
 
 游戏仓库内验证：node tools/verify-engine.mjs vendor/tswn_wasm_duel；node tools/verify-clone.mjs。
 
+能力卡验证：node tools/verify-abilities.mjs，覆盖同效果高值替换、不同效果共存、存档和销毁、获取来源、真实减耗与伤害倍率、熟练度保持及 106 有效值。Rust 另验证独立随机乘区、嵌套作用域和敌方隔离、被动护盾熟练度不变。
+
 实战通过 BattleSession 持久保存当前状态，仅提交新动作并取新增帧；不从开局重算历史行动。分身、随机流、HP/MP 与状态持续保存在同一运行时中。
 
 药水使用后立刻更新面板，在本次技能或普攻执行前应用相同加成；属性药水持续至该角色下一次行动前。完整接口语义见 FORK.md。

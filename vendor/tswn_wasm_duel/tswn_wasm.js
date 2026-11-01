@@ -171,6 +171,25 @@ export class BattleSession {
         return ret >>> 0;
     }
     /**
+     * 独立能力乘区与 MP 减耗；三元组为技能编号、减耗量、倍率万分数。
+     * @param {Uint32Array} packet
+     */
+    set_abilities(packet) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray32ToWasm0(packet, wasm.__wbindgen_export);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.battlesession_set_abilities(retptr, this.__wbg_ptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
      * @returns {BattleStatus}
      */
     status() {
