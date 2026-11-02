@@ -1,0 +1,243 @@
+[
+  {
+    "term": "猴完了",
+    "polarity": "强负面",
+    "meaning": "完全失常、结果极差。",
+    "messages": 3,
+    "explicit": true
+  },
+  {
+    "term": "超大豹",
+    "polarity": "强正面",
+    "meaning": "强于通常的大豹。",
+    "messages": 13
+  },
+  {
+    "term": "豹完了",
+    "polarity": "强正面",
+    "meaning": "程度补语，语料多用于太强、太顺；不是豹失败了。",
+    "messages": 12
+  },
+  {
+    "term": "猴区",
+    "polarity": "负面",
+    "meaning": "本签池采用其负面评价义：失常、受挫。",
+    "messages": 333
+  },
+  {
+    "term": "猴儿",
+    "polarity": "负面",
+    "meaning": "表现不佳、操作或结果令人失望。",
+    "messages": 216
+  },
+  {
+    "term": "周猴",
+    "polarity": "负面",
+    "meaning": "足以作为反面名场面收录，常带安慰或自嘲。",
+    "messages": 17
+  },
+  {
+    "term": "神豹",
+    "polarity": "强正面",
+    "meaning": "极强、罕见、远超预期。",
+    "messages": 48
+  },
+  {
+    "term": "大豹",
+    "polarity": "正面",
+    "meaning": "明显强势或较大的惊喜。",
+    "messages": 38
+  },
+  {
+    "term": "小豹",
+    "polarity": "正面",
+    "meaning": "可认可的小幅成功或小惊喜。",
+    "messages": 19
+  },
+  {
+    "term": "猎豹",
+    "polarity": "正面",
+    "meaning": "强、运好、出色的成果。",
+    "messages": 324
+  },
+  {
+    "term": "周豹",
+    "polarity": "正面",
+    "meaning": "值得作为当周亮点收录。",
+    "messages": 66
+  },
+  {
+    "term": "滚木",
+    "polarity": "负面",
+    "meaning": "异常、反复出错或推进失常，不能当作正面资源。",
+    "messages": 184
+  },
+  {
+    "term": "花瓶",
+    "polarity": "负面",
+    "meaning": "纸面或评分好看，但实际表现不相称。",
+    "messages": 12
+  },
+  {
+    "term": "坐牢",
+    "polarity": "负面",
+    "meaning": "长时间受困、投入却难有进展。",
+    "messages": 8
+  },
+  {
+    "term": "卖牢",
+    "polarity": "语境判断",
+    "meaning": "抱怨不顺，也可能自嘲；不能仅凭说了卖牢就认定实力差。",
+    "messages": 36
+  },
+  {
+    "term": "拜谢",
+    "polarity": "正面",
+    "meaning": "认可、赞叹、感谢；随机 Say 审核里也是正向票。",
+    "messages": 268
+  },
+  {
+    "term": "断档",
+    "polarity": "语境判断",
+    "meaning": "差距显著；断档最强强正面，不能脱离所修饰对象判断。",
+    "messages": 28
+  },
+  {
+    "term": "出货",
+    "polarity": "正面",
+    "meaning": "得到有价值的结果。",
+    "messages": 8
+  },
+  {
+    "term": "翻车",
+    "polarity": "负面",
+    "meaning": "本有期待却失利。",
+    "messages": 7
+  },
+  {
+    "term": "红温",
+    "polarity": "负面",
+    "meaning": "不顺导致急躁或气恼。",
+    "messages": 15
+  },
+  {
+    "term": "没救",
+    "polarity": "强负面",
+    "meaning": "补救空间极小。",
+    "messages": 6
+  },
+  {
+    "term": "强强",
+    "polarity": "正面",
+    "meaning": "对强势表现的惊叹；问号可能是修辞。",
+    "messages": 19
+  },
+  {
+    "term": "抬走",
+    "polarity": "语境判断",
+    "meaning": "存在施受双方，签池仅用被抬走了，明确表达失败或淘汰。",
+    "messages": 6
+  },
+  {
+    "term": "无敌",
+    "polarity": "强正面",
+    "meaning": "明显强势；完整聊天里仍需识别反讽。",
+    "messages": 46
+  },
+  {
+    "term": "波动",
+    "polarity": "语境判断",
+    "meaning": "结果不稳定；单独不能回答吉凶，签池仅用波动偏猴。",
+    "messages": 28
+  },
+  {
+    "term": "虚空",
+    "polarity": "语境判断",
+    "meaning": "有名词和名字用法，脱离语境不作吉凶短签。",
+    "messages": 31
+  },
+  {
+    "term": "上榜",
+    "polarity": "正面",
+    "meaning": "达到可被认可、记录的成绩。",
+    "messages": 10
+  },
+  {
+    "term": "加成",
+    "polarity": "语境判断",
+    "meaning": "助力或增强；很大加成偏正，单独加成不当作答案。",
+    "messages": 210
+  },
+  {
+    "term": "强度",
+    "polarity": "正面",
+    "meaning": "能力与效果；有强度偏正。",
+    "messages": 50
+  },
+  {
+    "term": "不行",
+    "polarity": "负面",
+    "meaning": "直接否定。",
+    "messages": 117
+  },
+  {
+    "term": "逆天",
+    "polarity": "语境判断",
+    "meaning": "超出常态，有褒贬两种用法；签池仅采用强得逆天的正面搭配。",
+    "messages": 21
+  },
+  {
+    "term": "猴",
+    "polarity": "负面",
+    "meaning": "弱、失常、不顺；强度随程度副词变化。",
+    "messages": 1072
+  },
+  {
+    "term": "豹",
+    "polarity": "正面",
+    "meaning": "强、出货、超预期。否定搭配如不太豹偏负面。",
+    "messages": 899
+  },
+  {
+    "term": "咦",
+    "polarity": "负面",
+    "meaning": "嫌弃、质疑或反向评价；普通疑问语气不计作评价。",
+    "messages": 577
+  },
+  {
+    "term": "寄",
+    "polarity": "负面",
+    "meaning": "失败或无望的口语表达。",
+    "messages": 43
+  },
+  {
+    "term": "差",
+    "polarity": "负面",
+    "meaning": "欠缺、不足。差点上榜等近失语句仍属轻负面。",
+    "messages": 341
+  },
+  {
+    "term": "弱",
+    "polarity": "负面",
+    "meaning": "表现不足。",
+    "messages": 86
+  },
+  {
+    "term": "强",
+    "polarity": "正面",
+    "meaning": "表现优于通常水平。",
+    "messages": 507
+  },
+  {
+    "term": "稳",
+    "polarity": "正面",
+    "meaning": "顺利、可靠；不稳、稳不下来偏负面。",
+    "messages": 68
+  },
+  {
+    "term": "行",
+    "polarity": "正面",
+    "meaning": "肯定、可成；不行、不太行偏负面。",
+    "messages": 1037
+  }
+]

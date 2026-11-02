@@ -1383,3 +1383,32 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
 .ability-card { border-color: #83bce3; background: #f0f8fe; color: var(--ink); }
 .ability-card p { font-size: 12px; }
 .hcard .hcard__ability-name { color: #087cc4; font-weight: 800; }
+
+/* 右下角入口与独立模态签纸，沿用蓝白配色；不挤占地图和战斗布局。 */
+.fortune-launch { position: fixed; right: max(20px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 45; display: flex; align-items: center; gap: 9px; padding: 10px 18px; color: #214052; background: #d6edfc; border: 1px solid #76b5d9; border-radius: 30px; box-shadow: 0 5px 20px #28618522; font-weight: 700; }
+.fortune-launch > span { display: grid; place-items: center; width: 25px; height: 29px; border: 2px solid #5596bc; border-radius: 3px; background: #f6fbff; font-size: 15px; }
+.fortune { padding: 0; width: min(560px, calc(100vw - 28px)); max-height: calc(100dvh - 28px); border: 1px solid #a3cce4; border-radius: 22px; background: #fafdff; color: var(--ink); box-shadow: 0 25px 90px #173d6066; }
+.fortune::backdrop { background: #193b5c66; backdrop-filter: blur(6px); }
+.fortune__paper { padding: 22px 32px 28px; text-align: center; background: radial-gradient(ellipse at 50% 36%, #e4f4ff, transparent 66%); }
+.fortune__head { display: flex; align-items: center; justify-content: space-between; color: #67859b; font-size: 11px; letter-spacing: .12em; }
+.fortune__close { min-width: 36px; min-height: 36px; padding: 0; font-size: 24px; line-height: 1; }
+.fortune h2 { margin: 10px 0 0; font-size: 29px; letter-spacing: .28em; padding-left: .28em; }
+.fortune__stage { min-height: 240px; display: grid; place-items: center; position: relative; }
+.fortune__tube { position: relative; width: 86px; height: 110px; margin-top: 40px; border: 3px solid #397faa; border-radius: 4px 4px 20px 20px; background: repeating-linear-gradient(90deg, #b5dcf3 0 13px, #9acbe8 13px 15px); box-shadow: 0 14px 22px #37769d20; transform: rotate(-5deg); }
+.fortune__tube > span { position: absolute; inset: 24px 23px; display: grid; place-items: center; border: 1px solid #7babca; border-radius: 4px; background: #f4faff; font-size: 26px; }
+.fortune__tube > i { position: absolute; left: 10px; top: -47px; width: 15px; height: 54px; z-index: -1; border: 2px solid #5894bb; border-radius: 3px; background: #f2f9fd; transform: rotate(-13deg); transform-origin: bottom; }
+.fortune__tube > i:nth-child(2) { left: 34px; top: -57px; transform: rotate(3deg); }
+.fortune__tube > i:nth-child(3) { left: 57px; top: -43px; transform: rotate(16deg); }
+.fortune__result { display: none; max-width: 100%; margin: 0; padding: 34px 16px; font-size: clamp(24px, 5.7vw, 36px); font-weight: 800; line-height: 1.7; overflow-wrap: anywhere; letter-spacing: .04em; }
+.fortune.is-revealed .fortune__tube { display: none; }
+.fortune.is-revealed .fortune__result { display: block; animation: fortune-reveal .3s ease-out both; }
+.fortune__draw { min-width: 190px; min-height: 52px; font-size: 19px; border-radius: 13px; letter-spacing: .1em; }
+.fortune__prompts { margin-top: 22px; color: #3f6179; font-size: 14px; line-height: 1.7; }
+.fortune__prompts p { margin: 5px 0; }
+.fortune__prompts p + p { color: #657e8e; font-size: 12px; }
+.fortune__status { min-height: 18px; margin: 12px 0 0; color: #945046; font-size: 12px; }
+.fortune.is-drawing .fortune__tube { animation: fortune-shake .12s ease-in-out infinite alternate; }
+@keyframes fortune-shake { from { transform: rotate(-10deg) translateX(-3px); } to { transform: rotate(10deg) translateX(3px); } }
+@keyframes fortune-reveal { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
+@media (max-width: 480px) { .fortune__paper { padding: 14px 15px 20px; } .fortune__stage { min-height: 210px; } .fortune-launch { right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); padding: 8px 14px; } }
+@media (prefers-reduced-motion: reduce) { .fortune.is-drawing .fortune__tube, .fortune.is-revealed .fortune__result { animation: none; } }

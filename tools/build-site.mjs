@@ -7,6 +7,7 @@ import { resolve, dirname, join, sep } from 'node:path';
 import { gzipSync } from 'node:zlib';
 // 所有构建平台由同一份独立 32px 图标生成图集。
 import './build-icons.mjs';
+import './build-fortunes.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'dist');
@@ -73,6 +74,11 @@ for (const folder of ['assets/heroes', 'assets/characters']) {
     appSource = appSource.replaceAll(folder + '/' + name, target);
   }
 }
+// 签库按打开界面时才请求，带内容指纹避免更新后命中旧词库。
+const fortunes = await read('data/fortunes.json');
+const fortunePath = 'data/fortunes-' + hash(fortunes) + '.json';
+await emit(fortunePath, fortunes);
+appSource = appSource.replaceAll('data/fortunes.json', fortunePath);
 const app = Buffer.from(appSource.replace(/assets\/grade-([123])\.png/g, (_, n) => gradePaths[n])
   .replaceAll('assets/icons-32.png', 'assets/' + iconSpriteName));
 const appName = 'main-' + hash(app) + '.js';

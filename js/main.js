@@ -9,6 +9,7 @@ import { el, cardEl, renderBattleShell, sleep, statLine } from './ui.js';
 import { skillMeta, effectiveSkillLevel } from './skills.js';
 import { workshopAccount, workshopNameValid } from './workshop.js';
 import { HEROES } from './heroes.js';
+import { installFortune } from './fortune.js';
 
 const LOG = [];
 function logEvent(kind, data) {
@@ -955,6 +956,8 @@ async function boot() {
 }
 
 document.addEventListener('keydown', (e) => {
+  // 抽签模态窗口打开时，数字键和 Escape 不操作其下方的战斗或商店。
+  if (document.getElementById('fortune-dialog')?.open) return;
   if (e.key === 'Escape') return closeSheet();
   if (current !== 'battle' || !duelView?.interactive) return;
   const n = Number(e.key);
@@ -967,4 +970,5 @@ document.addEventListener('keydown', (e) => {
 
 window.__nc = { state, get duel() { return duelView?.duel; }, get view() { return duelView; }, G, engineWasm, buildLine, applyTactics, drawHand: (s, r, n, e) => import('./duel.js').then((m) => m.drawHand(s, r, n, e)) };
 
+installFortune();
 boot();
