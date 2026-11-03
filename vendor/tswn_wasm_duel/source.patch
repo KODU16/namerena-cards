@@ -17,10 +17,10 @@ index b6d81a36..47e98057 100644
  lto = "thin"
 diff --git a/FORK.md b/FORK.md
 new file mode 100644
-index 00000000..6f2958c8
+index 00000000..1a43b2b9
 --- /dev/null
 +++ b/FORK.md
-@@ -0,0 +1,52 @@
+@@ -0,0 +1,53 @@
 +# 卡牌引擎补丁说明
 +
 +以 shenjackyuanjie/tswn-core 的 5237f2b30a46b6658c6aefd49b2c4e97a2b81080 为基线。卡牌改动与审查修复通过 cards 仓库中的 source.patch 归档；本次不再提交引擎分支。
@@ -42,6 +42,7 @@ index 00000000..6f2958c8
 +battle_replay_forced(raw, new Uint32Array([actor, skill, packed, ...]), options) 只接收完整三元组。
 +skill 为主动技能公开编号 0..24，255 表示普通攻击；被动及非法编号报错。
 +packed 的低 8 位是 MP 消耗（0 表示现场掷值），高 8 位是药水编号：0 无药水、1..7 攻防速敏魔抗智、9 体力、10 MP；其它编号或溢出报错。
++普通攻击 skill=255 独立于技能耗蓝分支，始终不检查或扣除 MP，也不掷技能费用骰；负 MP 同样可以提交和续行，行动结束后照常回复 MP。
 +药水与同一条行动绑定，属性药水按实体分别保存，到该实体下次行动前还原，暂停等待指令不提前消耗药效。
 +合法技能无法生效时，回放明确记录退化为普通攻击；无可攻击目标时保留行动并暂停。
 +
@@ -323,7 +324,7 @@ index 2ccdaefa..d6e0722d 100644
  mod tests {
      use super::*;
 diff --git a/crates/tswn_core/src/cli_api/battle/session.rs b/crates/tswn_core/src/cli_api/battle/session.rs
-index fefc009d..1b0512f7 100644
+index fefc009d..0992b36b 100644
 --- a/crates/tswn_core/src/cli_api/battle/session.rs
 +++ b/crates/tswn_core/src/cli_api/battle/session.rs
 @@ -34,6 +34,7 @@ pub struct BattleSession {
@@ -460,7 +461,7 @@ index fefc009d..1b0512f7 100644
          let filled_cache = cache.clone();
          assert_eq!(states_from_runner(&runner, true, &mut cache), with_icons);
          assert_eq!(cache, filled_cache);
-@@ -817,3 +878,162 @@ seed:7@!"#;
+@@ -817,3 +878,221 @@ seed:7@!"#;
          }
      }
  }
@@ -487,6 +488,65 @@ index fefc009d..1b0512f7 100644
 +        assert_eq!(session.stop_reason(), Some(BattleStopReason::Paused));
 +        assert!(!session.is_done());
 +        frames
++    }
++    // 真正暂停的运行时处于负 MP 时，普通攻击仍须产生战报并继续到下一次决策。
++    #[test]
++    fn normal_attack_advances_with_negative_mp() {
++        for mp in [-1, -20, -200] {
++            let mut session = BattleSession::new(RAW, options()).unwrap();
++            pause(&mut session);
++            let actor = session.paused_actor().unwrap();
++            session
++                .driver
++                .runner
++                .runtime_mut()
++                .entities
++                .get_mut(crate::runtime::EntityIdx(actor))
++                .unwrap()
++                .runtime
++                .magic_point = mp;
++            session.submit_action(actor, 255, 0).unwrap();
++            let frames = pause(&mut session);
++            assert!(!frames.is_empty(), "negative MP {mp} must still advance a normal attack");
++            assert_eq!(
++                session
++                    .driver
++                    .runner
++                    .runtime()
++                    .entities
++                    .get(crate::runtime::EntityIdx(actor))
++                    .unwrap()
++                    .runtime
++                    .magic_point,
++                mp + 16,
++                "normal attack must cost zero MP and recover normally"
++            );
++        }
++    }
++    // 普攻不得掷技能耗蓝骰；只允许目标选择本身消耗随机流。
++    #[test]
++    fn normal_attack_skips_skill_budget_rng() {
++        use crate::runtime::{EntityIdx, PlainSkillPreActionOutcome};
++        let mut session = BattleSession::new(RAW, options()).unwrap();
++        pause(&mut session);
++        let actor = EntityIdx(session.paused_actor().unwrap());
++        let runtime = session.driver.runner.runtime_mut();
++        runtime.entities.get_mut(actor).unwrap().runtime.magic_point = -20;
++        let mut reference = runtime.clone();
++        reference
++            .select_plain_default_attack_target(actor, true)
++            .or_else(|| reference.select_plain_default_attack_target(actor, false));
++        let mut forced = forced_action::ForcedState::default();
++        forced.controlled_team = Some(0);
++        forced.queue = forced_action::decode_actions(&[actor.0, 255, 0]).unwrap();
++        let action = forced_action::with_state(&mut forced, || {
++            runtime.prepare_plain_action(actor, true, PlainSkillPreActionOutcome::default())
++        });
++        assert!(action.is_some());
++        assert_eq!(
++            (runtime.rng.i, runtime.rng.j, runtime.rng.main_val),
++            (reference.rng.i, reference.rng.j, reference.rng.main_val)
++        );
 +    }
 +    #[test]
 +    fn streaming_resume_matches_batch_and_potions_expire_per_actor() {
@@ -835,7 +895,7 @@ index f359622c..74031209 100644
                  continue;
              }
 diff --git a/crates/tswn_core/src/runtime/combat/round.rs b/crates/tswn_core/src/runtime/combat/round.rs
-index 05132896..10a84150 100644
+index 05132896..76b3f018 100644
 --- a/crates/tswn_core/src/runtime/combat/round.rs
 +++ b/crates/tswn_core/src/runtime/combat/round.rs
 @@ -73,7 +73,19 @@ impl CombatRuntime {
@@ -872,7 +932,7 @@ index 05132896..10a84150 100644
                  return Some(self.finish_round_with_capture::<CAPTURE_UPDATES>(None, updates));
              };
              match &prepared {
-@@ -347,12 +364,106 @@ impl CombatRuntime {
+@@ -347,12 +364,114 @@ impl CombatRuntime {
              .unwrap_or(false)
      }
  
@@ -889,6 +949,22 @@ index 05132896..10a84150 100644
 +            None => true,
 +            Some(spec) => spec.export_name == crate::runtime::profile::DEFAULT_CORE_CLONE_KIND_EXPORT,
 +        }
++    }
++
++    // 普攻与技能耗蓝完全分开：不读取 MP、不掷技能费用，也不扣除任何 MP。
++    fn prepare_forced_normal_attack(&mut self, actor: EntityIdx, smart: bool) -> Option<PreparedPlainAction> {
++        let target = self
++            .select_plain_default_attack_target(actor, smart)
++            .or_else(|| self.select_plain_default_attack_target(actor, false));
++        let Some(target) = target else {
++            crate::runtime::forced_action::set_pause(actor.0);
++            return None;
++        };
++        Some(PreparedPlainAction::BasicAttack {
++            target,
++            use_magic: false,
++            amount: self.entities.get(actor).expect("normal attack actor exists").runtime.attack,
++        })
 +    }
 +
      pub fn prepare_plain_action(
@@ -915,6 +991,9 @@ index 05132896..10a84150 100644
 +                    // 狂暴：玩家这一手只用来推进节奏，真正动作由引擎接管
 +                    berserk_submitted = true;
 +                } else {
++                    if forced_skill == 255 {
++                        return self.prepare_forced_normal_attack(actor, smart);
++                    }
 +                    // 玩家抽到这张牌时已经掷过消耗；没有就按 tswn 现场掷。
 +                    let req_mp = match forced_mp {
 +                        Some(cost) => cost as i32,
@@ -926,12 +1005,12 @@ index 05132896..10a84150 100644
 +                    let reduction = public_builtin_skill(forced_skill)
 +                        .map_or(0, |skill| self.ability_value(actor, skill.export_name()).0 as i32);
 +                    let req_mp = (req_mp - reduction).max(1);
-+                    let (mp, attack) = {
++                    let mp = {
 +                        let entity = self
 +                            .entities
 +                            .get(actor)
 +                            .unwrap_or_else(|| panic!("unknown forced action actor: {}", actor.0));
-+                        (entity.runtime.magic_point, entity.runtime.attack)
++                        entity.runtime.magic_point
 +                    };
 +                    // 玩家点名要用这个技能：目标选择按「不挑目标」的宽松口径，
 +                    // 避免因为 AI 的 smart 过滤（例如瘟疫只挑 160~400 血的目标）而放不出来。
@@ -949,18 +1028,7 @@ index 05132896..10a84150 100644
 +                    if forced_skill != 255 {
 +                        crate::runtime::forced_action::record_fallback(actor.0 as u32, "[1]的指定技能无法生效，改为普通攻击");
 +                    }
-+                    let target = self
-+                        .select_plain_default_attack_target(actor, smart)
-+                        .or_else(|| self.select_plain_default_attack_target(actor, false));
-+                    let Some(target) = target else {
-+                        crate::runtime::forced_action::set_pause(actor.0 as u32);
-+                        return None;
-+                    };
-+                    return Some(PreparedPlainAction::BasicAttack {
-+                        target,
-+                        use_magic: false,
-+                        amount: attack,
-+                    });
++                    return self.prepare_forced_normal_attack(actor, smart);
 +                }
 +            }
 +        }
@@ -979,7 +1047,7 @@ index 05132896..10a84150 100644
          if let Some(forced_skill) = pre_action.forced_skill {
              return Some(PreparedPlainAction::BuiltinSkill(forced_skill));
          }
-@@ -392,7 +503,12 @@ impl CombatRuntime {
+@@ -392,7 +511,12 @@ impl CombatRuntime {
                  },
              )
          };
@@ -993,7 +1061,7 @@ index 05132896..10a84150 100644
          #[cfg(not(feature = "no_debug"))]
          let probe_action = self.probe_plain_action_matches(actor);
          #[cfg(not(feature = "no_debug"))]
-@@ -450,8 +566,16 @@ impl CombatRuntime {
+@@ -450,8 +574,16 @@ impl CombatRuntime {
              } else {
                  self.scan_plain_action_skill_probabilities(actor, smart)
              };
@@ -1012,7 +1080,7 @@ index 05132896..10a84150 100644
          } else {
              None
          };
-@@ -511,6 +635,55 @@ impl CombatRuntime {
+@@ -511,6 +643,55 @@ impl CombatRuntime {
          }
      }
  
@@ -1068,7 +1136,7 @@ index 05132896..10a84150 100644
      pub fn has_plain_berserk_state(&self, actor: EntityIdx) -> bool {
          self.entities.get(actor).is_some_and(|entity| {
              entity
-@@ -624,6 +797,92 @@ impl CombatRuntime {
+@@ -624,6 +805,92 @@ impl CombatRuntime {
          debug_assert!(removed, "runtime berserk state disappeared before state clear");
      }
  
@@ -1161,7 +1229,7 @@ index 05132896..10a84150 100644
      pub fn scan_plain_action_skill_probabilities(&mut self, actor: EntityIdx, smart: bool) -> Option<PreparedBuiltinSkillAction> {
          let (scan_len, cached_scan) = {
              let skills = &self
-@@ -746,6 +1005,7 @@ impl CombatRuntime {
+@@ -746,6 +1013,7 @@ impl CombatRuntime {
          level: u32,
          smart: bool,
      ) -> bool {
@@ -1169,7 +1237,7 @@ index 05132896..10a84150 100644
          #[cfg(not(feature = "no_debug"))]
          let probe_action = self.probe_plain_action_matches(actor);
          match builtin_skill {
-@@ -935,3 +1195,36 @@ impl CombatRuntime {
+@@ -935,3 +1203,36 @@ impl CombatRuntime {
          roll < level
      }
  }

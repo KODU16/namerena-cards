@@ -14,6 +14,7 @@ node tools/test-forced.mjs dist
 ~~~
 
 游戏仓库内验证：node tools/verify-engine.mjs vendor/tswn_wasm_duel；node tools/verify-clone.mjs。
+负 MP 普攻验证：node tools/verify-negative-mp.mjs（需本地网站运行于 8127）。原生回归另验证真实负 MP 会话继续行动、零费用和不掷技能耗蓝骰。
 
 稀有技能、Boss 与皇冠验证：node tools/verify-rare-boss-honor.mjs。原生概率回归另覆盖玩家吞噬后的高原始幻术按 5 计算、敌方及普通引擎对局保持原值。
 

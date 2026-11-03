@@ -17,6 +17,11 @@ const ACTIVE_ID = {
 };
 export const NORMAL_ID = 255;
 
+// 普攻的可用性不参与 MP 比较；重绘、喝药和点击共用同一条规则。
+export function canPlayHandCard(card,mp) {
+  return card.id==='normal'||(ACTIVE_ID[card.id]!=null&&Number.isFinite(mp)&&(card.cost||0)<=mp);
+}
+
 export const previewCost = (lv) => (lv >= 45 ? 3 : lv >= 15 ? 2 : 1);
 const weightOf = (lv) => 1 + effectiveSkillLevel(lv) / 6;
 
@@ -640,7 +645,7 @@ export class DuelView {
       for (const card of this.handEl.querySelectorAll('.hcard')) {
         const cost = Number(card.dataset.mpCost || 0);
         // 普攻不消耗 MP，负余额也不能锁定它。
-        const locked = card.dataset.cardId !== 'normal' && cost > next.magic_point;
+        const locked = !canPlayHandCard({id:card.dataset.cardId,cost},next.magic_point);
         card.disabled = locked;
         card.classList.toggle('is-locked', locked);
         card.title = locked ? 'MP 不足（需要 ' + cost + ' MP）' : (skillMeta(card.dataset.cardId)?.desc || '普通攻击');
@@ -711,7 +716,7 @@ export class DuelView {
       handCardEl({ id: 'normal', lv: 0 }, { onPlay: (c) => this.choose(decision, c, mp) }),
       ...hand.map((c) => handCardEl(
         { id: c.id, lv: c.lv, cost: c.cost, baseCost: c.baseCost, ability: c.ability },
-        { onPlay: (x) => this.choose(decision, x, mp), disabled: c.cost > mp, locked: c.cost > mp },
+        { onPlay: (x) => this.choose(decision, x, mp), disabled: !canPlayHandCard(c,mp), locked: !canPlayHandCard(c,mp) },
       )),
     ];
     cards.forEach((node, i) => {
@@ -739,7 +744,7 @@ export class DuelView {
     mp = this.waitingState?.magic_point ?? mp;
     const id = card.id === 'normal' ? NORMAL_ID : ACTIVE_ID[card.id];
     // 普攻不检查 MP 余额；技能仍按抽牌时掷出的费用检查。
-    if (id == null || (card.id !== 'normal' && (card.cost || 0) > mp)) return;
+    if (id == null || !canPlayHandCard(card,mp)) return;
     // 点击即扣除显示余额；真实引擎仍按同一费用结算一次，避免重复扣费。
     const cost = card.id === 'normal' ? 0 : card.cost || 0;
     const actor = this.waitingState || decision.unit;
