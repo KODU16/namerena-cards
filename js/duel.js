@@ -1,4 +1,5 @@
 import { abilityFor, abilityMpCost, abilityPacket } from './abilities.js';
+import {hasRareSource,playerSkillLevel} from './rare-skills.js';
 // 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
 // 前端只负责「轮到玩家单位时，从手牌里选一张写进强制队列」。
 import { el, sleep, handCardEl } from './ui.js';
@@ -28,7 +29,7 @@ function skillsOf(unit, champion) {
       const id = `skl${key}`;
       // 引擎快照不含卡牌来源标记，按实际行动角色补回合法净化来源。
       const source = champion?.skillList?.find((s) => s.id === id);
-      return ACTIVE_ID[id] != null ? { id, lv, fromWeapon: !!source?.fromWeapon, playerDisperse: !!source?.playerDisperse } : null;
+      return ACTIVE_ID[id] != null ? { id, lv, fromWeapon: !!source?.fromWeapon, playerDisperse: !!source?.playerDisperse,playerShadow:!!source?.playerShadow } : null;
     }).filter(Boolean);
     if (list.length) return list;
   }
@@ -41,9 +42,9 @@ export const rollMpCost = (rng) => 8 + (Math.floor(rng() * 256) & 15);
 export function drawHand(skills, rng, count = 3, exclude = null) {
   // 玩家仅能通过武器或合法获得并锻造的净化卡将净化加入手牌。
   const pool = (skills || [])
-    .filter((s) => ACTIVE_ID[s.id] != null && (s.id !== 'skldisperse' || s.fromWeapon || s.playerDisperse))
+    .filter((s) => ACTIVE_ID[s.id] != null && hasRareSource(s))
     .filter((s) => !exclude || !exclude.has(s.id))
-    .map((s) => ({ ...s, weight: weightOf(s.lv) }));
+    .map((s) => ({ ...s, weight: weightOf(playerSkillLevel(s)) }));
   const out = [];
   while (out.length < count && pool.length) {
     const total = pool.reduce((a, b) => a + b.weight, 0);
@@ -53,7 +54,7 @@ export function drawHand(skills, rng, count = 3, exclude = null) {
     idx = Math.min(idx, pool.length - 1);
     const [picked] = pool.splice(idx, 1);
     const cost = Math.max(1, Math.round(rollMpCost(rng) * (picked.mpMul || 1)));
-    out.push({ id: picked.id, lv: effectiveSkillLevel(picked.lv), cost });
+    out.push({ id: picked.id, lv: playerSkillLevel(picked), cost });
   }
   return out;
 }
@@ -100,7 +101,8 @@ export class Duel {
 
   // 精英倍率保留在原卡上，战斗快照中的每项属性都可追溯到同一倍率。
   multFor(state) {
-    return this.enemies.find((c) => c.name === state.id_name)?.eliteMult || 1;
+    const card=this.enemies.find((c) => c.name === state.id_name);
+    return card?.bossMult||card?.eliteMult||1;
   }
 
   // 本体和分身分别追溯原角色，防止第二位队友借用第一位的净化许可。
@@ -487,7 +489,10 @@ export class DuelView {
     });
     const skills = (state.skills || []).map(([name, lv]) => {
       const id = 'skl' + String(name).replace(/^core[.]skill[.]/, '');
-      return el('span', { class: 'skill-tag', title: skillMeta(id).desc }, skillMeta(id).name + ' 熟练度' + effectiveSkillLevel(lv));
+      // 玩家高原始幻术（含吞噬）在详情中也只显示有效 5，敌方天然技能保持原值。
+      const source=(this.current?.final_states||[]).find(s=>s.id===(state.source_id??state.owner_id));
+      const own=state.input_team_index===0||source?.input_team_index===0||(state.input_team_index==null&&!source&&state.team_index===this.duel.playerTeam);
+      return el('span', { class: 'skill-tag', title: skillMeta(id).desc }, skillMeta(id).name + ' 熟练度' + (own?playerSkillLevel({id,lv}):effectiveSkillLevel(lv)));
     });
     overlay.replaceChildren(el('div', { class: 'sheet' },
       el('h2', {}, state.display_name),

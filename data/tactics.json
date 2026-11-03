@@ -19,7 +19,7 @@
     { "id": "t-iron", "name": "铁壁铭文", "glyph": "壁", "cost": 1, "desc": "铁壁 +16 级", "apply": { "skills": { "skliron": 16 } } },
     { "id": "t-reflect", "name": "荆棘之甲", "glyph": "荆", "cost": 1, "desc": "伤害反弹 +14 级", "apply": { "skills": { "sklreflect": 14 } } },
     { "id": "t-summon", "name": "血之契约", "glyph": "契", "cost": 1, "desc": "血祭 +12 级", "apply": { "skills": { "sklsummon": 12 } } },
-    { "id": "t-shadow", "name": "幻影之术", "glyph": "幻", "cost": 1, "desc": "幻术 +10 级", "apply": { "skills": { "sklshadow": 10 } } },
+    { "id": "t-shadow", "disabled": true, "name": "幻影之术", "glyph": "幻", "cost": 1, "desc": "幻术 +10 级", "apply": { "skills": { "sklshadow": 10 } } },
     { "id": "t-revive", "name": "苏生符", "glyph": "生", "cost": 1, "desc": "苏生术 +8 级", "apply": { "skills": { "sklrevive": 8 } } },
     { "id": "t-poison", "name": "剧毒之刃", "glyph": "毒", "cost": 1, "desc": "投毒 +14 级", "apply": { "skills": { "sklpoison": 14 } } },
     { "id": "t-heal", "name": "治疗之泉", "glyph": "愈", "cost": 1, "desc": "治愈魔法 +16 级", "apply": { "skills": { "sklheal": 16 } } },

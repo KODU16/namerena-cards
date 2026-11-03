@@ -17,10 +17,10 @@ index b6d81a36..47e98057 100644
  lto = "thin"
 diff --git a/FORK.md b/FORK.md
 new file mode 100644
-index 00000000..89d60f1d
+index 00000000..6f2958c8
 --- /dev/null
 +++ b/FORK.md
-@@ -0,0 +1,50 @@
+@@ -0,0 +1,52 @@
 +# 卡牌引擎补丁说明
 +
 +以 shenjackyuanjie/tswn-core 的 5237f2b30a46b6658c6aefd49b2c4e97a2b81080 为基线。卡牌改动与审查修复通过 cards 仓库中的 source.patch 归档；本次不再提交引擎分支。
@@ -71,6 +71,8 @@ index 00000000..89d60f1d
 +能力仅属于受控角色原始队伍及其派生单位，交错会话不共享。随机攻击强度在原掷骰后乘算，不增加 RNG 消耗；护盾、护身符、吞噬资源、垂死抗争和隐匿在各自数值结算入口乘算。MP 减耗在技能扣费边界生效，主动技能最低 1 MP，被动最低 0 MP。前端传原始费用，显示减耗后费用，避免扣减两次。
 +
 +能力不写入技能表，不改变原始或有效熟练度、抽牌权重、技能发动概率；超过 106 的原始熟练度仍按既有有效 106 规则计算。覆盖高值与销毁由网站存档层管理，战斗只接收最终持有效果。
++
++卡牌受控队伍及其派生单位的幻术发动概率按有效熟练度 5 封顶，吞噬获得更高原始值也不绕过；原始值不裁剪，敌方天然技能和未受控普通引擎对局保持原行为。前端在卡面、抽牌及初始战斗输入处使用相同的 5 上限。
 diff --git a/crates/tswn_capi/include/tswn_capi.h b/crates/tswn_capi/include/tswn_capi.h
 index 963a95af..57340edb 100644
 --- a/crates/tswn_capi/include/tswn_capi.h
@@ -623,12 +625,23 @@ index fefc009d..1b0512f7 100644
 +}
 diff --git a/crates/tswn_core/src/runtime/combat/abilities.rs b/crates/tswn_core/src/runtime/combat/abilities.rs
 new file mode 100644
-index 00000000..fae6317f
+index 00000000..3453a801
 --- /dev/null
 +++ b/crates/tswn_core/src/runtime/combat/abilities.rs
-@@ -0,0 +1,92 @@
+@@ -0,0 +1,125 @@
 +use super::*;
 +impl CombatRuntime {
++    // 卡牌玩家及其派生单位即使经吞噬提高原始幻术，也只按 5 计算；普通引擎对局不变。
++    pub(crate) fn card_skill_level(&self, actor: EntityIdx, skill: BuiltinActiveSkill, level: u32) -> u32 {
++        let root = self.entities.get(actor).and_then(|entity| self.entities.get(entity.runtime.root_owner));
++        if skill == BuiltinActiveSkill::Shadow
++            && root.is_some_and(|entity| crate::runtime::forced_action::controlled_team() == Some(entity.template.team))
++        {
++            level.min(5)
++        } else {
++            level
++        }
++    }
 +    // 根角色的原始队伍决定能力归属，敌方与被魅惑角色不会借用玩家能力。
 +    pub(crate) fn ability_value(&self, actor: EntityIdx, skill: &str) -> (u32, f64) {
 +        let Some(entity) = self.entities.get(actor) else {
@@ -648,6 +661,28 @@ index 00000000..fae6317f
 +mod tests {
 +    use super::*;
 +    use crate::runtime::forced_action::{self, ForcedState};
++
++    // 模拟吞噬后的高原始值，概率与熟练度 5 使用完全相同的随机流，敌方不受限。
++    #[test]
++    fn controlled_shadow_probability_uses_five_without_trimming_raw_values() {
++        let mut high = CombatRuntime::from_template(PreparedCombatTemplate::new(vec![
++            PlayerTemplate::new(1, "player", 0, 1000, 100),
++            PlayerTemplate::new(2, "enemy", 1, 1000, 100),
++        ]));
++        let mut low = high.clone();
++        let mut state = ForcedState::default();
++        state.controlled_team = Some(0);
++        forced_action::with_state(&mut state, || {
++            for _ in 0..200 {
++                assert_eq!(
++                    high.plain_action_skill_probability(EntityIdx(0), BuiltinActiveSkill::Shadow, 200, false),
++                    low.plain_action_skill_probability(EntityIdx(0), BuiltinActiveSkill::Shadow, 5, false)
++                );
++            }
++            assert_eq!(high.card_skill_level(EntityIdx(1), BuiltinActiveSkill::Shadow, 88), 88);
++        });
++        assert_eq!(high.card_skill_level(EntityIdx(0), BuiltinActiveSkill::Shadow, 200), 200);
++    }
 +
 +    // 比较同一随机流，确保倍率不额外掷骰、不泄漏到敌方或下一次普攻。
 +    #[test]
@@ -800,7 +835,7 @@ index f359622c..74031209 100644
                  continue;
              }
 diff --git a/crates/tswn_core/src/runtime/combat/round.rs b/crates/tswn_core/src/runtime/combat/round.rs
-index 05132896..fad40698 100644
+index 05132896..10a84150 100644
 --- a/crates/tswn_core/src/runtime/combat/round.rs
 +++ b/crates/tswn_core/src/runtime/combat/round.rs
 @@ -73,7 +73,19 @@ impl CombatRuntime {
@@ -1126,7 +1161,15 @@ index 05132896..fad40698 100644
      pub fn scan_plain_action_skill_probabilities(&mut self, actor: EntityIdx, smart: bool) -> Option<PreparedBuiltinSkillAction> {
          let (scan_len, cached_scan) = {
              let skills = &self
-@@ -935,3 +1194,36 @@ impl CombatRuntime {
+@@ -746,6 +1005,7 @@ impl CombatRuntime {
+         level: u32,
+         smart: bool,
+     ) -> bool {
++        let level = self.card_skill_level(actor, builtin_skill, level);
+         #[cfg(not(feature = "no_debug"))]
+         let probe_action = self.probe_plain_action_matches(actor);
+         match builtin_skill {
+@@ -935,3 +1195,36 @@ impl CombatRuntime {
          roll < level
      }
  }

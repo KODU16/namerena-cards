@@ -1,4 +1,6 @@
 import { abilityDescription, abilityKey } from './abilities.js';
+import {isRareSkill,shownSkillLevel,playerSkillLevel,isTacticEnabled} from './rare-skills.js';
+import {hasHonor} from './run-honor.js';
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta, effectiveSkillLevel } from './skills.js';
 import { burstAt } from './fx.js';
@@ -58,16 +60,16 @@ export function skillTag(s, chance) {
   const pct = chance == null ? null : Math.round(chance * 100);
   return el('span', {
     class: `skill-tag cat-${meta.cat || 'atk'}`,
-    'data-tip': `${meta.name} ${effectiveSkillLevel(s.lv)}`,
+    'data-tip': `${meta.name} ${shownSkillLevel(s)}`,
     'data-tip-desc': meta.desc + (pct == null ? '' : `（单抽概率 ${pct}%）`),
   },
     emojiImg(s.id, 'emoji emoji--xs'),
-    ` ${meta.name} ${effectiveSkillLevel(s.lv)}`,
+    ` ${meta.name} ${shownSkillLevel(s)}`,
     pct == null ? null : el('em', { class: 'skill-tag__pct' }, ` ${pct}%`));
 }
 
 export function cardTooltip(card) {
-  const skills = (card.skillList || []).slice(0, 6).map((s) => `${skillMeta(s.id).name} 熟练度${effectiveSkillLevel(s.lv)}`).join('、') || '无技能';
+  const skills = (card.skillList || []).slice(0, 6).map((s) => `${skillMeta(s.id).name} 熟练度${shownSkillLevel(s)}`).join('、') || '无技能';
   return `${card.name} @${card.clan}\n${statLine(card)}\n${skills}`;
 }
 
@@ -102,10 +104,10 @@ export function cardEl(card, { size = 'grid', selected = false, dim = false, onC
     el('div', { class: 'c-skills' },
       skills.length ? skills.map((sk) => el('span', {
         class: `c-skill cat-${CAT[sk.cat]?.key || 'atk'}`,
-        'data-tip': `${skillMeta(sk.id).name} ${effectiveSkillLevel(sk.lv)}`,
+        'data-tip': `${skillMeta(sk.id).name} ${shownSkillLevel(sk)}`,
         'data-tip-desc': skillMeta(sk.id).desc,
       },
-        emojiImg(sk.id, 'emoji emoji--xs'), el('b', {}, effectiveSkillLevel(sk.lv)))) : el('span', { class: 'c-skill c-skill--none' }, '无技能'),
+        emojiImg(sk.id, 'emoji emoji--xs'), el('b', {}, shownSkillLevel(sk)))) : el('span', { class: 'c-skill c-skill--none' }, '无技能'),
     ),
     badge ? el('div', { class: 'c-badge' }, badge) : null,
     extra || null,
@@ -135,6 +137,8 @@ export function topbar(state, { screen, onHome, onHelp, onLog, onCodex }) {
     ),
     el('div', { class: 'topbar__meta' }, meta.map((m) => el('span', { class: 'pill' }, m))),
     el('div', { class: 'topbar__actions' },
+      // 同一位置第二次读档后皇冠消失，单纯存档不取消资格。
+      run&&['active','won'].includes(run.status)&&hasHonor(run)?el('span',{class:'run-crown',title:'同一局同一位置第二次读档后皇冠消失；保留皇冠通关可获得金色胜利。'},el('i',{class:'run-crown__icon','aria-hidden':'true'}),'未存档'):null,
       el('span', { class: `engine-badge engine-badge--${state.ladderSource}`, title: state.ladder?.meta?.fetchedAt || '' },
         emojiImg('ladder', 'emoji emoji--xs'),
         state.ladderSource === 'live' ? '天梯 · 实时' : state.ladderSource === 'cache' ? '天梯 · 缓存' : '天梯 · 快照'),
@@ -317,7 +321,7 @@ export function renderPrep(root, state, h) {
         el('div', { class: 'tactics-grid' }, (run.skillCards || []).map((s) =>
           el('button', { class: `tactic${h.forgeSelected === s.uid ? ' is-active' : ''}`, type: 'button', onclick: () => h.onPickSkillCard(s.uid) },
             el('span', { class: 'tactic__glyph' }, emojiImg(s.id, 'emoji emoji--lg')),
-            el('span', { class: 'tactic__body' }, el('b', {}, skillMeta(s.id).name), el('small', {}, `熟练度 ${effectiveSkillLevel(s.lv)}`)),
+            el('span', { class: 'tactic__body' }, el('b', {}, skillMeta(s.id).name), el('small', {}, `熟练度 ${shownSkillLevel(s)}`)),
           ))),
       ),
       el('div', { class: 'prep__foot' },
@@ -415,7 +419,7 @@ export function handCardEl(card, { onPlay, disabled, locked = false }) {
   const passive = !!card.passive;
   return el('button', {
     // 净化的金色品质与来源无关，在手牌及 MP 不足时仍能辨认。
-    class: `hcard cat-${meta.cat}${card.id === 'skldisperse' ? ' hcard--gold' : ''}${passive ? ' is-passive' : ''}${locked ? ' is-locked' : ''}`,
+    class: `hcard cat-${meta.cat}${isRareSkill(card.id) ? ' hcard--gold' : ''}${passive ? ' is-passive' : ''}${locked ? ' is-locked' : ''}`,
     type: 'button',
     disabled: disabled || passive || locked || undefined,
     onclick: () => onPlay(card),
@@ -424,10 +428,10 @@ export function handCardEl(card, { onPlay, disabled, locked = false }) {
     el('div', { class: 'hcard__glyph' }, emojiImg(card.id, 'emoji emoji--xl')),
     el('div', { class: 'hcard__body' },
       el('b', { class: card.ability ? 'hcard__ability-name' : '' }, meta.name + (card.ability ? '+' : '')),
-      el('span', { class: 'hcard__lv' }, passive ? '被动 · 自动' : `熟练度 ${effectiveSkillLevel(card.lv)} · 消耗 ${card.cost} MP`),
+      el('span', { class: 'hcard__lv' }, passive ? '被动 · 自动' : `熟练度 ${playerSkillLevel(card)} · 消耗 ${card.cost} MP`),
       el('small', {}, passive ? '条件满足时自动发动，不需要点击。' : meta.desc),
     ),
-    el('div', { class: 'hcard__cat' }, card.id === 'skldisperse' ? '金色 · 稀有' : passive ? '被动' : CAT[meta.cat]?.name || ''),
+    el('div', { class: 'hcard__cat' }, isRareSkill(card.id) ? '金色 · 稀有' : passive ? '被动' : CAT[meta.cat]?.name || ''),
     el('span', { class: `hcard__cost${locked ? ' is-locked' : ''}` }, card.cost),
   );
 }
@@ -627,6 +631,7 @@ export function curseMerchantSheet(state, h) {
     el('label', { class: 'field' }, '当前角色（用于技能交换）',
       el('select', { onchange: (event) => h.onChange(event.target.value) }, state.collection.map((card) => el('option', { value: card.id, selected: card.id === h.charId }, card.name + '@' + card.clan)))),
     el('p', { class: 'muted small' }, '不消耗天梯分数。属性代价扣除所有已有角色的黑字基础值（含永久锻造，不含武器和开局加成）。技能交换按卸下武器后的本体技能组选择最高项，连同锻造熟练度永久移除；原武器贡献仍正常生效。HP 按三倍降低，物品强度按原始代价值计算。'),
+    el('p',{class:'muted small'},'金色净化／幻术：全体单项基础属性至少降低 50（HP 为 150），或献祭技能的原名字裸熟练度至少 70。武器、战术和锻造不计入金卡资格；成交仍移除全部锻造。'),
     el('div', { class: 'inv__grid' }, h.stock.length ? h.stock.map((offer) => {
       const summary = rewardSummary(offer);
       return el('div', { class: 'inv__item shop-item shop-item--' + offer.rarity }, qualityBadge(offer.rarity),
@@ -774,9 +779,10 @@ export function renderReward(root, state, offers, h) {
 export function renderEnd(root, state, h) {
   const run = state.run;
   const won = run.status === 'won';
+  const gold=won&&hasHonor(run);
   root.replaceChildren(
-    el('section', { class: `end ${won ? 'end--win' : 'end--lose'}` },
-      el('div', { class: 'end__badge' }, won ? '通关' : '止步'),
+    el('section', { class: `end ${won ? 'end--win' : 'end--lose'}${gold?' end--gold':''}` },
+      el('div', { class: 'end__badge' }, gold?el('i',{class:'run-crown__icon','aria-hidden':'true'}):null,gold?'金色胜利':won?'通关':'止步'),
       // 通关标题对应十层天梯，避免沿用旧版八战流程的文案。
       el('h1', {}, won ? '天梯登顶，游戏胜利' : `倒在第 ${run.index + 1} 战`),
       el('p', { class: 'muted' }, won ? '你的名字走到了天梯顶端。' : '名字的强度，有时只差一次重抽。'),
@@ -849,7 +855,7 @@ export function renderHeroes(root, heroes, h) {
     }
   };
   const skillItems = (card) => card.skillList.length
-    ? card.skillList.map((skill) => el('span', { title: skillMeta(skill.id).desc }, emojiImg(skill.id, 'emoji emoji--xs'), skillMeta(skill.id).name, el('b', {}, effectiveSkillLevel(skill.lv))))
+    ? card.skillList.map((skill) => el('span', { title: skillMeta(skill.id).desc }, emojiImg(skill.id, 'emoji emoji--xs'), skillMeta(skill.id).name, el('b', {}, shownSkillLevel(skill))))
     : [el('span', { class: 'muted' }, '无技能')];
   const heroCard = (hero) => {
     const cards = hero.cards || [hero.card];
@@ -1312,12 +1318,12 @@ export function fullCharRow(card) {
   const line = (label, key, v) => {
     const delta = key ? Math.round(bonusMap[key] || 0) : 0;
     return el('span', { class: 'fullrow__stat' }, label + ' ', el('b', { 'data-stat': key }, v),
-      card.eliteMult > 1 ? el('i', { class: 'fullrow__plus' }, '*' + card.eliteMult) : null,
+      (card.bossMult||card.eliteMult) > 1 ? el('i', { class: 'fullrow__plus' }, '*' + (card.bossMult||card.eliteMult)) : null,
       delta ? el('i', { class: 'fullrow__plus' + (delta < 0 ? ' is-neg' : '') }, (delta > 0 ? '+' : '') + delta) : null);
   };
   const bar = (cls, label, pct) => el('div', { class: 'fullrow__bar ' + cls, title: label },
     el('i', { style: 'width:' + Math.max(0, Math.min(100, pct)) + '%' }),
-    el('span', {}, cls === 'fullrow__bar--hp' ? ['血量 ', el('b', { 'data-stat': 'hp' }, hp)] : label, cls === 'fullrow__bar--hp' && card.eliteMult > 1 ? el('i', { class: 'elite-mult' }, '*' + card.eliteMult) : null));
+    el('span', {}, cls === 'fullrow__bar--hp' ? ['血量 ', el('b', { 'data-stat': 'hp' }, hp)] : label, cls === 'fullrow__bar--hp' && (card.bossMult||card.eliteMult) > 1 ? el('i', { class: 'elite-mult' }, '*' + (card.bossMult||card.eliteMult)) : null));
   return el('div', { class: 'fullrow', 'data-char-id': card.id },
     el('div', { class: 'fullrow__head' },
       card.icon ? el('img', { class: 'fullrow__icon', src: card.icon, alt: '' }) : null,
@@ -1331,14 +1337,14 @@ export function fullCharRow(card) {
       line('攻', 'atk', disp.atk), line('防', 'def', disp.def), line('速', 'spd', disp.spd), line('敏', 'agi', disp.agi),
       line('魔', 'mag', disp.mag), line('抗', 'res', disp.res), line('智', 'wis', disp.wis)),
     el('div', { class: 'fullrow__skills' }, (card.skillList || []).length
-      ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: skillMeta(sk.id).desc }, skillMeta(sk.id).name + ' ', el('b', { 'data-skill': sk.id }, effectiveSkillLevel(sk.lv))))
+      ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: skillMeta(sk.id).desc }, skillMeta(sk.id).name + ' ', el('b', { 'data-skill': sk.id }, shownSkillLevel(sk))))
       : el('span', { class: 'muted small' }, '无技能')),
     el('div', { class: 'fullrow__sum', title: '外显七围 + 体力 / 3' }, '八围 ', el('b', {}, eightSumOf(card))));
 }
 
 // 换装浮字使用最终外显属性与有效熟练度，分别提示增加和减少。
 export function cardValueSnapshot(card) {
-  return { stats: cardDisplayStats(card?.stats), skills: Object.fromEntries((card?.skillList || []).map((s) => [s.id, effectiveSkillLevel(s.lv)])) };
+  return { stats: cardDisplayStats(card?.stats), skills: Object.fromEntries((card?.skillList || []).map((s) => [s.id, shownSkillLevel(s)])) };
 }
 export function showCardChanges(charId, before, after) {
   for (const row of document.querySelectorAll('.fullrow[data-char-id]')) {
@@ -1398,12 +1404,15 @@ const CODEX_STATS = [
 ];
 
 const CODEX_PLAYER = [
-  ['熟练度', '所有主动、被动技能的显示与战斗计算最多按 106。原始熟练度仍可继续叠加并存档，不裁剪、不增加硬上界；抽牌权重、技能交易估值和训练增量同样使用有效值。'],
+  ['熟练度', '普通技能的显示与战斗计算最多按 106，玩家幻术最多按 5。原始熟练度仍保留；抽牌权重、技能交易估值和训练增量同样使用有效值。'],
   ['抽牌', '每回合从你已学的主动技能里抽 3 张，权重是 1 + 熟练度/6（熟练度越高越容易抽到）。普通攻击永远可用。'],
   ['净化', '武器带来的净化可以抽到，熟练度封顶 1；商店小概率出售熟练度 1～2 的金色净化锻造卡，锻造成功后也可抽到。'],
+  ['幻术', '开局净化与幻术替换为另一项等熟练度随机技能。幻术仅通过商店金色锻造卡或武器获得，有效熟练度最多 5，售价略低于净化；幻术战术已禁用。'],
+  ['层末 Boss', '八项外显属性随层数增强：第一层 ×1.05，第二层 ×1.10，逐层加 0.05，直到第十层 ×1.50。'],
+  ['未存档皇冠', '同一局、同一地图位置第二次读档后永久失去皇冠，改用其他槽位或读取旧快照不会重置。保留皇冠通关显示金色胜利，单纯保存和自动续局不计读档。'],
   ['MP 时机', '抽牌时定好消耗（8~23），出牌立即扣除 MP。行动所有段落结束后再显示回复，单位 MP 槽右侧蓝字列出实际回复量。'],
   ['精英试炼', '第一层为属性 ×1.2，第二层为 ×1.5；第三层起出现属性 ×2 或双倍人数的精英，数值倍率以蓝字显示。'],
-  ['诅咒商人', '用全体角色黑字基础属性或当前角色卸下武器后的最高熟练度技能交换物品。属性代价不计武器和开局加成，HP 按三倍扣除；本体技能含锻造部分永久归零，武器贡献保留。'],
+  ['诅咒商人', '用全体角色黑字基础属性或卸下武器后的最高技能交换物品，HP 按三倍扣除。金色净化／幻术至少要求全体某项属性降低 50（HP 为 150），或原名字裸技能至少 70，武器、战术、锻造不计资格。成交时技能含锻造部分永久归零，武器贡献保留。'],
   ['谁听你指挥', '只有本体与分身会停下来等你下指令；幻影、使魔、丧尸由引擎自动行动。'],
   ['背刺', '潜行与背刺是两段，引擎会强制走完第二段，玩家不能在这中间插别的牌。'],
   ['狂暴', '进入狂暴（含被附体）后，四张牌全部变成「狂暴攻击」并自动随机打出，玩家不能选牌。'],
@@ -1515,11 +1524,12 @@ export function inventorySheet(state, h = {}) {
     } else if (id === 'forge') {
       const list = (run.skillCards || []);
       body.replaceChildren(list.length
-        ? el('div', { class: 'inv__grid' }, list.map((s) => el('div', { class: 'inv__item', title: skillMeta(s.id).desc },
-          el('b', {}, skillMeta(s.id).name), el('small', {}, '熟练度 ' + effectiveSkillLevel(s.lv)), del('forge', s.uid, skillMeta(s.id).name))))
+        ? el('div', { class: 'inv__grid' }, list.map((s) => el('div', { class: 'inv__item'+(isRareSkill(s.id)?' shop-item--gold':''), title: skillMeta(s.id).desc },
+          isRareSkill(s.id)?qualityBadge('gold'):null,
+          el('b', {}, skillMeta(s.id).name), el('small', {}, '熟练度 ' + playerSkillLevel(s)), del('forge', s.uid, skillMeta(s.id).name))))
         : el('p', { class: 'muted' }, '还没有锻造卡'));
     } else if (id === 'tactics') {
-      const ids = state.ownedTactics || [];
+      const ids = (state.ownedTactics || []).filter(id=>id!=='t-shadow'&&isTacticEnabled(state.tacticsPool?.find(t=>t.id===id)));
       const pool = Array.isArray(state.tacticsPool) ? state.tacticsPool : [];
       body.replaceChildren(ids.length
         ? el('div', { class: 'inv__grid' }, ids.map((tid) => {

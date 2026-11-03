@@ -10,6 +10,7 @@ import { skillMeta, effectiveSkillLevel } from './skills.js';
 import { workshopAccount, workshopNameValid } from './workshop.js';
 import { HEROES } from './heroes.js';
 import { installFortune } from './fortune.js';
+import {isTacticEnabled,shownSkillLevel} from './rare-skills.js';
 
 const LOG = [];
 function logEvent(kind, data) {
@@ -117,6 +118,8 @@ function help() {
     el('ul', { class: 'help-list' },
       el('li', {}, el('b', {}, '名字即卡牌。'), ' 卡面上的八围、技能与头像全部由 tswn_core 从名字算出；同名同战队永远得到同一张卡。'),
       el('li', {}, el('b', {}, '开局。'), ' 你只决定战队名（不能含 !）；自身名字随机，属性、技能和熟练度都是抽出来的。'),
+      el('li', {}, el('b', {}, '稀有技能。'), ' 开局净化／幻术改为另一项等熟练度随机技能。幻术仅能从商店金卡或武器获得，有效熟练度最高 5，幻术战术禁用。'),
+      el('li', {}, el('b', {}, '未存档皇冠。'), ' 同一位置第二次读档后皇冠永久消失；保留皇冠通关为金色胜利。'),
       el('li', {}, el('b', {}, '每回合。'), ' 从技能组里抽 3 张技能卡和一份能量；主动技点选打出，能量不足的牌会变灰。普通攻击 0 能量、永远可用。'),
       el('li', {}, el('b', {}, '被动自动。'), ' 反击、反弹、护身符不占手牌，满足条件时自行发动；蓄盾则在每回合开始时按熟练度自动累积。'),
       // 能力规则与战术熟练度加成分开说明，避免误解蓝色加号。
@@ -309,7 +312,7 @@ function syncDraft() {
   const played = 0; // 新一局从 2 倍开始，随后按已走过的节点衰减。
   draft.cards = draft.names.map((n) => {
     const card = n ? safeCard(n, draft.clan || '无名') : null;
-    return card ? G.withRunBuff(card, played) : null;
+    return card ? G.withRunBuff(G.replaceStarterRareSkills(card), played) : null;
   }).filter(Boolean);
 }
 
@@ -665,14 +668,14 @@ function forgeAtCamp() {
       el('div', { class: 'inv__grid' }, (card?.skillList || []).map((s) => el('button', {
         class: 'ghost inv__item',
         type: 'button',
-        disabled: !!card.lostSkills?.[s.id], title: card.lostSkills?.[s.id] ? '本体技能已交换；武器贡献仍可发动，不能训练恢复本体' : undefined,
+        disabled: !!card.lostSkills?.[s.id]||(s.id==='sklshadow'&&shownSkillLevel(s)>=5), title: card.lostSkills?.[s.id] ? '本体技能已交换；武器贡献仍可发动，不能训练恢复本体' : s.id==='sklshadow'&&shownSkillLevel(s)>=5?'幻术有效熟练度已达到 5':undefined,
         onclick: () => {
           const res = G.campForge(state, charId, s.id);
           closeSheet();
-          toast(res ? (skillMetaName(s.id) + ' 锻造完成：熟练度 ' + effectiveSkillLevel(res.lv) + '，消耗 ×' + res.mpMul.toFixed(2)) : '锻造失败', 2400);
+          toast(res ? (skillMetaName(s.id) + ' 锻造完成：熟练度 ' + shownSkillLevel(res) + '，消耗 ×' + res.mpMul.toFixed(2)) : '锻造失败', 2400);
           mapScreen();
         },
-      }, el('b', {}, skillMetaName(s.id)), el('small', {}, '熟练度 ' + effectiveSkillLevel(s.lv) + (s.forge ? (' · 已锻 ' + s.forge + ' 次') : ''))))),
+      }, el('b', {}, skillMetaName(s.id)), el('small', {}, '熟练度 ' + shownSkillLevel(s) + (s.forge ? (' · 已锻 ' + s.forge + ' 次') : ''))))),
     ));
   };
   sheet(el('div', {}, el('h2', {}, '选一个角色锻造'),
@@ -900,7 +903,7 @@ async function buildForgeCard(event) {
       el('div', { class: 'forge__meta' },
         el('div', { class: 'muted' }, statLine(card)),
         el('div', { class: 'skills-full' }, (card.skillList || []).map((s) =>
-          el('span', { class: 'skill-tag cat-' + s.cat, title: skillMeta(s.id).desc }, skillMeta(s.id).name + ' ' + effectiveSkillLevel(s.lv)))),
+          el('span', { class: 'skill-tag cat-' + s.cat, title: skillMeta(s.id).desc }, skillMeta(s.id).name + ' ' + shownSkillLevel(s)))),
         el('button', { class: 'primary', type: 'button', onclick: async (addEvent) => {
           const addButton = addEvent.currentTarget; addButton.disabled = true;
           try {
@@ -934,7 +937,8 @@ async function boot() {
   try {
     // 卡池已改为按名字现算，不再下载 cards.json；天梯快照也改成按需下载
     const tacticsRes = await fetch('data/tactics.json', { cache: 'no-cache' }).then((r) => r.json());
-    state.tacticsPool = tacticsRes.tactics;
+    // 幻术战术不再进入开局、库存、奖励或已有战术展示。
+    state.tacticsPool = tacticsRes.tactics.filter(isTacticEnabled);
     const v = await loadEngine();
     state.wasm = v.wasm; state.core = v.core;
     G.loadSave(state);

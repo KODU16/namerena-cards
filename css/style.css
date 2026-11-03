@@ -1384,6 +1384,25 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
 .ability-card p { font-size: 12px; }
 .hcard .hcard__ability-name { color: #087cc4; font-weight: 800; }
 
+/* 小尺寸像素皇冠与保留资格的金色通关画面。 */
+.run-crown { display: inline-flex; align-items: center; gap: 5px; color: #88600b; font-size: 12px; white-space: nowrap; }
+.run-crown__icon { display: inline-block; flex: none; width: 24px; height: 22px; background: #d4a52f; filter: drop-shadow(0 1px #89620b); clip-path: polygon(0 14%,17% 14%,17% 32%,25% 32%,25% 23%,34% 23%,34% 0,66% 0,66% 23%,75% 23%,75% 32%,83% 32%,83% 14%,100% 14%,100% 72%,92% 72%,92% 100%,8% 100%,8% 72%,0 72%); vertical-align: middle; }
+.end--gold { background: radial-gradient(ellipse at top,#fff1ba,transparent 75%); border: 1px solid #d9b250; border-radius: 20px; }
+.end--gold h1 { color: #946814; text-shadow: 0 1px #fff9e4; }
+.end--gold .end__badge { display: inline-flex; align-items: center; gap: 8px; color: #88600b; background: #fff1bb; border-color: #d5b25a; }
+@media (max-width: 620px) {
+  /* 手机顶栏分两行，皇冠留在右上角，按钮文字不被挤成竖排。 */
+  .topbar { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+  .brand { justify-self: start; white-space: nowrap; }
+  .topbar__actions { grid-column: 1 / -1; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+  .topbar__actions > * { flex-shrink: 0; white-space: nowrap; }
+  .topbar__actions .ghost { font-size: 12px; padding: 5px 9px; }
+  .run-crown { position: absolute; top: 16px; right: 14px; font-size: 11px; gap: 4px; }
+  .run-crown__icon { width: 20px; height: 19px; }
+  #score-badge, .settle-bar { top: 108px; }
+  #potion-dock { top: 150px; }
+}
+
 /* 右下角入口与独立模态签纸，沿用蓝白配色；不挤占地图和战斗布局。 */
 .fortune-launch { position: fixed; right: max(20px, env(safe-area-inset-right)); bottom: max(20px, env(safe-area-inset-bottom)); z-index: 45; display: flex; align-items: center; gap: 9px; padding: 10px 18px; color: #214052; background: #d6edfc; border: 1px solid #76b5d9; border-radius: 30px; box-shadow: 0 5px 20px #28618522; font-weight: 700; }
 .fortune-launch > span { display: grid; place-items: center; width: 25px; height: 29px; border: 2px solid #5596bc; border-radius: 3px; background: #f6fbff; font-size: 15px; }
