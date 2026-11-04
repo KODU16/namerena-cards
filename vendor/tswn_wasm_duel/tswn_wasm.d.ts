@@ -33,6 +33,17 @@ export interface BattleOptions {
      * 开局体力倍率（只作用于受控队伍），1.25 = 125%
      */
     start_hp_pct?: number;
+    /**
+     * 开场遗物效果所属的运行时队伍。
+     */
+    opening_relic_team?: number;
+    healing_relic_team?: number;
+    shielding_relic_team?: number;
+    relic_damage_floor?: boolean;
+    /**
+     * 帮测贴开场属性增益所属队伍。
+     */
+    stat_relic_team?: number;
 }
 
 // 规范 core DTO 形状。没有单独的 Rust 绑定 schema。

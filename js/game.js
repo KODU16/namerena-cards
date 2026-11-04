@@ -1,4 +1,5 @@
 import { acquireAbility, normalizeAbilities, rollAbility, abilityDescription, abilityKey } from './abilities.js';
+import { RELICS, relicById, normalizeRelics } from './relics.js';
 // 局内状态、爬塔流程与存档。
 import { makeCard, hydrateCard, iconFor, statsWithWeapon, buildWithWeapon, applyRunBuff, runMultiplier, displayEightSum } from './engine.js';
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
@@ -125,6 +126,7 @@ export function createState() {
     collection: [],
     ownedTactics: [],
     abilities: [],
+    relics: [],
     run: null,
     best: 0,
     customCards: [],
@@ -143,6 +145,7 @@ export function loadSave(state) {
     state.ownedTactics = (s.ownedTactics || []);
     state.tacticPower = s.tacticPower || {};
     state.abilities = normalizeAbilities(s.abilities);
+    state.relics = normalizeRelics(s.relics);
     state.weapons = Array.isArray(s.weapons) ? s.weapons : [];
     state.customCards = (s.customCards || []).map((c) => hydrateSaved(c)).filter(Boolean);
     if (s.run && s.run.status === 'active') {
@@ -200,6 +203,7 @@ export function snapshot(state) {
     ownedTactics: state.ownedTactics,
     tacticPower: state.tacticPower || {},
     abilities: normalizeAbilities(state.abilities),
+    relics: normalizeRelics(state.relics),
     customCards: (state.customCards || []).map(slim),
     weapons: state.weapons || [],
     run: state.run,
@@ -216,6 +220,7 @@ export function restoreSnapshot(state, data) {
   state.ownedTactics = data.ownedTactics || [];
   state.tacticPower = data.tacticPower || {};
   state.abilities = normalizeAbilities(data.abilities);
+  state.relics = normalizeRelics(data.relics);
   state.customCards = (data.customCards || []).map((c) => hydrateSaved(c)).filter(Boolean);
   state.weapons = Array.isArray(data.weapons) ? data.weapons : [];
   const run = data.run || null;
@@ -246,6 +251,7 @@ export function persist(state) {
       ownedTactics: state.ownedTactics,
       tacticPower: state.tacticPower || {},
       abilities: normalizeAbilities(state.abilities),
+      relics: normalizeRelics(state.relics),
       customCards: state.customCards.map(slim),
       weapons: state.weapons || [],
       run: state.run,
@@ -568,6 +574,7 @@ export function clearNode(state) {
 
 // 奖励摘要覆盖完整奖池，供补给和宝箱回执显示真实所得与存放位置。
 export function rewardSummary(offer) {
+  if (offer.kind === 'relic') return { label: '遗物「' + relicById(offer.relic)?.name + '」', detail: relicById(offer.relic)?.description || '', destination: '获得即生效，销毁后失效。' };
   if (offer.kind === 'ability') return { label: '能力卡「' + offer.ability.name + '」', detail: abilityDescription(offer.ability), destination: '获得即永久生效；完全相同效果只保留高值，可在物品栏销毁。' };
   if (offer.kind === 'skill') return { label: '技能卡「' + skillMeta(offer.skill.id).name + '」', detail: '熟练度 ' + effectiveSkillLevel(offer.skill.lv), destination: '已放入技能卡栏，可在锻造时使用。' };
   if (offer.kind === 'tactic') return { label: '战术卡「' + offer.tactic.name + '」', detail: scaleTactic(offer.tactic, offer.power || 1).desc, destination: '已加入战术卡栏，同名保留更强的一张。' };
@@ -587,7 +594,7 @@ export function enterEvent(state, nodeId) {
   run.selectedId = nodeId;
   clearNode(state);
   const r = mulberry32((run.seed ^ (run.index * 40503) ^ 0x5f3759df) >>> 0);
-  const offers = rollRewards(state, (run.seed ^ (run.index * 2654435761)) >>> 0, false, false, node.kind === 'event');
+  const offers = rollRewards(state, (run.seed ^ (run.index * 2654435761)) >>> 0, false, false, node.kind === 'event', true);
   // 宝箱物品不含分数，也不抽取未生成成功的角色卡；额外分数独立结算。
   const pool = offers.filter((offer) => (offer.kind !== 'card' || offer.card) && (node.kind !== 'chest' || offer.kind !== 'score'));
   const pick = pool[Math.floor(r() * pool.length)];
@@ -703,6 +710,8 @@ function skillsForBuild(state, card, natural) {
     skill.lv += training.gain;
     skill.forge = training.count;
     skill.mpMul = training.mpMul;
+    if (training.playerDisperse) skill.playerDisperse = true;
+    if (training.playerShadow) skill.playerShadow = true;
   }
   return [...list.values()].filter((s) => s.lv > 0 && (s.id!=='sklshadow'||hasRareSource(s)));
 }
@@ -834,7 +843,10 @@ export function toggleTeamMember(state, charId, replaceId = null) {
 
 // 物品栏销毁
 export function destroyItem(state, kind, id) {
-  if (kind === 'ability') {
+  if (kind === 'relic') {
+    if (!(state.relics || []).includes(id)) return false;
+    state.relics = state.relics.filter((relic) => relic !== id);
+  } else if (kind === 'ability') {
     const before = (state.abilities || []).length;
     state.abilities = (state.abilities || []).filter((a) => abilityKey(a) !== id);
     if (state.abilities.length === before) return false;
@@ -1119,6 +1131,10 @@ export function rollShop(state, seed, layer = 1) {
   if (tactic) items.push({ kind: 'tactic', price: priceOf(1500), tactic, power: Math.round((1 + progress) * 10) / 10 });
   // 蓝色能力卡比普通技能/战术卡稍贵，仅在商店或补给生成。
   items.push({kind:'ability',price:priceOf(1750),ability:rollAbility(r)});
+  // 遗物不进入战后抽选，只在商店及地图自动领取来源出现。
+  for (const relic of Object.values(RELICS)) if (!(state.relics || []).includes(relic.id)) {
+    items.push({ kind: 'relic', rarity: 'gold', price: priceOf(2300), relic: relic.id });
+  }
   // 两种稀有技能均小概率出售；幻术价低于净化，单卡熟练度为 1～5。
   for(const [id,rule] of Object.entries(RARE_SKILLS))if(r()<.08)items.push({kind:'skill',rarity:'gold',price:priceOf(rule.price),
     skill:{id,lv:1+Math.floor(r()*rule.offerMax),uid:'shop-'+id+'-'+seed,[rule.tag]:true}});
@@ -1212,6 +1228,7 @@ export function curseStock(state, charId) {
 // 同时校验所有角色，绝不让部分角色先扣款；技能报价必须仍为该人物的最高技能。
 export function canBuyCurse(state, offer) {
   if (!curseHere(state) || !offer || offer.sold) return false;
+  if (offer.kind === 'relic' && (state.relics || []).includes(offer.relic)) return false;
   const cost = offer.cost;
   const rare=RARE_SKILLS[offer.skill?.id];
   if(rare){
@@ -1254,6 +1271,7 @@ export function buyShopItem(state, item) {
   if (!run || !item) return false;
   item = shopStock(state).find((offer) => offer.id === item.id);
   if (!item || item.sold) return false;
+  if (item.kind === 'relic' && (state.relics || []).includes(item.relic)) return false;
   const score = Number.isFinite(run.score) ? run.score : 0;
   if (score < item.price) return false;
   run.score = score - item.price;
@@ -1275,12 +1293,35 @@ export function enterCamp(state, nodeId) {
   return true;
 }
 
-export function campRest(state) {
+export function campRest(state, charId = state.run?.teamIds?.[0]) {
   const run = state.run;
-  if (!run) return false;
+  const node = currentNode(state);
+  if (!run || node?.kind !== 'camp' || node.id !== run.nodeId || node.restUsed) return false;
+  node.restUsed = true;
   run.restBuff = true;
+  let training = null;
+  if ((state.relics || []).includes('constructor-shard') && run.teamIds?.includes(charId)) {
+    const card = state.collection.find((item) => item.id === charId);
+    if (card) {
+      rememberSkillTraining(state, card);
+      run.relicRestCount = (run.relicRestCount || 0) + 1;
+      const rng = mulberry32((run.seed ^ (run.index * 0x9e3779b9) ^ run.relicRestCount) >>> 0);
+      const eligible = SKILL_IDS.filter(id => !card.lostSkills?.[id]);
+      const skillId = eligible[Math.floor(rng() * eligible.length)];
+      if (!skillId) { persist(state); return true; }
+      const rare = RARE_SKILLS[skillId];
+      const saved = card.skillTraining[skillId] || { gain: 0, count: 0, mpMul: 1 };
+      saved.gain += 10;
+      if (rare) saved[rare.tag] = true;
+      card.skillTraining[skillId] = saved;
+      const current = card.skillList.find((skill) => skill.id === skillId);
+      if (current) { current.lv += 10; if (rare) current[rare.tag] = true; }
+      else card.skillList.push({ id: skillId, lv: 10, cat: SKILLS[skillId].cat, playerRestricted: true, ...(rare ? { [rare.tag]: true } : {}) });
+      training = { charName: card.name, skillId };
+    }
+  }
   persist(state);
-  return true;
+  return training || true;
 }
 
 export function campForgeStat(state, charId, key) {
@@ -1387,7 +1428,7 @@ function rollRewardPoints(run, rng, elite = false) {
 }
 
 // 战斗奖励从完整奖池抽取三项供玩家选择。
-export function rollRewards(state, seed, elite = false, guaranteeScore = false, allowAbility = false) {
+export function rollRewards(state, seed, elite = false, guaranteeScore = false, allowAbility = false, allowRelic = false) {
   const r = mulberry32(seed);
   const run = state.run;
   const progress = Math.min(1, Math.max(0, ((run.layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
@@ -1425,6 +1466,9 @@ export function rollRewards(state, seed, elite = false, guaranteeScore = false, 
     pool.push({ kind: 'weapon', weapon: { id: 'w-rw-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
   }
   if (allowAbility) pool.push({kind:'ability',rarity:'blue',ability:rollAbility(r)});
+  if (allowRelic) for (const relic of Object.values(RELICS)) if (!(state.relics || []).includes(relic.id)) {
+    pool.push({ kind: 'relic', rarity: 'gold', relic: relic.id });
+  }
   const candidates = pool.filter((offer) => offer.kind !== 'card' || offer.card);
   const score = { kind: 'score', points: scorePoints };
   if (guaranteeScore) return shuffle([score, ...shuffle(candidates, r).slice(0, 2)], r);
@@ -1435,7 +1479,9 @@ export function rollRewards(state, seed, elite = false, guaranteeScore = false, 
 }
 export function applyReward(state, offer) {
   if (!state.run) return;
-  if (offer.kind === 'ability') {
+  if (offer.kind === 'relic' && relicById(offer.relic)) {
+    state.relics = normalizeRelics([...(state.relics || []), offer.relic]);
+  } else if (offer.kind === 'ability') {
     acquireAbility(state, offer.ability);
   } else if (offer.kind === 'skill') {
     state.run.skillCards = state.run.skillCards || [];

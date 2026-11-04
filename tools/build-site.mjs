@@ -74,6 +74,13 @@ for (const folder of ['assets/heroes', 'assets/characters']) {
     appSource = appSource.replaceAll(folder + '/' + name, target);
   }
 }
+// 遗物独立图标按需加载；打包动态路径并带内容指纹，避免发布后丢图。
+for (const name of (await readdir(join(root, 'assets/icons32'))).filter(n => n.startsWith('relic-') && n.endsWith('.png'))) {
+  const data = await read('assets/icons32/' + name);
+  const target = 'assets/relics/' + name.slice(0, -4) + '-' + hash(data) + '.png';
+  await emit(target, data);
+  appSource = appSource.replaceAll('assets/icons32/' + name, target);
+}
 // 签库按打开界面时才请求，带内容指纹避免更新后命中旧词库。
 const fortunes = await read('data/fortunes.json');
 const fortunePath = 'data/fortunes-' + hash(fortunes) + '.json';

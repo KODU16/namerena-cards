@@ -1,11 +1,12 @@
 import { abilityDescription, abilityKey } from './abilities.js';
+import { relicById } from './relics.js';
 import {isRareSkill,shownSkillLevel,playerSkillLevel,isTacticEnabled} from './rare-skills.js';
 import {hasHonor} from './run-honor.js';
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta, effectiveSkillLevel } from './skills.js';
 import { burstAt } from './fx.js';
 import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote, scaleTactic, constructQuote } from './game.js';
-import { makeCard, cardDisplayStats, displayEightSum } from './engine.js';
+import { makeCard, cardDisplayStats, displayEightSum, iconFor } from './engine.js';
 import { emojiImg, mapIconSvg } from './emoji.js';
 // 生成和绘制共用尺寸，保持节点半径和几何约束一致。
 import { MAP_LAYOUT, mapNodeRadius } from './map.js';
@@ -614,6 +615,20 @@ export class BattlePlayer {
 // 品质同时以颜色和文字标识，避免只靠颜色区分稀有物品。
 // 能力卡直接使用技能原图标，不加战术卡的羊皮纸底。
 export function abilityIcon(ability) { return emojiImg(ability.effect.skill, 'emoji emoji--xxl ability-icon'); }
+// 遗物图标保持现有 32px 像素图规格，悬停说明在地图和背包共用。
+export function relicIcon(id, className = 'relic-icon') {
+  const relic = relicById(id);
+  const src = relic?.icon === 'hero-rat-tail' ? iconFor('vRuH:z', '耗子尾汁') : relic?.icon || '';
+  return relic ? el('img', { class: className, src, alt: relic.name, width: '32', height: '32' }) : null;
+}
+export function relicTooltip(id) {
+  const relic = relicById(id);
+  return relic ? el('span', { class: 'relic-tooltip' }, el('b', {}, relic.name), el('span', {}, relic.description), el('em', {}, relic.flavor)) : null;
+}
+export function relicPreview(id) {
+  const relic = relicById(id);
+  return relic ? el('span', { class: 'relic-preview', tabindex: '0', 'aria-label': `${relic.name}：${relic.description}。${relic.flavor}` }, relicIcon(id), relicTooltip(id)) : null;
+}
 export function qualityBadge(rarity = 'blue') {
   return el('span', { class: 'quality-badge quality-badge--' + rarity }, rarity === 'gold' ? '金色 · 稀有' : '蓝色 · 精良');
 }
@@ -665,7 +680,7 @@ export function curseMerchantSheet(state, h) {
       const summary = rewardSummary(offer);
       return el('div', { class: 'inv__item shop-item shop-item--' + offer.rarity }, qualityBadge(offer.rarity),
         // 能力卡沿用技能原图标，不套战术卡羊皮纸底。
-        offer.ability ? abilityIcon(offer.ability) : null,
+        offer.ability ? abilityIcon(offer.ability) : offer.relic ? relicPreview(offer.relic) : null,
         el('b', {}, summary.label), el('p', { class: 'muted small' }, summary.detail),
         offer.weapon ? el('small', {}, '武器估值 ' + weaponQuote(offer.weapon).value) : null,
         offer.card ? el('small', {}, '永久属性加成：七围 +' + offer.card.forge.atk + ' · HP +' + offer.card.forge.hp) : null,
@@ -737,7 +752,8 @@ export function chestOpeningArt() {
 // 自动领取也展示完整奖励回执，避免只弹出笼统的“一件补给”。
 export function rewardReceipt(offer) {
   const summary = rewardSummary(offer);
-  const icon = offer.kind === 'potion' ? potionIcon(potionById(offer.potion.id), 40)
+  const icon = offer.kind === 'relic' ? relicPreview(offer.relic)
+    : offer.kind === 'potion' ? potionIcon(potionById(offer.potion.id), 40)
     : emojiImg(offer.ability?.effect.skill || offer.skill?.id || offer.tactic?.id || (offer.kind === 'score' ? 'coin' : offer.kind === 'weapon' ? 'normal' : 'star'), 'emoji emoji--xxl');
   return el('div', { class: 'reward-receipt' },
     el('div', { class: 'reward-receipt__heading' }, icon, el('b', {}, summary.label)),
@@ -1181,7 +1197,11 @@ export function renderMap(root, state, h) {
         el('div', {},
           el('div', { class: 'home__kicker' }, `LAYER ${run.layer || 1} / 10`),
           el('h2', {}, `第 ${run.layer || 1} 层 · 天梯 ${run.lane}`),
-          el('div', { class: 'muted map__say', id: 'map-say' }, h.say || '从下往上走：天梯名次一路变好，最后汇聚到本层名次最高的选手')),
+          el('div', { class: 'muted map__say', id: 'map-say' }, h.say || '从下往上走：天梯名次一路变好，最后汇聚到本层名次最高的选手'),
+          (state.relics || []).length ? el('div', { class: 'map__relics', 'aria-label': '持有遗物' }, state.relics.map((id) => {
+            const relic = relicById(id);
+            return relic ? el('span', { class: 'map__relic', tabindex: '0', 'aria-label': `${relic.name}：${relic.description}。${relic.flavor}` }, relicIcon(id), relicTooltip(id)) : null;
+          })) : null),
         el('div', { class: 'map__tools' }, 
           (() => { const end = g.byId.get(g.endId); const icon = end?.payload?.cards?.[0]?.icon; return el('div', { class: 'map__boss', title: '本层终点：名次最高的天梯选手' },
             icon ? el('img', { class: 'map__boss-icon', src: icon, alt: '' }) : null,
@@ -1446,6 +1466,8 @@ const CODEX_PLAYER = [
   ['MP 时机', '抽牌时定好消耗（8~23），出牌立即扣除 MP。行动所有段落结束后再显示回复，单位 MP 槽右侧蓝字列出实际回复量。'],
   ['精英试炼', '第一层为属性 ×1.2，第二层为 ×1.5；第三层起出现属性 ×2 或双倍人数的精英，数值倍率以蓝字显示。'],
   // 构造增益按外显属性计量，HP 三倍，长期投入采用递减收益。
+  // 遗物独立于能力卡，持有期间生效，可从物品栏销毁。
+  ['遗物', '宝箱、补给和商店可获得；同种只保留一件。地图上悬停查看效果，物品栏的遗物页可查看和销毁，销毁后下一场不再生效。'],
   ['构造商人', '每层有 33% 概率出现。输入可负担的整数分数（至少 250），为当前出战角色随机若干项属性永久增强，HP 按三倍增加。累计投入越多，后续单位分数收益越低。'],
   ['诅咒商人', '用全体角色黑字基础属性或卸下武器后的最高技能交换物品，HP 按三倍扣除。金色净化／幻术至少要求全体某项属性降低 50（HP 为 150），或原名字裸技能至少 70，武器、战术、锻造不计资格。成交时技能含锻造部分永久归零，武器贡献保留。'],
   ['谁听你指挥', '只有本体与分身会停下来等你下指令；幻影、使魔、丧尸由引擎自动行动。'],
@@ -1509,6 +1531,7 @@ export function inventorySheet(state, h = {}) {
     { id: 'forge', name: '锻造卡' },
     { id: 'tactics', name: '战术卡' },
     { id: 'abilities', name: '能力卡' },
+    { id: 'relics', name: '遗物' },
     { id: 'potions', name: '药水' },
     { id: 'weapons', name: '武器' },
   ];
@@ -1576,6 +1599,12 @@ export function inventorySheet(state, h = {}) {
     } else if (id === 'abilities') {
       body.replaceChildren(el('p',{class:'muted small'},'获得即生效，拥有期间永久作用于出战角色；完全相同效果仅保留高值，销毁即失效。'),
         (state.abilities || []).length ? el('div',{class:'inv__grid'},state.abilities.map(a=>el('div',{class:'inv__item ability-card'},qualityBadge('blue'),abilityIcon(a),el('b',{},a.name),el('p',{},abilityDescription(a)),del('ability',abilityKey(a),a.name)))) : el('p',{class:'muted'},'还没有能力卡，可通过补给和商店获得。'));
+    } else if (id === 'relics') {
+      body.replaceChildren((state.relics || []).length
+        ? el('div', { class: 'inv__grid' }, state.relics.map((relicId) => {
+          const relic = relicById(relicId);
+          return relic ? el('div', { class: 'inv__item relic-card', tabindex: '0' }, relicIcon(relicId), el('b', {}, relic.name), el('p', {}, relic.description), el('em', {}, relic.flavor), relicTooltip(relicId), del('relic', relicId, relic.name)) : null;
+        })) : el('p', { class: 'muted' }, '还没有遗物，可从宝箱、事件或商店获得。'));
     } else if (id === 'potions') {
       const list = (run.potions || []).filter((p) => p.n > 0);
       body.replaceChildren(list.length

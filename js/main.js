@@ -502,7 +502,8 @@ async function fight() {
   });
   // 战斗蓝字以天然属性 + 永久锻造为基线，实际值已包含武器、保底与战术。
   const battleTeam = team.map((c) => ({ ...c, battleBase: G.curseBaseStats(c) }));
-  const duel = new Duel({ wasm, iconFor }, { input, playerTeam: me.team_index, champion: team[0], team: battleTeam, enemies: opp.cards, abilities: state.abilities });
+  // 遗物只在创建本场战斗时注入，引擎直接管理一回合状态及到期清除。
+  const duel = new Duel({ wasm, iconFor }, { input, playerTeam: me.team_index, champion: team[0], team: battleTeam, enemies: opp.cards, abilities: state.abilities, relics: state.relics || [] });
   nav('battle', () => {
     renderBattleShell(root, state, null, {
       onSpeed: (x) => {
@@ -806,10 +807,11 @@ function mapScreen() {
           const items = G.shopStock(state);
           const body = el('div', { class: 'inv__grid' }, items.map((it) => el('div', { class: 'inv__item shop-item shop-item--' + it.rarity },
             UI.qualityBadge(it.rarity),
-            it.kind === 'ability' ? UI.abilityIcon(it.ability) : null,
+            it.kind === 'ability' ? UI.abilityIcon(it.ability) : it.kind === 'relic' ? UI.relicPreview(it.relic) : null,
             el('b', {}, it.kind === 'skill' ? '技能卡 ' + skillMeta(it.skill.id).name
               : it.kind === 'card' ? '角色 ' + it.card.name + '@' + it.card.clan
                 : it.kind === 'ability' ? '能力卡 ' + it.ability.name
+                : it.kind === 'relic' ? G.rewardSummary(it).label
                 : it.kind === 'weapon' ? '武器 ⚔ ' + it.weapon.name
                   : it.kind === 'potion' ? '药水 ' + (G.potionById(it.potion.id) || {}).name
                     : '战术 ' + (it.tactic?.name || '')),
@@ -839,8 +841,8 @@ function mapScreen() {
             el('button', { class: 'primary', type: 'button', onclick: () => {
               closeSheet();
               G.enterCamp(state, nodeId);
-              G.campRest(state);
-              toast('休息好了：下一场以 125% 体力开场', 2400);
+              const trained = G.campRest(state, state.run.teamIds?.[0]);
+              toast('休息好了：下一场以 125% 体力开场' + (trained?.skillId ? `；${trained.charName} 的${skillMeta(trained.skillId).name}熟练度 +10` : ''), 3000);
               mapScreen();
             } }, '休息'),
             el('button', { class: 'secondary', type: 'button', onclick: () => {

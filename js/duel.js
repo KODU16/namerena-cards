@@ -81,7 +81,7 @@ function firstDiff(a, b) {
 }
 
 export class Duel {
-  constructor(engine, { input, playerTeam, champion, team, enemies = [], abilities = [] }) {
+  constructor(engine, { input, playerTeam, champion, team, enemies = [], abilities = [], relics = [] }) {
     this.engine = engine;
     // 基线使用未套保底/武器/战术的显示属性，保留永久锻造。
     this.baseStats = new Map((team || []).map((c) => [c.name, c.battleBase || c.stats]));
@@ -92,6 +92,7 @@ export class Duel {
     this.team = team || [champion];
     this.enemies = enemies;
     this.abilities = abilities;
+    this.relics = relics;
     // 一场战斗持有一个运行时，新动作只推进当前状态，不再重放历史指令。
     this.session = null;
     this.replay = null;
@@ -127,6 +128,12 @@ export class Duel {
           include_icons: false,
           max_rounds: 20000,
           controlled_team: this.playerTeam,
+          opening_relic_team: this.relics.includes('pl-tester-v1') ? this.playerTeam : undefined,
+          healing_relic_team: this.relics.includes('cpu-fan') ? this.playerTeam : undefined,
+          shielding_relic_team: this.relics.includes('rat-tail') ? this.playerTeam : undefined,
+          relic_damage_floor: this.relics.includes('heavy-spite'),
+          // 属性遗物由引擎区分原始角色与派生单位。
+          stat_relic_team: this.relics.includes('help-test-post') ? this.playerTeam : undefined,
           start_hp_pct: this.startHpPct || undefined,
         });
         this.session.set_abilities(abilityPacket(this.abilities));

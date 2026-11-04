@@ -920,6 +920,18 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
 .map { max-width: 1180px; margin: 18px auto 0; }
 .map__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
 .map__head h2 { margin: 4px 0 2px; }
+/* 地图遗物从左到右每排十件，悬停使用原生标题展示完整效果。 */
+.map__relics { display: grid; grid-template-columns: repeat(10, minmax(0, 38px)); gap: 5px; width: min(425px, 100%); margin-top: 10px; }
+.map__relic { display: grid; place-items: center; width: 100%; aspect-ratio: 1; min-width: 0; border: 1px solid #9fc4dc; border-radius: 9px; background: #edf8ff; cursor: help; }
+.map__relic, .relic-card, .relic-preview { position: relative; }
+.relic-preview { display: inline-block; cursor: help; }
+.relic-tooltip { display: none; position: absolute; top: calc(100% + 8px); left: 0; z-index: 30; width: min(300px, 80vw); padding: 12px; border: 1px solid #82b7d7; border-radius: 10px; background: #f9fdff; box-shadow: 0 10px 28px #234a5c40; color: #234052; font-size: 12px; line-height: 1.5; text-align: left; white-space: normal; }
+.relic-tooltip > b, .relic-tooltip > span, .relic-tooltip > em { display: block; }
+.relic-tooltip > em { margin-top: 12px; font-style: italic; color: #5b7281; }
+.map__relic:hover .relic-tooltip, .map__relic:focus .relic-tooltip, .relic-card:hover .relic-tooltip, .relic-card:focus .relic-tooltip, .relic-preview:hover .relic-tooltip, .relic-preview:focus .relic-tooltip { display: block; }
+.relic-icon { display: block; width: 32px; height: 32px; image-rendering: pixelated; }
+.relic-icon--large { width: 40px; height: 40px; }
+.relic-card p { margin: 7px 0; font-size: 12px; line-height: 1.5; }
 .map__legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); }
 .map-legend { display: inline-flex; align-items: center; gap: 5px; }
 .map-legend::before { content: ''; width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
@@ -1436,3 +1448,14 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
 .construct-shop .field { display: grid; gap: 8px; margin: 16px 0; }
 .construct-shop input, .construct-shop select { width: 100%; min-width: 0; box-sizing: border-box; }
 .construct-result { margin-top: 20px; padding: 14px; border: 1px solid #b3d6ed; border-radius: 12px; color: #246fa0; overflow-wrap: anywhere; }
+
+/* 小屏十列遗物与说明框一起限制在可用宽度内。 */
+.map__relic .relic-icon { max-width: 100%; height: auto; }
+.map__relics { position: relative; }
+.map__relic { position: static; }
+.map__relic .relic-tooltip { left: 0; right: auto; }
+
+/* 遗物说明与风味文字分行，销毁按钮固定在卡片底部。 */
+.relic-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.relic-card > em { display: block; margin: 6px 0 12px; font-size: 12px; line-height: 1.5; }
+.relic-card > button { margin-top: auto; }

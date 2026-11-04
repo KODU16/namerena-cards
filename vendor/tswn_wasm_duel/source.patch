@@ -15,65 +15,6 @@ index b6d81a36..47e98057 100644
  [profile.release-fast]
  inherits = "release"
  lto = "thin"
-diff --git a/FORK.md b/FORK.md
-new file mode 100644
-index 00000000..1a43b2b9
---- /dev/null
-+++ b/FORK.md
-@@ -0,0 +1,53 @@
-+# 卡牌引擎补丁说明
-+
-+以 shenjackyuanjie/tswn-core 的 5237f2b30a46b6658c6aefd49b2c4e97a2b81080 为基线。卡牌改动与审查修复通过 cards 仓库中的 source.patch 归档；本次不再提交引擎分支。
-+
-+## 构建
-+
-+使用 GNU 工具链及 MinGW，安装 wasm32-unknown-unknown 和匹配的 wasm-bindgen-cli 后：
-+
-+~~~powershell
-+cargo build -p tswn_wasm --target wasm32-unknown-unknown --profile release-wasm
-+wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/release-wasm/tswn_wasm.wasm
-+node tools/test-forced.mjs dist
-+~~~
-+
-+release-wasm 独立设置体积优化和符号裁剪，不影响 workspace 的普通 release。产物使用标准 .wasm 扩展名。
-+
-+## 行动与暂停
-+
-+battle_replay_forced(raw, new Uint32Array([actor, skill, packed, ...]), options) 只接收完整三元组。
-+skill 为主动技能公开编号 0..24，255 表示普通攻击；被动及非法编号报错。
-+packed 的低 8 位是 MP 消耗（0 表示现场掷值），高 8 位是药水编号：0 无药水、1..7 攻防速敏魔抗智、9 体力、10 MP；其它编号或溢出报错。
-+普通攻击 skill=255 独立于技能耗蓝分支，始终不检查或扣除 MP，也不掷技能费用骰；负 MP 同样可以提交和续行，行动结束后照常回复 MP。
-+药水与同一条行动绑定，属性药水按实体分别保存，到该实体下次行动前还原，暂停等待指令不提前消耗药效。
-+合法技能无法生效时，回放明确记录退化为普通攻击；无可攻击目标时保留行动并暂停。
-+
-+controlled_team 指定 runtime 队伍编号（取自 initial_states）。该队伍本体和分身等待指令，幻影、使魔、丧尸自动行动。潜行背刺等引擎强制动作优先。
-+暂停返回 stop_reason="paused"、paused_actor，status 仍为 running，不能视为终局。
-+BattleSession 的同名选项同样生效，调用 paused_actor() 取实体，再 submit_action(actor,skill,packed) 后调用 next_frame() 继续。
-+暂停会还原准备阶段的随机流、行动条和药水状态，续行与一次性批量回放一致。会话交错推进不会共享控制或药水状态。
-+
-+start_hp_pct 必须是正的有限倍率且同时指定 controlled_team，支持 0.5 等小于 1 的值，仅修改该队伍开局 HP；max_hp 不变。
-+BattlePlayerState.skills 是技能导出名与当前熟练度的二元组数组。TypeScript、Python DTO 与 C 的 paused 枚举已同步；C V1 options 保持原 ABI，以默认值填充新增选项。
-+
-+## 验证
-+
-+Rust 行为回归覆盖封包校验、角色药水交叠与失效、流式和批量回放一致、交错会话隔离、开局 HP 边界。
-+tools/test-forced.mjs 对编译后的真实 WASM 执行相应验证。默认不指定 controlled_team 的战斗不执行卡牌专用潜行修复。
-+
-+## 持久战斗会话
-+
-+网站实战创建 BattleSession 后持续持有同一运行时。每次出牌仅 submit_action，再调用 next_frame 取得新增战报；生命、MP、分身、状态和随机流从当前边界继续，等待出牌期间不推进。结算或退出时 free。battle_replay_forced 仅供离线回放与回归对照，不用于每次出牌。
-+
-+批量兼容接口的队列可引用之后生成的分身，不能用开局实体表提前拒绝其 id；指令仅在 Runtime 实际调度该实体时消费。Rust 回归覆盖分身连续出牌以及持久会话与离线回放结果一致。
-+
-+## 能力卡
-+
-+受控 BattleSession 在首次推进前调用 set_abilities(Uint32Array)。三元组依次为技能编号、MP 减耗、独立效果倍率（万分比，10000 为原值）；编号顺序见 runtime/forced_action.rs 的 ABILITY_SKILLS。主动技能编号 0..24 与出牌编号一致，25..36 为被动、使魔自爆及附体。非法、重复或残缺封包报错。未配置能力的普通战斗保持原行为。
-+
-+能力仅属于受控角色原始队伍及其派生单位，交错会话不共享。随机攻击强度在原掷骰后乘算，不增加 RNG 消耗；护盾、护身符、吞噬资源、垂死抗争和隐匿在各自数值结算入口乘算。MP 减耗在技能扣费边界生效，主动技能最低 1 MP，被动最低 0 MP。前端传原始费用，显示减耗后费用，避免扣减两次。
-+
-+能力不写入技能表，不改变原始或有效熟练度、抽牌权重、技能发动概率；超过 106 的原始熟练度仍按既有有效 106 规则计算。覆盖高值与销毁由网站存档层管理，战斗只接收最终持有效果。
-+
-+卡牌受控队伍及其派生单位的幻术发动概率按有效熟练度 5 封顶，吞噬获得更高原始值也不绕过；原始值不裁剪，敌方天然技能和未受控普通引擎对局保持原行为。前端在卡面、抽牌及初始战斗输入处使用相同的 5 上限。
 diff --git a/crates/tswn_capi/include/tswn_capi.h b/crates/tswn_capi/include/tswn_capi.h
 index 963a95af..57340edb 100644
 --- a/crates/tswn_capi/include/tswn_capi.h
@@ -129,10 +70,20 @@ index 062e6f08..5d1fe314 100644
          )
          .map_err(cli_api_error)?;
 diff --git a/crates/tswn_core/src/cli_api/battle/driver.rs b/crates/tswn_core/src/cli_api/battle/driver.rs
-index c5a769ff..d4adfc2a 100644
+index c5a769ff..cd1e7943 100644
 --- a/crates/tswn_core/src/cli_api/battle/driver.rs
 +++ b/crates/tswn_core/src/cli_api/battle/driver.rs
-@@ -11,6 +11,7 @@ pub(super) struct BattleDriver {
+@@ -1,7 +1,8 @@
+ use super::{BattleOptions, BattleStopReason};
+ use crate::cli_api::{CliApiError, CliApiResult, invalid_input};
+ use crate::runtime::model_state::{BattleModelState, ModelStateError};
+-use crate::runtime::{RunUpdates, RuntimeRunner};
++use crate::runtime::profile::{DEFAULT_CORE_HASTE_STATE_EXPORT, DEFAULT_CORE_SLOW_STATE_EXPORT, PLAIN_HASTE_STATE_KEY};
++use crate::runtime::{RunUpdates, RuntimeRunner, StateEntry};
+ 
+ /// 两种会话共享的逐回合驱动；展示层仍在每个空回合后更新差分快照。
+ #[derive(Debug)]
+@@ -11,6 +12,7 @@ pub(super) struct BattleDriver {
      pub frames_emitted: usize,
      pub stop_reason: Option<BattleStopReason>,
      pub failure: Option<CliApiError>,
@@ -140,7 +91,7 @@ index c5a769ff..d4adfc2a 100644
      max_rounds: usize,
      no_progress_rounds: usize,
  }
-@@ -23,6 +24,8 @@ pub(super) struct RoundStep {
+@@ -23,6 +25,8 @@ pub(super) struct RoundStep {
  
  impl BattleDriver {
      pub fn from_raw(raw: &str, options: BattleOptions) -> CliApiResult<Self> {
@@ -149,7 +100,7 @@ index c5a769ff..d4adfc2a 100644
          if raw.trim().is_empty() {
              return Err(invalid_input("raw_input is empty"));
          }
-@@ -33,9 +36,33 @@ impl BattleDriver {
+@@ -33,9 +37,86 @@ impl BattleDriver {
              return Err(CliApiError::InvalidArgument("battle eval_rq must be finite".into()));
          }
          let (groups, seed) = RuntimeRunner::split_namerena_into_groups(raw.to_owned());
@@ -164,6 +115,59 @@ index c5a769ff..d4adfc2a 100644
 +        let mut runner = RuntimeRunner::new_from_groups_with_seed_and_eval_rq(&groups, &seed, options.eval_rq)
              .map_err(|e| CliApiError::RunnerInit(e.to_string()))?;
 -        Self::new(runner, options.max_rounds)
++        {
++            let runtime = runner.runtime_mut();
++            runtime.relic_heal_team = options.healing_relic_team;
++            runtime.relic_shield_team = options.shielding_relic_team;
++            runtime.relic_damage_floor = options.relic_damage_floor;
++        }
++        // 独立原始角色记录两项不同加成，clone_build 与召唤蓝图保持未加成状态。
++        if let Some(team) = options.stat_relic_team {
++            let runtime = runner.runtime_mut();
++            for entity in runtime
++                .entities
++                .iter_all_mut()
++                .filter(|e| e.runtime.alive && e.runtime.team == team && e.runtime.owner == e.runtime.root_owner)
++            {
++                let first = runtime.rng.next_u8() as usize % 8;
++                let mut byte = runtime.rng.next_u8();
++                while byte >= 252 {
++                    byte = runtime.rng.next_u8();
++                }
++                let mut second = byte as usize % 7;
++                if second >= first {
++                    second += 1;
++                }
++                entity.template.opening_bonus[first] = if first == 7 { 30 } else { 10 };
++                entity.template.opening_bonus[second] = if second == 7 { 30 } else { 10 };
++                entity.template.apply_opening_bonus();
++                entity.runtime.hp += entity.template.opening_bonus[7];
++                entity.refresh_runtime_stats_from_template();
++            }
++        }
++        if let Some(team) = options.opening_relic_team {
++            let runtime = runner.runtime_mut();
++            let haste_id = runtime
++                .registry
++                .state_id_by_export_name(DEFAULT_CORE_HASTE_STATE_EXPORT)
++                .expect("default profile must register haste");
++            let slow_id = runtime
++                .registry
++                .state_id_by_export_name(DEFAULT_CORE_SLOW_STATE_EXPORT)
++                .expect("default profile must register slow");
++            let haste_priority = runtime.registry.state(haste_id).expect("haste state disappeared").priority;
++            let slow_priority = runtime.registry.state(slow_id).expect("slow state disappeared").priority;
++            // 沿用技能本身的状态键与持续计数，开场快照和行动顺序立即反映遗物效果。
++            for entity in runtime.entities.iter_all_mut().filter(|entity| entity.runtime.alive) {
++                if entity.runtime.team == team {
++                    entity
++                        .states
++                        .add_entry(StateEntry::haste(PLAIN_HASTE_STATE_KEY, haste_id, 2, 1, haste_priority));
++                } else {
++                    entity.states.add_entry(StateEntry::slow(78, slow_id, 1, slow_priority));
++                }
++            }
++        }
 +        // 重放队列可引用战斗中才生成的分身，不能用开局实体表拒绝其 id。
 +        // 指令只在 Runtime 实际调度该实体时按 actor 取用。
 +        if let Some(team) = options.controlled_team {
@@ -185,7 +189,7 @@ index c5a769ff..d4adfc2a 100644
      }
  
      pub fn new(runner: RuntimeRunner, max_rounds: usize) -> CliApiResult<Self> {
-@@ -50,6 +77,7 @@ impl BattleDriver {
+@@ -50,6 +131,7 @@ impl BattleDriver {
              frames_emitted: 0,
              no_progress_rounds: 0,
              failure: None,
@@ -193,7 +197,7 @@ index c5a769ff..d4adfc2a 100644
          })
      }
  
-@@ -73,7 +101,18 @@ impl BattleDriver {
+@@ -73,7 +155,18 @@ impl BattleDriver {
              return Err(error);
          }
          let round_index = self.rounds_advanced;
@@ -214,10 +218,10 @@ index c5a769ff..d4adfc2a 100644
          let visible = !updates.updates.is_empty() || self.runner.have_winner();
          self.no_progress_rounds = if visible { 0 } else { self.no_progress_rounds + 1 };
 diff --git a/crates/tswn_core/src/cli_api/battle/dto.rs b/crates/tswn_core/src/cli_api/battle/dto.rs
-index 4afd2472..7b3bc5e8 100644
+index 4afd2472..5f63bf41 100644
 --- a/crates/tswn_core/src/cli_api/battle/dto.rs
 +++ b/crates/tswn_core/src/cli_api/battle/dto.rs
-@@ -14,6 +14,10 @@ pub struct BattleOptions {
+@@ -14,6 +14,18 @@ pub struct BattleOptions {
      pub include_icons: bool,
      /// 正整数的 Runtime 推进回合上限，包含空回合；默认 20,000。
      pub max_rounds: usize,
@@ -225,19 +229,32 @@ index 4afd2472..7b3bc5e8 100644
 +    pub controlled_team: Option<usize>,
 +    /// 开局体力倍率（如 1.25 表示以 125% 体力开场）；只作用于受控队伍。
 +    pub start_hp_pct: Option<f64>,
++    /// 初版 PL 测号器持有者的运行时队伍；开场附加一回合疾走与迟缓。
++    pub opening_relic_team: Option<usize>,
++    /// 按行动回合为该队伍恢复生命和护盾；戾气对交战双方对称生效。
++    pub healing_relic_team: Option<usize>,
++    pub shielding_relic_team: Option<usize>,
++    pub relic_damage_floor: bool,
++    /// 帮测贴：仅开局原始友方随机两项属性增强。
++    pub stat_relic_team: Option<usize>,
  }
  
  impl Default for BattleOptions {
-@@ -22,6 +26,8 @@ impl Default for BattleOptions {
+@@ -22,6 +34,13 @@ impl Default for BattleOptions {
              eval_rq: crate::namerena::eval_name::DEFAULT_EVAL_RQ,
              include_icons: false,
              max_rounds: BINDING_COMPLETION_MAX_ROUNDS,
 +            controlled_team: None,
 +            start_hp_pct: None,
++            opening_relic_team: None,
++            healing_relic_team: None,
++            shielding_relic_team: None,
++            relic_damage_floor: false,
++            stat_relic_team: None,
          }
      }
  }
-@@ -29,6 +35,8 @@ impl Default for BattleOptions {
+@@ -29,6 +48,8 @@ impl Default for BattleOptions {
  #[derive(Debug, Clone, PartialEq, Serialize)]
  /// 完整收集同一 [`super::BattleSession`] 的规范回放。
  pub struct BattleReplay {
@@ -246,7 +263,7 @@ index 4afd2472..7b3bc5e8 100644
      pub status: BattleStatus,
      pub stop_reason: BattleStopReason,
      pub rounds_advanced: usize,
-@@ -99,6 +107,8 @@ pub struct BattlePlayerState {
+@@ -99,6 +120,8 @@ pub struct BattlePlayerState {
      pub active: bool,
      /// 人类可读的状态描述；完整载荷可从机制状态查阅。
      pub status_labels: Vec<String>,
@@ -255,7 +272,7 @@ index 4afd2472..7b3bc5e8 100644
  }
  
  impl ReplayState for BattlePlayerState {
-@@ -115,6 +125,7 @@ impl ReplayState for BattlePlayerState {
+@@ -115,6 +138,7 @@ impl ReplayState for BattlePlayerState {
      fn with_shield(&self, shield: i32) -> Self {
          Self {
              shield: if self.alive { shield.max(0) } else { 0 },
@@ -263,7 +280,7 @@ index 4afd2472..7b3bc5e8 100644
              ..self.clone()
          }
      }
-@@ -216,6 +227,7 @@ pub enum BattleStopReason {
+@@ -216,6 +240,7 @@ pub enum BattleStopReason {
      Winner,
      MaxRounds,
      NoProgress,
@@ -324,7 +341,7 @@ index 2ccdaefa..d6e0722d 100644
  mod tests {
      use super::*;
 diff --git a/crates/tswn_core/src/cli_api/battle/session.rs b/crates/tswn_core/src/cli_api/battle/session.rs
-index fefc009d..0992b36b 100644
+index fefc009d..33d46d94 100644
 --- a/crates/tswn_core/src/cli_api/battle/session.rs
 +++ b/crates/tswn_core/src/cli_api/battle/session.rs
 @@ -34,6 +34,7 @@ pub struct BattleSession {
@@ -461,7 +478,7 @@ index fefc009d..0992b36b 100644
          let filled_cache = cache.clone();
          assert_eq!(states_from_runner(&runner, true, &mut cache), with_icons);
          assert_eq!(cache, filled_cache);
-@@ -817,3 +878,221 @@ seed:7@!"#;
+@@ -817,3 +878,315 @@ seed:7@!"#;
          }
      }
  }
@@ -683,6 +700,100 @@ index fefc009d..0992b36b 100644
 +        );
 +    }
 +}
++
++#[cfg(test)]
++mod relic_tests {
++    use super::*;
++    use crate::runtime::{EntityIdx, RunUpdates};
++    fn raw(seed: usize) -> String {
++        format!(
++            "one@red+ol:{{\"attrs\":[60,60,150,60,60,60,100,20000],\"skills\":{{\"sklclone\":106,\"sklsummon\":40}},\"name_factor_enabled\":false}}\n\nenemy@blue+ol:{{\"attrs\":[40,40,100,40,40,40,80,20000],\"skills\":{{}},\"name_factor_enabled\":false}}\nseed:relic{seed}@!"
++        )
++    }
++    fn attrs(e: &crate::runtime::EntityRecord) -> [i32; 8] {
++        [
++            e.runtime.attack,
++            e.runtime.defense,
++            e.runtime.speed,
++            e.runtime.agility,
++            e.runtime.magic,
++            e.runtime.resistance,
++            e.runtime.wisdom,
++            e.template.max_hp,
++        ]
++    }
++    // 每个种子验证两项不同加成，并用同一随机流比较真实分身前后的本体和子体。
++    #[test]
++    fn opening_stat_relic_stays_on_original_after_clone() {
++        let mut seen = [false; 8];
++        for seed in 0..80 {
++            let mut plain = BattleSession::new(&raw(seed), BattleOptions::default()).unwrap();
++            let mut boosted = BattleSession::new(
++                &raw(seed),
++                BattleOptions {
++                    stat_relic_team: Some(0),
++                    ..BattleOptions::default()
++                },
++            )
++            .unwrap();
++            let base = plain.driver.runner.runtime_mut();
++            let buff = boosted.driver.runner.runtime_mut();
++            let actor = base.entities.iter().find(|(_, e)| e.runtime.team == 0).unwrap().0;
++            let enemy = base.entities.iter().find(|(_, e)| e.runtime.team != 0).unwrap().0;
++            let bonus = buff.entities.get(actor).unwrap().template.opening_bonus;
++            assert_eq!(bonus.iter().filter(|n| **n > 0).count(), 2);
++            for i in 0..8 {
++                seen[i] |= bonus[i] > 0;
++            }
++            assert_eq!(
++                attrs(buff.entities.get(enemy).unwrap()),
++                attrs(base.entities.get(enemy).unwrap())
++            );
++            let before = attrs(base.entities.get(actor).unwrap());
++            assert_eq!(
++                attrs(buff.entities.get(actor).unwrap()),
++                std::array::from_fn(|i| before[i] + bonus[i])
++            );
++            buff.rng = base.rng.clone();
++            let lane = base
++                .entities
++                .get(actor)
++                .unwrap()
++                .template
++                .skills
++                .skills()
++                .iter()
++                .position(|id| base.registry.skill(*id).unwrap().export_name == "core.skill.clone")
++                .unwrap();
++            base.drain_plain_clone_skill_into(actor, lane, &mut RunUpdates::new());
++            buff.drain_plain_clone_skill_into(actor, lane, &mut RunUpdates::new());
++            let after = attrs(base.entities.get(actor).unwrap());
++            assert_eq!(
++                attrs(buff.entities.get(actor).unwrap()),
++                std::array::from_fn(|i| after[i] + bonus[i])
++            );
++            let child = EntityIdx((base.entities.len() - 1) as u32);
++            assert_eq!(
++                attrs(buff.entities.get(child).unwrap()),
++                attrs(base.entities.get(child).unwrap())
++            );
++            assert_eq!(
++                buff.entities.get(child).unwrap().runtime.hp,
++                base.entities.get(child).unwrap().runtime.hp
++            );
++            assert_eq!(buff.entities.get(child).unwrap().template.opening_bonus, [0; 8]);
++            // 明确启用继承防抗的召唤模板，也不能复制帮测贴的两项加成。
++            let template = crate::runtime::PlayerTemplate::new(99, "test-summon", 0, 100, 20)
++                .with_policy_overrides(crate::runtime::PlayerPolicyOverrides::default().with_inherit_owner_def_res(true));
++            let spawned = buff
++                .entities
++                .spawn_from_template_with_owner(template, &buff.registry, Some(actor), Some(actor));
++            assert_eq!(buff.entities.get(spawned).unwrap().runtime.defense, after[1]);
++            assert_eq!(buff.entities.get(spawned).unwrap().runtime.resistance, after[5]);
++        }
++        assert!(seen.iter().all(|n| *n));
++    }
++}
 diff --git a/crates/tswn_core/src/runtime/combat/abilities.rs b/crates/tswn_core/src/runtime/combat/abilities.rs
 new file mode 100644
 index 00000000..3453a801
@@ -814,8 +925,36 @@ index 00000000..3453a801
 +        assert_eq!(player.template.skills.level_at(0), Some(106));
 +    }
 +}
+diff --git a/crates/tswn_core/src/runtime/combat/attack.rs b/crates/tswn_core/src/runtime/combat/attack.rs
+index 9565b21d..de0c800d 100644
+--- a/crates/tswn_core/src/runtime/combat/attack.rs
++++ b/crates/tswn_core/src/runtime/combat/attack.rs
+@@ -472,6 +472,12 @@ impl CombatRuntime {
+         let Some(amount) = defend_value.damage() else {
+             panic!("runtime POST_DEFEND hooks must leave a damage value");
+         };
++        // 在附加效果之前拦截低额交战伤害，净化等命中效果随本次伤害一同失效。
++        let amount = if self.relic_blocks_damage(actor, target, amount) {
++            0
++        } else {
++            amount
++        };
+         #[cfg(not(feature = "no_debug"))]
+         if debug_attack {
+             eprintln!(
+@@ -523,6 +529,10 @@ impl CombatRuntime {
+         on_damage: PlainAttackOnDamage,
+         updates: &mut RunUpdates,
+     ) -> bool {
++        if self.relic_blocks_damage(caster, target, amount) {
++            updates.add(RuntimeFrame::legacy_damage_update(caster.0 as usize, target.0 as usize, 0));
++            return false;
++        }
+         let target_entity = self
+             .entities
+             .get_mut(target)
 diff --git a/crates/tswn_core/src/runtime/combat/defense.rs b/crates/tswn_core/src/runtime/combat/defense.rs
-index 16b90782..f5eb05e8 100644
+index 16b90782..222358e7 100644
 --- a/crates/tswn_core/src/runtime/combat/defense.rs
 +++ b/crates/tswn_core/src/runtime/combat/defense.rs
 @@ -205,6 +205,7 @@ impl CombatRuntime {
@@ -826,11 +965,116 @@ index 16b90782..f5eb05e8 100644
              let protector_ready = trigger_ok && self.entity_mp_ready(link.owner);
  
              #[cfg(not(feature = "no_debug"))]
+@@ -323,7 +324,7 @@ impl CombatRuntime {
+                 (
+                     entity.template.skills.hook_generation(),
+                     entity.states.generation(),
+-                    entity.runtime.shield > 0,
++                    entity.runtime.shield > 0 || self.relic_shields.get(&target.0).is_some_and(|shield| *shield > 0),
+                 )
+             };
+             let skill_plan = self
+@@ -395,7 +396,8 @@ impl CombatRuntime {
+                     .unwrap_or_else(|| panic!("runtime 防御钩子目标已消失：{}", target.0));
+                 rebuild = entity.template.skills.hook_generation() != skill_generation
+                     || entity.states.generation() != state_generation
+-                    || (entity.runtime.shield > 0) != shield_active;
++                    || (entity.runtime.shield > 0 || self.relic_shields.get(&target.0).is_some_and(|shield| *shield > 0))
++                        != shield_active;
+                 if rebuild {
+                     break;
+                 }
+@@ -413,17 +415,22 @@ impl CombatRuntime {
+         if damage <= 0 {
+             return;
+         }
++        let target_id = target;
+         let target = self
+             .entities
+             .get_mut(target)
+             .unwrap_or_else(|| panic!("runtime shield target disappeared: {}", target.0));
+-        if target.runtime.shield <= 0 {
++        let relic_shield = self.relic_shields.entry(target_id.0).or_default();
++        if target.runtime.shield <= 0 && *relic_shield <= 0 {
+             return;
+         }
+-        if damage > target.runtime.shield {
++        if damage > target.runtime.shield + *relic_shield {
+             target.runtime.shield = 0;
++            *relic_shield = 0;
+         } else {
+-            target.runtime.shield -= damage;
++            let from_skill = damage.min(target.runtime.shield);
++            target.runtime.shield -= from_skill;
++            *relic_shield -= damage - from_skill;
+             defend_value.set_damage(0);
+         }
+     }
+@@ -466,6 +473,9 @@ impl CombatRuntime {
+         amount: i32,
+         updates: &mut RunUpdates,
+     ) -> bool {
++        if self.relic_blocks_damage(caster, target, amount) {
++            return false;
++        }
+         let target_entity = self
+             .entities
+             .get_mut(target)
+@@ -489,6 +499,9 @@ impl CombatRuntime {
+         updates: &mut RunUpdates,
+         replay: fn(usize, usize, i32) -> crate::runtime::update::RunUpdate,
+     ) -> bool {
++        if self.relic_blocks_damage(caster, target, amount) {
++            return false;
++        }
+         let Some(target_entity) = self.entities.get_mut(target) else {
+             panic!("unknown runtime damage target entity: {}", target.0);
+         };
+@@ -513,6 +526,9 @@ impl CombatRuntime {
+         amount: i32,
+         updates: &mut RunUpdates,
+     ) -> bool {
++        if self.relic_blocks_damage(caster, target, amount) {
++            return false;
++        }
+         let target_entity = self
+             .entities
+             .get_mut(target)
+@@ -535,6 +551,9 @@ impl CombatRuntime {
+         amount: i32,
+         updates: &mut RunUpdates,
+     ) -> bool {
++        if self.relic_blocks_damage(caster, target, amount) {
++            return false;
++        }
+         let Some(target_entity) = self.entities.get_mut(target) else {
+             panic!("unknown runtime disperse damage target entity: {}", target.0);
+         };
 diff --git a/crates/tswn_core/src/runtime/combat/effects.rs b/crates/tswn_core/src/runtime/combat/effects.rs
-index f1360c53..7b11bb02 100644
+index f1360c53..ab7cf986 100644
 --- a/crates/tswn_core/src/runtime/combat/effects.rs
 +++ b/crates/tswn_core/src/runtime/combat/effects.rs
-@@ -498,8 +498,10 @@ impl CombatRuntime {
+@@ -129,7 +129,8 @@ impl CombatRuntime {
+                         };
+                         if self.apply_plain_legacy_damage_into(caster, target, amount, updates) {
+                             self.drain_plain_lethal_damage_into(caster, target, updates);
+-                        } else if amount > 0 {
++                        } else if amount > 0 && !self.relic_blocks_damage(caster, target, amount) {
++                            // 戾气拦截伤害时也跳过燃烧附加效果。
+                             self.apply_fire_on_damage(target, fire_state_key);
+                         }
+                     }
+@@ -191,7 +192,8 @@ impl CombatRuntime {
+                         };
+                         if self.apply_plain_legacy_damage_into(caster, target, amount, updates) {
+                             self.drain_plain_lethal_damage_into(caster, target, updates);
+-                        } else if amount > 0 {
++                        } else if amount > 0 && !self.relic_blocks_damage(caster, target, amount) {
++                            // 戾气拦截伤害时也跳过燃烧附加效果。
+                             self.apply_fire_on_damage(target, fire_state_key);
+                         }
+                     }
+@@ -498,8 +500,10 @@ impl CombatRuntime {
          self.ensure_effect_entity("merge", "target", target);
          let target_skills = self.entities.get(target).unwrap().template.skills.clone();
          let target_build = self.entities.get(target).unwrap().template.clone_build.clone();
@@ -844,10 +1088,21 @@ index f1360c53..7b11bb02 100644
              let caster_entity = self
                  .entities
 diff --git a/crates/tswn_core/src/runtime/combat/lifecycle.rs b/crates/tswn_core/src/runtime/combat/lifecycle.rs
-index 92e74615..cb214757 100644
+index 92e74615..110861b4 100644
 --- a/crates/tswn_core/src/runtime/combat/lifecycle.rs
 +++ b/crates/tswn_core/src/runtime/combat/lifecycle.rs
-@@ -259,6 +259,10 @@ impl CombatRuntime {
+@@ -40,6 +40,10 @@ impl CombatRuntime {
+             #[cfg(not(feature = "no_debug"))]
+             trace: None,
+             round: 0,
++            relic_heal_team: None,
++            relic_shield_team: None,
++            relic_damage_floor: false,
++            relic_shields: Default::default(),
+         }
+     }
+ 
+@@ -259,6 +263,10 @@ impl CombatRuntime {
          selected_target: Option<EntityIdx>,
      ) {
          for entry in entries {
@@ -858,7 +1113,7 @@ index 92e74615..cb214757 100644
              let (handler, capabilities) = if let Some(static_handler) = self.builtin_static_skill_handler(entry.skill_id) {
                  static_handler
              } else {
-@@ -325,6 +329,11 @@ impl CombatRuntime {
+@@ -325,6 +333,11 @@ impl CombatRuntime {
          defend_value: &mut RuntimeDefendValue,
          on_damage: PlainAttackOnDamage,
      ) {
@@ -871,7 +1126,7 @@ index 92e74615..cb214757 100644
              static_handler
          } else {
 diff --git a/crates/tswn_core/src/runtime/combat/mod.rs b/crates/tswn_core/src/runtime/combat/mod.rs
-index 11a65d86..bbc73a59 100644
+index 11a65d86..8ecb90a8 100644
 --- a/crates/tswn_core/src/runtime/combat/mod.rs
 +++ b/crates/tswn_core/src/runtime/combat/mod.rs
 @@ -7,6 +7,7 @@
@@ -882,6 +1137,31 @@ index 11a65d86..bbc73a59 100644
  mod attack;
  mod defense;
  mod effects;
+@@ -91,4 +92,24 @@ pub struct CombatRuntime {
+     #[cfg(not(feature = "no_debug"))]
+     pub trace: Option<RuntimeTrace>,
+     pub round: u64,
++    /// 仅网站遗物启用；普通引擎对局保持原始规则。
++    pub relic_heal_team: Option<usize>,
++    pub relic_shield_team: Option<usize>,
++    pub relic_damage_floor: bool,
++    /// 遗物护盾与技能护盾分别累计，再在防御结算时共同吸收伤害。
++    pub relic_shields: std::collections::HashMap<u32, i32>,
++}
++
++impl CombatRuntime {
++    /// 戾气只拦截敌对双方的低额伤害，队友、自伤与回复不受影响。
++    pub(crate) fn relic_blocks_damage(&self, caster: EntityIdx, target: EntityIdx, amount: i32) -> bool {
++        self.relic_damage_floor
++            && amount > 0
++            && amount < 30
++            && self
++                .entities
++                .get(caster)
++                .zip(self.entities.get(target))
++                .is_some_and(|(from, to)| from.runtime.team != to.runtime.team)
++    }
+ }
 diff --git a/crates/tswn_core/src/runtime/combat/passive.rs b/crates/tswn_core/src/runtime/combat/passive.rs
 index f359622c..74031209 100644
 --- a/crates/tswn_core/src/runtime/combat/passive.rs
@@ -895,7 +1175,7 @@ index f359622c..74031209 100644
                  continue;
              }
 diff --git a/crates/tswn_core/src/runtime/combat/round.rs b/crates/tswn_core/src/runtime/combat/round.rs
-index 05132896..76b3f018 100644
+index 05132896..07f69e91 100644
 --- a/crates/tswn_core/src/runtime/combat/round.rs
 +++ b/crates/tswn_core/src/runtime/combat/round.rs
 @@ -73,7 +73,19 @@ impl CombatRuntime {
@@ -932,7 +1212,42 @@ index 05132896..76b3f018 100644
                  return Some(self.finish_round_with_capture::<CAPTURE_UPDATES>(None, updates));
              };
              match &prepared {
-@@ -347,12 +364,114 @@ impl CombatRuntime {
+@@ -312,6 +329,34 @@ impl CombatRuntime {
+         updates: RunUpdates,
+     ) -> RoundOutcome {
+         debug_assert_eq!(updates.capture_updates, CAPTURE_UPDATES);
++        // 每次实际行动结束后恢复全队；空调度步不触发遗物。
++        if action.is_some() {
++            let shield_skill = self
++                .registry
++                .skill_id_by_export_name(crate::runtime::profile::DEFAULT_CORE_SHIELD_SKILL_EXPORT);
++            let living: Vec<_> = self
++                .entities
++                .iter()
++                .filter(|(_, entity)| entity.runtime.alive)
++                .map(|(id, _)| id)
++                .collect();
++            for entity_id in living {
++                let entity = self.entities.get_mut(entity_id).expect("living relic target disappeared");
++                if self.relic_heal_team == Some(entity.runtime.team) {
++                    let heal = ((entity.template.max_hp as f64) * 0.03).ceil() as i32;
++                    entity.runtime.hp = (entity.runtime.hp + heal.max(1)).min(entity.template.max_hp).max(entity.runtime.hp);
++                }
++                if self.relic_shield_team == Some(entity.runtime.team) {
++                    let skill_cap = shield_skill
++                        .and_then(|id| entity.template.skills.skills().iter().position(|skill| *skill == id))
++                        .and_then(|lane| entity.template.skills.level_at(lane))
++                        .unwrap_or(0) as i32;
++                    let cap = if skill_cap > 0 { skill_cap } else { 30 };
++                    let shield = self.relic_shields.entry(entity_id.0).or_default();
++                    *shield = (*shield + 3).min(cap);
++                }
++            }
++        }
+         let frame = (CAPTURE_UPDATES && updates.had_updates()).then_some(RuntimeFrame { updates });
+         self.round += 1;
+         let winner_team = if CAPTURE_UPDATES {
+@@ -347,12 +392,114 @@ impl CombatRuntime {
              .unwrap_or(false)
      }
  
@@ -1047,7 +1362,7 @@ index 05132896..76b3f018 100644
          if let Some(forced_skill) = pre_action.forced_skill {
              return Some(PreparedPlainAction::BuiltinSkill(forced_skill));
          }
-@@ -392,7 +511,12 @@ impl CombatRuntime {
+@@ -392,7 +539,12 @@ impl CombatRuntime {
                  },
              )
          };
@@ -1061,7 +1376,7 @@ index 05132896..76b3f018 100644
          #[cfg(not(feature = "no_debug"))]
          let probe_action = self.probe_plain_action_matches(actor);
          #[cfg(not(feature = "no_debug"))]
-@@ -450,8 +574,16 @@ impl CombatRuntime {
+@@ -450,8 +602,16 @@ impl CombatRuntime {
              } else {
                  self.scan_plain_action_skill_probabilities(actor, smart)
              };
@@ -1080,7 +1395,7 @@ index 05132896..76b3f018 100644
          } else {
              None
          };
-@@ -511,6 +643,55 @@ impl CombatRuntime {
+@@ -511,6 +671,55 @@ impl CombatRuntime {
          }
      }
  
@@ -1136,7 +1451,7 @@ index 05132896..76b3f018 100644
      pub fn has_plain_berserk_state(&self, actor: EntityIdx) -> bool {
          self.entities.get(actor).is_some_and(|entity| {
              entity
-@@ -624,6 +805,92 @@ impl CombatRuntime {
+@@ -624,6 +833,92 @@ impl CombatRuntime {
          debug_assert!(removed, "runtime berserk state disappeared before state clear");
      }
  
@@ -1229,7 +1544,7 @@ index 05132896..76b3f018 100644
      pub fn scan_plain_action_skill_probabilities(&mut self, actor: EntityIdx, smart: bool) -> Option<PreparedBuiltinSkillAction> {
          let (scan_len, cached_scan) = {
              let skills = &self
-@@ -746,6 +1013,7 @@ impl CombatRuntime {
+@@ -746,6 +1041,7 @@ impl CombatRuntime {
          level: u32,
          smart: bool,
      ) -> bool {
@@ -1237,7 +1552,7 @@ index 05132896..76b3f018 100644
          #[cfg(not(feature = "no_debug"))]
          let probe_action = self.probe_plain_action_matches(actor);
          match builtin_skill {
-@@ -935,3 +1203,36 @@ impl CombatRuntime {
+@@ -935,3 +1231,36 @@ impl CombatRuntime {
          roll < level
      }
  }
@@ -1274,6 +1589,44 @@ index 05132896..76b3f018 100644
 +        _ => return None,
 +    })
 +}
+diff --git a/crates/tswn_core/src/runtime/combat/skills_control.rs b/crates/tswn_core/src/runtime/combat/skills_control.rs
+index d45a33a8..e256c798 100644
+--- a/crates/tswn_core/src/runtime/combat/skills_control.rs
++++ b/crates/tswn_core/src/runtime/combat/skills_control.rs
+@@ -64,6 +64,11 @@ impl CombatRuntime {
+         percent = percent.min(99);
+         let new_hp = ((target_hp as f64) * (100 - percent) as f64 / 100.0).ceil() as i32;
+         let damage = (target_hp - new_hp).max(0);
++        // 百分比伤害同样遵守戾气的最低伤害规则。
++        if self.relic_blocks_damage(actor, target, damage) {
++            updates.add(RuntimeFrame::legacy_damage_update(actor.0 as usize, target.0 as usize, 0));
++            return;
++        }
+         let mut update =
+             crate::runtime::update::RunUpdate::new("[1]体力减少[2]%", actor.0 as usize, target.0 as usize, damage as u32);
+         update.param = Some(percent.max(0) as u32);
+@@ -254,7 +259,9 @@ impl CombatRuntime {
+                 .get_mut(actor)
+                 .unwrap_or_else(|| panic!("unknown runtime clone actor: {}", actor.0));
+             let old_max_hp = owner.template.max_hp.max(1);
+-            let next_hp = (((owner.runtime.hp as f64) * 0.5).ceil() as i32).clamp(1, old_max_hp);
++            // HP 增益不参与分身分配，原角色分身后仍单独保留 +30。
++            let bonus_hp = owner.template.opening_bonus[7];
++            let next_hp = ((((owner.runtime.hp - bonus_hp).max(1) as f64) * 0.5).ceil() as i32 + bonus_hp).clamp(1, old_max_hp);
+             let build = owner
+                 .template
+                 .clone_build
+@@ -321,8 +328,8 @@ impl CombatRuntime {
+                 root_name,
+                 owner.template.display_name.clone(),
+                 owner.runtime.team,
+-                owner.runtime.hp,
+-                owner.runtime.magic,
++                (owner.runtime.hp - owner.template.opening_bonus[7]).max(1),
++                owner.runtime.magic - owner.template.opening_bonus[4],
+                 clone_skills,
+                 clone_build,
+                 shadow_blueprint,
 diff --git a/crates/tswn_core/src/runtime/combat/skills_offense.rs b/crates/tswn_core/src/runtime/combat/skills_offense.rs
 index 48f2ebcc..1c638b72 100644
 --- a/crates/tswn_core/src/runtime/combat/skills_offense.rs
@@ -1318,8 +1671,66 @@ index 1700f510..ff1c1b66 100644
      pub fn owner_attack_power(&mut self, use_magic: bool) -> Result<f64, EffectContextError> {
          let owner = self.entities.get(self.owner).ok_or(EffectContextError::UnknownEntity(self.owner))?;
          Ok(owner.runtime.get_at(use_magic, self.rng))
+diff --git a/crates/tswn_core/src/runtime/entity.rs b/crates/tswn_core/src/runtime/entity.rs
+index 07b8a906..f272c1e0 100644
+--- a/crates/tswn_core/src/runtime/entity.rs
++++ b/crates/tswn_core/src/runtime/entity.rs
+@@ -252,6 +252,8 @@ impl CloneBuildData {
+ 
+ #[derive(Debug, Clone, PartialEq, Eq)]
+ pub struct PlayerTemplate {
++    /// 帮测贴的开场增益独立于 clone_build，派生单位不继承。
++    pub opening_bonus: [i32; 8],
+     pub id: PlrId,
+     pub reserved_player_ids_before_spawn: u32,
+     pub name: String,
+@@ -308,6 +310,7 @@ impl PlayerTemplate {
+             skills: SkillLoadout::default(),
+             team,
+             max_hp,
++            opening_bonus: [0; 8],
+             attack,
+             magic: 0,
+             magic_point: 0,
+@@ -355,6 +358,7 @@ impl PlayerTemplate {
+             skills,
+             team,
+             max_hp: status.max_hp,
++            opening_bonus: [0; 8],
+             attack: status.attack,
+             magic: status.magic,
+             magic_point: status.magic_point,
+@@ -491,6 +495,20 @@ impl PlayerTemplate {
+         self.attr_sum = stats.attr_sum;
+         self.atk_sum = stats.atk_sum;
+         self.attract_bits = stats.attract_bits;
++        self.apply_opening_bonus();
++    }
++
++    /// 只叠加模板基础值，不改名字八围或分身蓝图；属性重建后仍保留原角色增益。
++    pub fn apply_opening_bonus(&mut self) {
++        let b = self.opening_bonus;
++        self.attack += b[0];
++        self.defense += b[1];
++        self.speed += b[2];
++        self.agility += b[3];
++        self.magic += b[4];
++        self.resistance += b[5];
++        self.wisdom += b[6];
++        self.max_hp += b[7];
+     }
+ 
+     /// 从准备模板恢复一场战斗可能修改的热字段。
+@@ -506,6 +524,7 @@ impl PlayerTemplate {
+         self.skills.reset_battle_fields_from(&prepared.skills);
+         self.team = prepared.team;
+         self.max_hp = prepared.max_hp;
++        self.opening_bonus = prepared.opening_bonus;
+         self.attack = prepared.attack;
+         self.magic = prepared.magic;
+         self.magic_point = prepared.magic_point;
 diff --git a/crates/tswn_core/src/runtime/entity/runtime.rs b/crates/tswn_core/src/runtime/entity/runtime.rs
-index 72a22d28..dcbb7c1c 100644
+index 72a22d28..44a58e6e 100644
 --- a/crates/tswn_core/src/runtime/entity/runtime.rs
 +++ b/crates/tswn_core/src/runtime/entity/runtime.rs
 @@ -286,7 +286,7 @@ impl PlayerRuntime {
@@ -1399,259 +1810,20 @@ index 72a22d28..dcbb7c1c 100644
      pub fn len(&self) -> usize { self.entities.len() }
  
      pub fn is_empty(&self) -> bool { self.entities.is_empty() }
-diff --git a/crates/tswn_core/src/runtime/forced_action.rs b/crates/tswn_core/src/runtime/forced_action.rs
-new file mode 100644
-index 00000000..4e52ae58
---- /dev/null
-+++ b/crates/tswn_core/src/runtime/forced_action.rs
-@@ -0,0 +1,245 @@
-+//! 卡牌指令按会话保存；线程局部状态仅在一次推进期间借给 Runtime，退出即还原。
-+use std::cell::{Cell, RefCell};
-+use std::collections::BTreeMap;
-+
-+#[derive(Debug, Clone, Copy)]
-+pub struct ForcedAction {
-+    pub actor: u32,
-+    pub skill: u32,
-+    pub mp: Option<u32>,
-+    pub potion: u32,
-+}
-+
-+#[derive(Debug, Clone, Default)]
-+pub struct ForcedState {
-+    pub queue: Vec<ForcedAction>,
-+    pub controlled_team: Option<usize>,
-+    pub paused_actor: Option<u32>,
-+    /// 能力卡为独立乘区及减耗，不参与技能熟练度读写。
-+    pub abilities: BTreeMap<String, (u32, u32)>,
-+    active_potions: BTreeMap<u32, (u8, i32)>,
-+    fallback: Option<(u32, &'static str)>,
-+}
-+
-+thread_local! {
-+    static ACTIVE: RefCell<ForcedState> = RefCell::new(ForcedState::default());
-+    static PENDING: RefCell<Vec<ForcedAction>> = const { RefCell::new(Vec::new()) };
-+    static HITS: Cell<u32> = const { Cell::new(0) };
-+    static TAKEN: Cell<u32> = const { Cell::new(0) };
-+}
-+
-+/// 校验三元组完整性、主动技能编号和打包字段，拒绝静默丢弃尾部数据。
-+pub fn decode_actions(actions: &[u32]) -> Result<Vec<ForcedAction>, &'static str> {
-+    if !actions.len().is_multiple_of(3) {
-+        return Err("actions must contain complete actor/skill/mp triples");
-+    }
-+    actions
-+        .chunks_exact(3)
-+        .map(|a| {
-+            if a[1] > 24 && a[1] != 255 {
-+                return Err("forced skill must be active id 0..24 or normal attack 255");
-+            }
-+            let potion = a[2] >> 8;
-+            if a[2] > 0xffff || !matches!(potion, 0..=7 | 9 | 10) {
-+                return Err("invalid packed potion code");
-+            }
-+            let cost = a[2] & 0xff;
-+            Ok(ForcedAction {
-+                actor: a[0],
-+                skill: a[1],
-+                mp: (cost > 0).then_some(cost),
-+                potion,
-+            })
-+        })
-+        .collect()
-+}
-+
-+pub fn set_actions(actions: Vec<ForcedAction>) { PENDING.with(|cell| *cell.borrow_mut() = actions); }
-+pub fn take_pending_actions() -> Vec<ForcedAction> { PENDING.with(|cell| std::mem::take(&mut *cell.borrow_mut())) }
-+pub fn clear() { PENDING.with(|cell| cell.borrow_mut().clear()); }
-+
-+/// 作用域守卫保证错误或 unwind 不会把当前会话的控制队伍、药水泄漏给另一场对局。
-+pub fn with_state<R>(state: &mut ForcedState, f: impl FnOnce() -> R) -> R {
-+    struct Restore<'a> {
-+        state: &'a mut ForcedState,
-+        previous: ForcedState,
-+    }
-+    impl Drop for Restore<'_> {
-+        fn drop(&mut self) { *self.state = ACTIVE.with(|cell| cell.replace(std::mem::take(&mut self.previous))); }
-+    }
-+    let previous = ACTIVE.with(|cell| cell.replace(std::mem::take(state)));
-+    let _restore = Restore { state, previous };
-+    f()
-+}
-+
-+pub fn controlled_team() -> Option<usize> { ACTIVE.with(|cell| cell.borrow().controlled_team) }
-+pub fn set_pause(actor: u32) { ACTIVE.with(|cell| cell.borrow_mut().paused_actor = Some(actor)); }
-+pub fn pause_pending() -> bool { ACTIVE.with(|cell| cell.borrow().paused_actor.is_some()) }
-+pub fn take(actor: u32) -> Option<ForcedAction> {
-+    ACTIVE.with(|cell| {
-+        let mut state = cell.borrow_mut();
-+        let index = state.queue.iter().position(|a| a.actor == actor)?;
-+        TAKEN.with(|count| count.set(count.get() + 1));
-+        Some(state.queue.remove(index))
-+    })
-+}
-+pub fn set_active_potion(actor: u32, field: u8, delta: i32) {
-+    ACTIVE.with(|cell| {
-+        cell.borrow_mut().active_potions.insert(actor, (field, delta));
-+    });
-+}
-+pub fn take_active_potion(actor: u32) -> Option<(u8, i32)> { ACTIVE.with(|cell| cell.borrow_mut().active_potions.remove(&actor)) }
-+pub fn record_fallback(actor: u32, reason: &'static str) {
-+    ACTIVE.with(|cell| cell.borrow_mut().fallback = Some((actor, reason)));
-+}
-+pub fn take_fallback() -> Option<(u32, &'static str)> { ACTIVE.with(|cell| cell.borrow_mut().fallback.take()) }
-+pub fn hit() { HITS.with(|cell| cell.set(cell.get() + 1)); }
-+pub fn hits() -> u32 { HITS.with(|cell| cell.get()) }
-+pub fn taken() -> u32 { TAKEN.with(|cell| cell.get()) }
-+
-+// 非法包必须在推进之前报错，不能丢尾部或把被动技能当主动技能执行。
-+#[cfg(test)]
-+mod tests {
-+    use super::*;
-+    #[test]
-+    fn rejects_incomplete_invalid_and_overflow_packets() {
-+        for packet in [
-+            vec![1],
-+            vec![1, 0],
-+            vec![1, 25, 0],
-+            vec![1, 254, 0],
-+            vec![1, 0, 8 << 8],
-+            vec![1, 0, 11 << 8],
-+            vec![1, 0, 1 << 16],
-+        ] {
-+            assert!(decode_actions(&packet).is_err(), "{packet:?}");
-+        }
-+        let queue = decode_actions(&[1, 255, 0, 1, 0, (1 << 8) | 23]).unwrap();
-+        let mut state = ForcedState {
-+            queue,
-+            ..Default::default()
-+        };
-+        with_state(&mut state, || {
-+            assert_eq!(take(1).unwrap().potion, 0);
-+            let second = take(1).unwrap();
-+            assert_eq!(second.potion, 1);
-+            assert_eq!(second.mp, Some(23));
-+            set_active_potion(1, 0, 10);
-+            set_active_potion(2, 1, 15);
-+            assert_eq!(take_active_potion(3), None);
-+            assert_eq!(take_active_potion(1), Some((0, 10)));
-+            assert_eq!(take_active_potion(2), Some((1, 15)));
-+        });
-+        assert_eq!(controlled_team(), None);
-+    }
-+}
-+
-+/// 编号与卡牌前端一致；附体和使魔自爆保留引擎的实际导出名。
-+pub const ABILITY_SKILLS: [&str; 37] = [
-+    "fire",
-+    "ice",
-+    "thunder",
-+    "quake",
-+    "absorb",
-+    "poison",
-+    "rapid",
-+    "critical",
-+    "half",
-+    "exchange",
-+    "berserk",
-+    "charm",
-+    "haste",
-+    "slow",
-+    "curse",
-+    "heal",
-+    "revive",
-+    "disperse",
-+    "iron",
-+    "charge",
-+    "accumulate",
-+    "assassinate",
-+    "summon",
-+    "clone",
-+    "shadow",
-+    "defend",
-+    "protect",
-+    "reflect",
-+    "reraise",
-+    "shield",
-+    "counter",
-+    "merge",
-+    "zombie",
-+    "upgrade",
-+    "hide",
-+    "summon-explode",
-+    "possess",
-+];
-+pub fn ability_export(id: usize) -> Option<String> {
-+    ABILITY_SKILLS.get(id).map(|name| {
-+        if *name == "possess" {
-+            "custom.minion.possess".into()
-+        } else {
-+            format!("core.skill.{name}")
-+        }
-+    })
-+}
-+pub fn decode_abilities(packet: &[u32]) -> Result<BTreeMap<String, (u32, u32)>, &'static str> {
-+    if !packet.len().is_multiple_of(3) {
-+        return Err("ability packets must contain skill/cost/power triples");
-+    }
-+    let mut out = BTreeMap::new();
-+    for effect in packet.chunks_exact(3) {
-+        let Some(name) = ability_export(effect[0] as usize) else {
-+            return Err("unknown ability skill");
-+        };
-+        if effect[1] > 20 || !(10000..=20000).contains(&effect[2]) {
-+            return Err("invalid ability strength");
-+        }
-+        if out.insert(name, (effect[1], effect[2])).is_some() {
-+            return Err("duplicate ability skill packet");
-+        }
-+    }
-+    Ok(out)
-+}
-+pub fn ability_value(team: usize, skill: &str) -> (u32, f64) {
-+    ACTIVE.with(|cell| {
-+        let state = cell.borrow();
-+        if state.controlled_team != Some(team) {
-+            return (0, 1.0);
-+        }
-+        state
-+            .abilities
-+            .get(skill)
-+            .map_or((0, 1.0), |(cost, power)| (*cost, *power as f64 / 10000.0))
-+    })
-+}
-+pub fn max_ability_cost(team: usize) -> u32 {
-+    ACTIVE.with(|cell| {
-+        let state = cell.borrow();
-+        if state.controlled_team != Some(team) {
-+            return 0;
-+        }
-+        state.abilities.values().map(|v| v.0).max().unwrap_or(0)
-+    })
-+}
-+thread_local! { static ABILITY_SCOPE: Cell<(u32,f64,u32)> = const { Cell::new((u32::MAX,1.0,0)) }; }
-+/// 技能内的随机攻击乘区按根角色隔离，嵌套反弹/反击退出后恢复原作用域。
-+pub struct AbilityScope((u32, f64, u32));
-+impl Drop for AbilityScope {
-+    fn drop(&mut self) { ABILITY_SCOPE.with(|cell| cell.set(self.0)); }
-+}
-+pub fn scope_ability(root: u32, power: f64, cost: u32) -> AbilityScope {
-+    AbilityScope(ABILITY_SCOPE.with(|cell| cell.replace((root, power, cost))))
-+}
-+pub fn attack_multiplier(root: u32) -> f64 {
-+    ABILITY_SCOPE.with(|cell| {
-+        let (owner, power, _) = cell.get();
-+        if root == owner { power } else { 1.0 }
-+    })
-+}
-+pub fn mp_reduction(root: u32) -> i32 {
-+    ABILITY_SCOPE.with(|cell| {
-+        let (owner, _, cost) = cell.get();
-+        if root == owner { cost as i32 } else { 0 }
-+    })
-+}
+@@ -740,8 +750,9 @@ impl EntityArena {
+             template.team = owner_entity.runtime.team;
+             let policies = template.effective_policies(registry);
+             if policies.inherit_owner_def_res {
+-                template.defense = owner_entity.runtime.defense;
+-                template.resistance = owner_entity.runtime.resistance;
++                // 召唤物继承常规防抗，排除只属于原角色的帮测贴加成。
++                template.defense = owner_entity.runtime.defense - owner_entity.template.opening_bonus[1];
++                template.resistance = owner_entity.runtime.resistance - owner_entity.template.opening_bonus[5];
+             }
+             let root_clan_name = self
+                 .get(root_owner)
 diff --git a/crates/tswn_core/src/runtime/mod.rs b/crates/tswn_core/src/runtime/mod.rs
-index 89ebce8a..36356cb5 100644
+index 89ebce8a..6b2d6cfc 100644
 --- a/crates/tswn_core/src/runtime/mod.rs
 +++ b/crates/tswn_core/src/runtime/mod.rs
 @@ -38,6 +38,7 @@ mod cqp;
@@ -1662,6 +1834,15 @@ index 89ebce8a..36356cb5 100644
  mod handlers;
  pub mod lang;
  pub mod model_state;
+@@ -46,7 +47,7 @@ mod plain_assassinate;
+ mod plain_summon;
+ mod plain_zombie;
+ mod prepared_init;
+-mod profile;
++pub(crate) mod profile;
+ mod runner;
+ pub mod scheduler;
+ pub mod scratch;
 diff --git a/crates/tswn_core/src/runtime/plain_zombie.rs b/crates/tswn_core/src/runtime/plain_zombie.rs
 index f2bd414a..e6fff4fa 100644
 --- a/crates/tswn_core/src/runtime/plain_zombie.rs
@@ -1696,6 +1877,38 @@ index 4da64b90..2592d011 100644
      context.reraise_owner(entry, hp).expect("runtime reraise owner must exist");
      let mut reraise_update = crate::runtime::update::RunUpdate::new(
          "[0]使用[护身符]抵挡了一次死亡",
+diff --git a/crates/tswn_core/src/runtime/session.rs b/crates/tswn_core/src/runtime/session.rs
+index 04f84710..5055266f 100644
+--- a/crates/tswn_core/src/runtime/session.rs
++++ b/crates/tswn_core/src/runtime/session.rs
+@@ -185,14 +185,25 @@ impl RuntimeRunner {
+             minion_kind,
+             hp: entity.runtime.hp,
+             max_hp: entity.template.max_hp,
+-            shield: remaining_shield(entity),
++            // 死亡时隐藏遗物护盾，复活后的实际值仍交由运行态结算。
++            shield: remaining_shield(entity)
++                + if entity.runtime.alive {
++                    self.runtime.relic_shields.get(&entity_idx.0).copied().unwrap_or(0)
++                } else {
++                    0
++                },
+             max_shield: self
+                 .runtime
+                 .registry
+                 .skill_id_by_export_name(DEFAULT_CORE_SHIELD_SKILL_EXPORT)
+                 .and_then(|skill| entity.template.skills.skills().iter().position(|id| *id == skill))
+                 .and_then(|lane| entity.template.skills.level_at(lane))
+-                .unwrap_or(0),
++                .filter(|level| *level > 0)
++                .unwrap_or(if self.runtime.relic_shield_team == Some(entity.runtime.team) {
++                    30
++                } else {
++                    0
++                }),
+             magic_point: entity.runtime.magic_point,
+             move_point: entity.runtime.move_state.speed_points,
+             attack: entity.runtime.attack,
 diff --git a/crates/tswn_py/src/battle.rs b/crates/tswn_py/src/battle.rs
 index 89abf531..c3820bc7 100644
 --- a/crates/tswn_py/src/battle.rs
@@ -1840,10 +2053,10 @@ index 20338ccb..5cce98a4 100644
  /// 将单名转换为 DIY 文本；old/minions 省略时为 false，冲突选项由 core 校验。
  pub fn to_diy(name: String, old: Option<bool>, minions: Option<bool>) -> WasmResult<String> {
 diff --git a/crates/tswn_wasm/src/model.rs b/crates/tswn_wasm/src/model.rs
-index 677714ae..8352a6cb 100644
+index 677714ae..fb1c1180 100644
 --- a/crates/tswn_wasm/src/model.rs
 +++ b/crates/tswn_wasm/src/model.rs
-@@ -67,6 +67,12 @@ pub struct BattleOptions {
+@@ -67,6 +67,24 @@ pub struct BattleOptions {
      pub include_icons: Option<bool>,
      #[tsify(optional)]
      pub max_rounds: Option<usize>,
@@ -1853,24 +2066,46 @@ index 677714ae..8352a6cb 100644
 +    /// 开局体力倍率（只作用于受控队伍），1.25 = 125%
 +    #[tsify(optional)]
 +    pub start_hp_pct: Option<f64>,
++    /// 开场遗物效果所属的运行时队伍。
++    #[tsify(optional)]
++    pub opening_relic_team: Option<usize>,
++    #[tsify(optional)]
++    pub healing_relic_team: Option<usize>,
++    #[tsify(optional)]
++    pub shielding_relic_team: Option<usize>,
++    #[tsify(optional)]
++    pub relic_damage_floor: Option<bool>,
++    /// 帮测贴开场属性增益所属队伍。
++    #[tsify(optional)]
++    pub stat_relic_team: Option<usize>,
  }
  
  impl Default for BattleOptions {
-@@ -75,6 +81,8 @@ impl Default for BattleOptions {
+@@ -75,6 +93,13 @@ impl Default for BattleOptions {
              eval_rq: None,
              include_icons: None,
              max_rounds: None,
 +            controlled_team: None,
 +            start_hp_pct: None,
++            opening_relic_team: None,
++            healing_relic_team: None,
++            shielding_relic_team: None,
++            relic_damage_floor: None,
++            stat_relic_team: None,
          }
      }
  }
-@@ -89,6 +97,8 @@ impl BattleOptions {
+@@ -89,6 +114,13 @@ impl BattleOptions {
          if let Some(max_rounds) = self.max_rounds {
              options.max_rounds = max_rounds;
          }
 +        options.controlled_team = self.controlled_team;
 +        options.start_hp_pct = self.start_hp_pct;
++        options.opening_relic_team = self.opening_relic_team;
++        options.healing_relic_team = self.healing_relic_team;
++        options.shielding_relic_team = self.shielding_relic_team;
++        options.relic_damage_floor = self.relic_damage_floor.unwrap_or(false);
++        options.stat_relic_team = self.stat_relic_team;
          options
      }
  }
@@ -1890,81 +2125,3 @@ index f474a931..1ea95ab7 100644
 +暂停时 stop_reason 为 paused、status 为 running，回放包含 paused_actor；BattlePlayerState.skills 为技能导出名及当前熟练度的数组。WASM 流式会话通过 paused_actor() 查询，submit_action(actor, skill, packed_mp) 后继续 next_frame()。暂停不会消费待执行行动的随机流或药效。
 +
 +battle_replay_forced 的 actions 为 Uint32Array 三元组，技能编号 0..24 或普攻 255，packed_mp 低 8 位为 MP、高 8 位为药水编号（0、1..7、9、10）。不完整或非法封包报错；不可施放技能退化普攻时记录原因。药水按实体于其下次行动前失效。完整构建和接口示例见 FORK.md。
-diff --git a/tools/test-forced.mjs b/tools/test-forced.mjs
-new file mode 100644
-index 00000000..64d19dcd
---- /dev/null
-+++ b/tools/test-forced.mjs
-@@ -0,0 +1,72 @@
-+// 使用真实 WASM 回归暂停续行、指令封包和药水生命周期。
-+import assert from 'node:assert/strict';
-+import { readFileSync } from 'node:fs';
-+import path from 'node:path';
-+import { pathToFileURL } from 'node:url';
-+const dir = path.resolve(process.argv[2] || 'dist');
-+const wasm = await import(pathToFileURL(path.join(dir, 'tswn_wasm.js')).href);
-+wasm.initSync({ module: readFileSync(path.join(dir, 'tswn_wasm_bg.wasm')) });
-+const line = (name, speed, skills = {}) => name + '@test+ol:' + JSON.stringify({attrs:[40,40,speed,40,40,40,100,20000],skills,name_factor_enabled:false});
-+const raw = line('one',140,{sklfire:60}) + '\n' + line('two',140) + '\n\n' + line('enemy',100) + '\nseed:card-regression@!';
-+const options = {controlled_team:0,max_rounds:2000};
-+const paused = wasm.battle_replay_forced(raw,new Uint32Array(),options);
-+assert.equal(paused.stop_reason,'paused');
-+assert.equal(typeof paused.paused_actor,'number');
-+assert.ok(paused.initial_states.some(s=>s.skills.some(([name,lv])=>name==='core.skill.fire' && lv===60)));
-+for (const packet of [[1],[1,0],[1,25,0],[1,0,8<<8],[1,0,11<<8],[1,0,1<<16]]) {
-+  assert.throws(()=>wasm.battle_replay_forced(raw,new Uint32Array(packet),options));
-+}
-+for (const pct of [0,-1,Infinity,NaN]) assert.throws(()=>wasm.battle_replay(raw,{...options,start_hp_pct:pct}));
-+assert.throws(()=>wasm.battle_replay(raw,{start_hp_pct:1.2}));
-+const half = wasm.battle_replay_forced(raw,new Uint32Array(),{...options,start_hp_pct:0.5});
-+for(const state of half.initial_states) assert.equal(state.hp,state.team_index===0 ? Math.round(state.max_hp*0.5) : state.max_hp);
-+const session = new wasm.BattleSession(raw,options), other = new wasm.BattleSession(raw,options);
-+const frames=[], commands=[], counts=new Map();
-+let overlap=false,fire=false;
-+function advance(s,out){ for(let f;(f=s.next_frame())!=null;)out.push(f); assert.equal(s.stop_reason(),'paused'); assert.equal(s.is_done(),false); }
-+advance(session,frames);
-+for(let turn=0;turn<10;turn++) {
-+  const actor=session.paused_actor(),count=counts.get(actor)||0;
-+  if(turn===0) advance(other,[]);
-+  const isFire=count===0 && session.current_states().find(s=>s.id===actor).skills.some(([name])=>name==='core.skill.fire');
-+  const skill=isFire?0:255,packed=(count===0?1<<8:0)|23;
-+  fire ||= isFire;
-+  counts.set(actor,count+1);commands.push(actor,skill,packed);
-+  session.submit_action(actor,skill,packed);advance(session,frames);
-+  let boosted=0;
-+  for(const state of session.current_states().filter(s=>s.team_index===0)) {
-+    const base=paused.initial_states.find(s=>s.id===state.id).attack;
-+    const n=counts.get(state.id)||0;
-+    assert.equal(state.attack,n===1?base+Math.max(8,Math.trunc(base/4)):base);
-+    boosted+=Number(n===1);
-+  }
-+  overlap ||= boosted===2;
-+}
-+assert.ok(overlap);
-+assert.ok(fire);
-+const replay=wasm.battle_replay_forced(raw,new Uint32Array(commands),options);
-+assert.deepEqual(replay.frames,frames);
-+assert.deepEqual(replay.final_states,session.current_states());
-+assert.equal(replay.paused_actor,session.paused_actor());
-+// 缺少技能的合法主动编号会明确记录退化普攻的原因。
-+const unavailable=wasm.battle_replay_forced(raw,new Uint32Array([paused.paused_actor,24,23]),options);
-+assert.ok(unavailable.frames.flatMap(f=>f.updates).some(u=>u.message_rendered.includes('改为普通攻击')));
-+
-+// 先耗尽 MP；能量药水必须让紧接着的技能成功，不能等技能结束才回复。
-+const immediateRaw=line('caster',240,{sklfire:60})+'\n\n'+line('dummy',40)+'\nseed:immediate-potion@!';
-+const opening=wasm.battle_replay_forced(immediateRaw,new Uint32Array(),options);
-+const caster=opening.paused_actor,initialMp=opening.final_states.find(s=>s.id===caster).magic_point;
-+const drain=[caster,0,initialMp];
-+const drained=wasm.battle_replay_forced(immediateRaw,new Uint32Array(drain),options);
-+const before=drained.final_states.find(s=>s.id===caster).magic_point;
-+assert.ok(before<50 && before+40>=50);
-+const energy=wasm.battle_replay_forced(immediateRaw,new Uint32Array([...drain,caster,0,(10<<8)|50]),options);
-+const newUpdates=energy.frames.slice(drained.frames.length).flatMap(f=>f.updates);
-+assert.ok(newUpdates.some(u=>u.caster_id===caster && u.message_rendered.includes('火球')));
-+assert.ok(!newUpdates.some(u=>u.message_rendered.includes('改为普通攻击')));
-+const magic=wasm.battle_replay_forced(immediateRaw,new Uint32Array([caster,0,(5<<8)|initialMp]),options);
-+const baseMagic=opening.final_states.find(s=>s.id===caster).magic;
-+assert.equal(magic.final_states.find(s=>s.id===caster).magic,baseMagic+Math.max(8,Math.trunc(baseMagic/4)));
-+
-+session.free();other.free();
-+console.log(JSON.stringify({turns:10,streamMatchesBatch:true,potionOverlap:overlap,fire,invalidPackets:'rejected',fractionalHp:'passed',immediatePotion:'passed'}));
