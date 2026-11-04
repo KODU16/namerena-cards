@@ -58,3 +58,41 @@ d.polygon([(23, 14), (26, 16), (25, 20), (22, 19)], fill='#4c94bb', outline='#26
 d.line((13, 16, 16, 14, 19, 17, 17, 19, 15, 17), fill='#5d4439')
 d.line((10, 25, 22, 25), fill='#899fa7')
 save('relic-help-test-post', image)
+# 战力币叠加真实佘山表情，金币与其余图标共用像素描边。
+image, d = canvas()
+d.ellipse((3, 3, 28, 28), fill='#a86e22', outline='#263944', width=2)
+d.ellipse((5, 5, 25, 25), fill='#f1ca55', outline='#fff0a0', width=2)
+d.line((8, 8, 12, 6), fill='#fff5bb', width=2)
+badge = Image.open(OUT.parents[1] / 'tools' / 'relic-sheshan-reference.png').convert('RGBA')
+badge.thumbnail((19, 19), Image.Resampling.NEAREST)
+image.alpha_composite(badge, ((32-badge.width)//2, (32-badge.height)//2))
+save('relic-battle-coin', image)
+
+# tswn 的蓝底框、灰色内框与白色像素字符。
+image, d = canvas()
+d.rectangle((3, 4, 28, 27), fill='#2585b5', outline='#263944', width=2)
+d.rectangle((6, 8, 25, 23), fill='#707c87', outline='#b4c8cf')
+for x, bits in [(8, ['111','010','010']), (13,['101','111','101']), (18,['101','111','010'])]:
+    for y,row in enumerate(bits):
+        for dx,bit in enumerate(row):
+            if bit=='1': d.rectangle((x+dx,12+y*2,x+dx,13+y*2),fill='#ffffff')
+save('relic-language-pack', image)
+
+# 依附图的蓝底、顶部白色弧面与悬垂白色圆形，以原生像素形状重绘。
+image, d = canvas()
+d.rectangle((3, 3, 28, 28), fill='#bfd3f7', outline='#597796')
+d.polygon([(4,4),(27,4),(25,7),(22,9),(18,10),(18,12),(15,14),(13,11),(9,10),(6,7)],fill='#ffffff')
+d.ellipse((12,12,22,24),fill='#ffffff')
+save('relic-box-opener', image)
+# 耗子尾汁保留指定名字图标，同其它遗物统一裁掉透明外边并居中缩放。
+image = Image.open(OUT.parents[1] / 'tools' / 'relic-rat-tail-reference.png').convert('RGBA')
+save('relic-rat-tail', image)
+for path in OUT.glob('relic-*.png'):
+    sprite = Image.open(path).convert('RGBA')
+    bounds = sprite.getbbox()
+    if bounds:
+        sprite = sprite.crop(bounds)
+        sprite.thumbnail((28, 28), Image.Resampling.NEAREST)
+        normalized = Image.new('RGBA', (32, 32))
+        normalized.alpha_composite(sprite, ((32-sprite.width)//2, (32-sprite.height)//2))
+        normalized.save(path, optimize=True)

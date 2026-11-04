@@ -1372,11 +1372,12 @@ export function fullCharRow(card) {
     const delta = key ? Math.round(bonusMap[key] || 0) : 0;
     return el('span', { class: 'fullrow__stat' }, label + ' ', el('b', { 'data-stat': key }, v),
       (card.bossMult||card.eliteMult) > 1 ? el('i', { class: 'fullrow__plus' }, '*' + (card.bossMult||card.eliteMult)) : null,
+      card.scanMult ? el('i', {class:'scan-mult'}, '×' + card.scanMult) : null,
       delta ? el('i', { class: 'fullrow__plus' + (delta < 0 ? ' is-neg' : '') }, (delta > 0 ? '+' : '') + delta) : null);
   };
   const bar = (cls, label, pct) => el('div', { class: 'fullrow__bar ' + cls, title: label },
     el('i', { style: 'width:' + Math.max(0, Math.min(100, pct)) + '%' }),
-    el('span', {}, cls === 'fullrow__bar--hp' ? ['血量 ', el('b', { 'data-stat': 'hp' }, hp)] : label, cls === 'fullrow__bar--hp' && (card.bossMult||card.eliteMult) > 1 ? el('i', { class: 'elite-mult' }, '*' + (card.bossMult||card.eliteMult)) : null));
+    el('span', {}, cls === 'fullrow__bar--hp' ? ['血量 ', el('b', { 'data-stat': 'hp' }, hp)] : label, cls === 'fullrow__bar--hp' && card.scanMult ? el('i', {class:'scan-mult'}, '×' + card.scanMult) : null, cls === 'fullrow__bar--hp' && (card.bossMult||card.eliteMult) > 1 ? el('i', { class: 'elite-mult' }, '*' + (card.bossMult||card.eliteMult)) : null));
   return el('div', { class: 'fullrow', 'data-char-id': card.id },
     el('div', { class: 'fullrow__head' },
       card.icon ? el('img', { class: 'fullrow__icon', src: card.icon, alt: '' }) : null,
@@ -1603,7 +1604,7 @@ export function inventorySheet(state, h = {}) {
       body.replaceChildren((state.relics || []).length
         ? el('div', { class: 'inv__grid' }, state.relics.map((relicId) => {
           const relic = relicById(relicId);
-          return relic ? el('div', { class: 'inv__item relic-card', tabindex: '0' }, relicIcon(relicId), el('b', {}, relic.name), el('p', {}, relic.description), el('em', {}, relic.flavor), relicTooltip(relicId), del('relic', relicId, relic.name)) : null;
+          return relic ? el('div', { class: 'inv__item relic-card', tabindex: '0' }, relicIcon(relicId), el('b', {}, relic.name), el('div', {class:'relic-card__text' + (relic.description.length + relic.flavor.length > 90 ? ' is-long' : '')}, el('p', {}, relic.description), el('em', {}, relic.flavor)), relicTooltip(relicId), el('div', {class:'relic-card__actions'}, del('relic', relicId, relic.name))) : null;
         })) : el('p', { class: 'muted' }, '还没有遗物，可从宝箱、事件或商店获得。'));
     } else if (id === 'potions') {
       const list = (run.potions || []).filter((p) => p.n > 0);

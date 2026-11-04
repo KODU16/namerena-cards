@@ -70,7 +70,7 @@ index 062e6f08..5d1fe314 100644
          )
          .map_err(cli_api_error)?;
 diff --git a/crates/tswn_core/src/cli_api/battle/driver.rs b/crates/tswn_core/src/cli_api/battle/driver.rs
-index c5a769ff..cd1e7943 100644
+index c5a769ff..4e95084e 100644
 --- a/crates/tswn_core/src/cli_api/battle/driver.rs
 +++ b/crates/tswn_core/src/cli_api/battle/driver.rs
 @@ -1,7 +1,8 @@
@@ -100,7 +100,7 @@ index c5a769ff..cd1e7943 100644
          if raw.trim().is_empty() {
              return Err(invalid_input("raw_input is empty"));
          }
-@@ -33,9 +37,86 @@ impl BattleDriver {
+@@ -33,9 +37,87 @@ impl BattleDriver {
              return Err(CliApiError::InvalidArgument("battle eval_rq must be finite".into()));
          }
          let (groups, seed) = RuntimeRunner::split_namerena_into_groups(raw.to_owned());
@@ -117,6 +117,7 @@ index c5a769ff..cd1e7943 100644
 -        Self::new(runner, options.max_rounds)
 +        {
 +            let runtime = runner.runtime_mut();
++            runtime.language_relic_team = options.language_relic_team;
 +            runtime.relic_heal_team = options.healing_relic_team;
 +            runtime.relic_shield_team = options.shielding_relic_team;
 +            runtime.relic_damage_floor = options.relic_damage_floor;
@@ -189,7 +190,7 @@ index c5a769ff..cd1e7943 100644
      }
  
      pub fn new(runner: RuntimeRunner, max_rounds: usize) -> CliApiResult<Self> {
-@@ -50,6 +131,7 @@ impl BattleDriver {
+@@ -50,6 +132,7 @@ impl BattleDriver {
              frames_emitted: 0,
              no_progress_rounds: 0,
              failure: None,
@@ -197,7 +198,7 @@ index c5a769ff..cd1e7943 100644
          })
      }
  
-@@ -73,7 +155,18 @@ impl BattleDriver {
+@@ -73,7 +156,18 @@ impl BattleDriver {
              return Err(error);
          }
          let round_index = self.rounds_advanced;
@@ -218,10 +219,10 @@ index c5a769ff..cd1e7943 100644
          let visible = !updates.updates.is_empty() || self.runner.have_winner();
          self.no_progress_rounds = if visible { 0 } else { self.no_progress_rounds + 1 };
 diff --git a/crates/tswn_core/src/cli_api/battle/dto.rs b/crates/tswn_core/src/cli_api/battle/dto.rs
-index 4afd2472..5f63bf41 100644
+index 4afd2472..f1d82c19 100644
 --- a/crates/tswn_core/src/cli_api/battle/dto.rs
 +++ b/crates/tswn_core/src/cli_api/battle/dto.rs
-@@ -14,6 +14,18 @@ pub struct BattleOptions {
+@@ -14,6 +14,20 @@ pub struct BattleOptions {
      pub include_icons: bool,
      /// 正整数的 Runtime 推进回合上限，包含空回合；默认 20,000。
      pub max_rounds: usize,
@@ -237,10 +238,12 @@ index 4afd2472..5f63bf41 100644
 +    pub relic_damage_floor: bool,
 +    /// 帮测贴：仅开局原始友方随机两项属性增强。
 +    pub stat_relic_team: Option<usize>,
++    /// 自制语言包：成功施加负面状态时附带一回合狂暴。
++    pub language_relic_team: Option<usize>,
  }
  
  impl Default for BattleOptions {
-@@ -22,6 +34,13 @@ impl Default for BattleOptions {
+@@ -22,6 +36,14 @@ impl Default for BattleOptions {
              eval_rq: crate::namerena::eval_name::DEFAULT_EVAL_RQ,
              include_icons: false,
              max_rounds: BINDING_COMPLETION_MAX_ROUNDS,
@@ -251,10 +254,11 @@ index 4afd2472..5f63bf41 100644
 +            shielding_relic_team: None,
 +            relic_damage_floor: false,
 +            stat_relic_team: None,
++            language_relic_team: None,
          }
      }
  }
-@@ -29,6 +48,8 @@ impl Default for BattleOptions {
+@@ -29,6 +51,8 @@ impl Default for BattleOptions {
  #[derive(Debug, Clone, PartialEq, Serialize)]
  /// 完整收集同一 [`super::BattleSession`] 的规范回放。
  pub struct BattleReplay {
@@ -263,7 +267,7 @@ index 4afd2472..5f63bf41 100644
      pub status: BattleStatus,
      pub stop_reason: BattleStopReason,
      pub rounds_advanced: usize,
-@@ -99,6 +120,8 @@ pub struct BattlePlayerState {
+@@ -99,6 +123,8 @@ pub struct BattlePlayerState {
      pub active: bool,
      /// 人类可读的状态描述；完整载荷可从机制状态查阅。
      pub status_labels: Vec<String>,
@@ -272,7 +276,7 @@ index 4afd2472..5f63bf41 100644
  }
  
  impl ReplayState for BattlePlayerState {
-@@ -115,6 +138,7 @@ impl ReplayState for BattlePlayerState {
+@@ -115,6 +141,7 @@ impl ReplayState for BattlePlayerState {
      fn with_shield(&self, shield: i32) -> Self {
          Self {
              shield: if self.alive { shield.max(0) } else { 0 },
@@ -280,7 +284,7 @@ index 4afd2472..5f63bf41 100644
              ..self.clone()
          }
      }
-@@ -216,6 +240,7 @@ pub enum BattleStopReason {
+@@ -216,6 +243,7 @@ pub enum BattleStopReason {
      Winner,
      MaxRounds,
      NoProgress,
@@ -341,7 +345,7 @@ index 2ccdaefa..d6e0722d 100644
  mod tests {
      use super::*;
 diff --git a/crates/tswn_core/src/cli_api/battle/session.rs b/crates/tswn_core/src/cli_api/battle/session.rs
-index fefc009d..33d46d94 100644
+index fefc009d..6ef0e6a3 100644
 --- a/crates/tswn_core/src/cli_api/battle/session.rs
 +++ b/crates/tswn_core/src/cli_api/battle/session.rs
 @@ -34,6 +34,7 @@ pub struct BattleSession {
@@ -478,7 +482,7 @@ index fefc009d..33d46d94 100644
          let filled_cache = cache.clone();
          assert_eq!(states_from_runner(&runner, true, &mut cache), with_icons);
          assert_eq!(cache, filled_cache);
-@@ -817,3 +878,315 @@ seed:7@!"#;
+@@ -817,3 +878,351 @@ seed:7@!"#;
          }
      }
  }
@@ -705,6 +709,42 @@ index fefc009d..33d46d94 100644
 +mod relic_tests {
 +    use super::*;
 +    use crate::runtime::{EntityIdx, RunUpdates};
++    // 验证成功状态、敌我隔离及净化/零伤害的排除，附带狂暴不重复叠加。
++    #[test]
++    fn language_pack_only_follows_successful_hostile_debuffs() {
++        let mut session = BattleSession::new(
++            &raw(2),
++            BattleOptions {
++                language_relic_team: Some(0),
++                ..BattleOptions::default()
++            },
++        )
++        .unwrap();
++        let rt = session.driver.runner.runtime_mut();
++        let actor = rt.entities.iter().find(|(_, e)| e.runtime.team == 0).unwrap().0;
++        let enemy = rt.entities.iter().find(|(_, e)| e.runtime.team == 1).unwrap().0;
++        let berserk = |rt: &crate::runtime::CombatRuntime, id| {
++            rt.entities.get(id).unwrap().states.entries().iter().find_map(|s| match s.payload {
++                crate::runtime::StatePayload::Berserk { step } => Some(step),
++                _ => None,
++            })
++        };
++        let mut updates = RunUpdates::new();
++        rt.apply_ice_on_damage(enemy, actor, &mut updates);
++        assert_eq!(berserk(rt, actor), None);
++        rt.apply_disperse_hit_into(actor, enemy, &mut updates);
++        assert_eq!(berserk(rt, enemy), None);
++        rt.apply_curse_on_damage(actor, enemy, 0, &mut updates);
++        assert_eq!(berserk(rt, enemy), None);
++        rt.apply_ice_on_damage(actor, enemy, &mut updates);
++        assert_eq!(berserk(rt, enemy), Some(1));
++        rt.apply_ice_on_damage(actor, enemy, &mut updates);
++        assert_eq!(berserk(rt, enemy), Some(1));
++        rt.entities.get_mut(enemy).unwrap().states = Default::default();
++        rt.apply_curse_on_damage(actor, enemy, 10, &mut updates);
++        assert_eq!(berserk(rt, enemy), Some(1));
++    }
++
 +    fn raw(seed: usize) -> String {
 +        format!(
 +            "one@red+ol:{{\"attrs\":[60,60,150,60,60,60,100,20000],\"skills\":{{\"sklclone\":106,\"sklsummon\":40}},\"name_factor_enabled\":false}}\n\nenemy@blue+ol:{{\"attrs\":[40,40,100,40,40,40,80,20000],\"skills\":{{}},\"name_factor_enabled\":false}}\nseed:relic{seed}@!"
@@ -796,12 +836,44 @@ index fefc009d..33d46d94 100644
 +}
 diff --git a/crates/tswn_core/src/runtime/combat/abilities.rs b/crates/tswn_core/src/runtime/combat/abilities.rs
 new file mode 100644
-index 00000000..3453a801
+index 00000000..b8a94e71
 --- /dev/null
 +++ b/crates/tswn_core/src/runtime/combat/abilities.rs
-@@ -0,0 +1,125 @@
+@@ -0,0 +1,157 @@
 +use super::*;
 +impl CombatRuntime {
++    // 仅在负面状态实际落地后调用；狂暴、净化及失败的命中不会进入此入口。
++    pub(crate) fn language_debuff(&mut self, caster: EntityIdx, target: EntityIdx) {
++        let Some(team) = self.language_relic_team else {
++            return;
++        };
++        let Some(from) = self.entities.get(caster) else {
++            return;
++        };
++        let root = self.entities.get(from.runtime.root_owner).unwrap_or(from);
++        if root.template.team != team || from.runtime.team != team {
++            return;
++        }
++        let Some(to) = self.entities.get_mut(target) else {
++            return;
++        };
++        if to.template.team == team || !to.runtime.alive || to.runtime.hp <= 0 {
++            return;
++        }
++        let step = to
++            .states
++            .entry(PLAIN_BERSERK_STATE_KEY)
++            .and_then(|entry| match entry.payload {
++                StatePayload::Berserk { step } => Some(step),
++                _ => None,
++            })
++            .unwrap_or(0)
++            .max(1);
++        if !to.states.set_payload(PLAIN_BERSERK_STATE_KEY, StatePayload::Berserk { step }) {
++            to.states.add_entry(StateEntry::berserk(PLAIN_BERSERK_STATE_KEY, step));
++        }
++    }
++
 +    // 卡牌玩家及其派生单位即使经吞噬提高原始幻术，也只按 5 计算；普通引擎对局不变。
 +    pub(crate) fn card_skill_level(&self, actor: EntityIdx, skill: BuiltinActiveSkill, level: u32) -> u32 {
 +        let root = self.entities.get(actor).and_then(|entity| self.entities.get(entity.runtime.root_owner));
@@ -926,7 +998,7 @@ index 00000000..3453a801
 +    }
 +}
 diff --git a/crates/tswn_core/src/runtime/combat/attack.rs b/crates/tswn_core/src/runtime/combat/attack.rs
-index 9565b21d..de0c800d 100644
+index 9565b21d..0ed437a5 100644
 --- a/crates/tswn_core/src/runtime/combat/attack.rs
 +++ b/crates/tswn_core/src/runtime/combat/attack.rs
 @@ -472,6 +472,12 @@ impl CombatRuntime {
@@ -953,8 +1025,24 @@ index 9565b21d..de0c800d 100644
          let target_entity = self
              .entities
              .get_mut(target)
+@@ -547,7 +557,7 @@ impl CombatRuntime {
+             PlainAttackOnDamage::Absorb => self.apply_absorb_on_damage(caster, amount, updates),
+             PlainAttackOnDamage::Berserk => self.apply_berserk_on_damage(caster, target, amount, updates),
+             PlainAttackOnDamage::Curse => self.apply_curse_on_damage(caster, target, amount, updates),
+-            PlainAttackOnDamage::Fire(fire_state_key) if amount > 0 => self.apply_fire_on_damage(target, fire_state_key),
++            PlainAttackOnDamage::Fire(fire_state_key) if amount > 0 => self.apply_fire_on_damage(caster, target, fire_state_key),
+             PlainAttackOnDamage::Fire(_) => {}
+             PlainAttackOnDamage::Ice if amount > 0 => self.apply_ice_on_damage(caster, target, updates),
+             PlainAttackOnDamage::Ice => {}
+@@ -703,5 +713,6 @@ impl CombatRuntime {
+             target.0 as usize,
+             60,
+         ));
++        self.language_debuff(caster, target);
+     }
+ }
 diff --git a/crates/tswn_core/src/runtime/combat/defense.rs b/crates/tswn_core/src/runtime/combat/defense.rs
-index 16b90782..222358e7 100644
+index 16b90782..31f81c82 100644
 --- a/crates/tswn_core/src/runtime/combat/defense.rs
 +++ b/crates/tswn_core/src/runtime/combat/defense.rs
 @@ -205,6 +205,7 @@ impl CombatRuntime {
@@ -1050,30 +1138,59 @@ index 16b90782..222358e7 100644
          let Some(target_entity) = self.entities.get_mut(target) else {
              panic!("unknown runtime disperse damage target entity: {}", target.0);
          };
+@@ -586,7 +605,7 @@ impl CombatRuntime {
+         PlayerRuntime::dodge(accuracy, dodge_value, &mut self.rng)
+     }
+ 
+-    pub fn apply_fire_on_damage(&mut self, target: EntityIdx, fire_state_key: u32) {
++    pub fn apply_fire_on_damage(&mut self, caster: EntityIdx, target: EntityIdx, fire_state_key: u32) {
+         let Some(target_entity) = self.entities.get(target) else {
+             panic!("unknown runtime fire target entity: {}", target.0);
+         };
+@@ -598,6 +617,7 @@ impl CombatRuntime {
+             panic!("unknown runtime fire target entity: {}", target.0);
+         };
+         target_entity.states.add_fire_mag_half_step(fire_state_key);
++        self.language_debuff(caster, target);
+     }
+ 
+     pub fn apply_ice_on_damage(&mut self, caster: EntityIdx, target: EntityIdx, updates: &mut RunUpdates) {
+@@ -626,6 +646,7 @@ impl CombatRuntime {
+             "[1]被[冰冻]了",
+             40,
+         ));
++        self.language_debuff(caster, target);
+     }
+ 
+     pub fn status_immune(&mut self, target: EntityIdx, status: &'static str) -> bool {
 diff --git a/crates/tswn_core/src/runtime/combat/effects.rs b/crates/tswn_core/src/runtime/combat/effects.rs
-index f1360c53..ab7cf986 100644
+index f1360c53..35895d8d 100644
 --- a/crates/tswn_core/src/runtime/combat/effects.rs
 +++ b/crates/tswn_core/src/runtime/combat/effects.rs
-@@ -129,7 +129,8 @@ impl CombatRuntime {
+@@ -129,8 +129,9 @@ impl CombatRuntime {
                          };
                          if self.apply_plain_legacy_damage_into(caster, target, amount, updates) {
                              self.drain_plain_lethal_damage_into(caster, target, updates);
 -                        } else if amount > 0 {
+-                            self.apply_fire_on_damage(target, fire_state_key);
 +                        } else if amount > 0 && !self.relic_blocks_damage(caster, target, amount) {
 +                            // 戾气拦截伤害时也跳过燃烧附加效果。
-                             self.apply_fire_on_damage(target, fire_state_key);
++                            self.apply_fire_on_damage(caster, target, fire_state_key);
                          }
                      }
-@@ -191,7 +192,8 @@ impl CombatRuntime {
+                 }
+@@ -191,8 +192,9 @@ impl CombatRuntime {
                          };
                          if self.apply_plain_legacy_damage_into(caster, target, amount, updates) {
                              self.drain_plain_lethal_damage_into(caster, target, updates);
 -                        } else if amount > 0 {
+-                            self.apply_fire_on_damage(target, fire_state_key);
 +                        } else if amount > 0 && !self.relic_blocks_damage(caster, target, amount) {
 +                            // 戾气拦截伤害时也跳过燃烧附加效果。
-                             self.apply_fire_on_damage(target, fire_state_key);
++                            self.apply_fire_on_damage(caster, target, fire_state_key);
                          }
                      }
+                     if killed_caster {
 @@ -498,8 +500,10 @@ impl CombatRuntime {
          self.ensure_effect_entity("merge", "target", target);
          let target_skills = self.entities.get(target).unwrap().template.skills.clone();
@@ -1087,22 +1204,35 @@ index f1360c53..ab7cf986 100644
          let (merged, transfer_magic_point, transfer_move_points) = {
              let caster_entity = self
                  .entities
+diff --git a/crates/tswn_core/src/runtime/combat/infection.rs b/crates/tswn_core/src/runtime/combat/infection.rs
+index 11ed0dc0..e9cdaab8 100644
+--- a/crates/tswn_core/src/runtime/combat/infection.rs
++++ b/crates/tswn_core/src/runtime/combat/infection.rs
+@@ -86,6 +86,7 @@ impl CombatRuntime {
+             target.0 as usize,
+             60,
+         ));
++        self.language_debuff(caster, target);
+     }
+ 
+     pub fn covid_boss_mutation(&self, boss: EntityIdx) -> Option<i32> {
 diff --git a/crates/tswn_core/src/runtime/combat/lifecycle.rs b/crates/tswn_core/src/runtime/combat/lifecycle.rs
-index 92e74615..110861b4 100644
+index 92e74615..2e481133 100644
 --- a/crates/tswn_core/src/runtime/combat/lifecycle.rs
 +++ b/crates/tswn_core/src/runtime/combat/lifecycle.rs
-@@ -40,6 +40,10 @@ impl CombatRuntime {
+@@ -40,6 +40,11 @@ impl CombatRuntime {
              #[cfg(not(feature = "no_debug"))]
              trace: None,
              round: 0,
 +            relic_heal_team: None,
++            language_relic_team: None,
 +            relic_shield_team: None,
 +            relic_damage_floor: false,
 +            relic_shields: Default::default(),
          }
      }
  
-@@ -259,6 +263,10 @@ impl CombatRuntime {
+@@ -259,6 +264,10 @@ impl CombatRuntime {
          selected_target: Option<EntityIdx>,
      ) {
          for entry in entries {
@@ -1113,7 +1243,7 @@ index 92e74615..110861b4 100644
              let (handler, capabilities) = if let Some(static_handler) = self.builtin_static_skill_handler(entry.skill_id) {
                  static_handler
              } else {
-@@ -325,6 +333,11 @@ impl CombatRuntime {
+@@ -325,6 +334,11 @@ impl CombatRuntime {
          defend_value: &mut RuntimeDefendValue,
          on_damage: PlainAttackOnDamage,
      ) {
@@ -1126,7 +1256,7 @@ index 92e74615..110861b4 100644
              static_handler
          } else {
 diff --git a/crates/tswn_core/src/runtime/combat/mod.rs b/crates/tswn_core/src/runtime/combat/mod.rs
-index 11a65d86..8ecb90a8 100644
+index 11a65d86..21dbe9f2 100644
 --- a/crates/tswn_core/src/runtime/combat/mod.rs
 +++ b/crates/tswn_core/src/runtime/combat/mod.rs
 @@ -7,6 +7,7 @@
@@ -1137,11 +1267,13 @@ index 11a65d86..8ecb90a8 100644
  mod attack;
  mod defense;
  mod effects;
-@@ -91,4 +92,24 @@ pub struct CombatRuntime {
+@@ -91,4 +92,26 @@ pub struct CombatRuntime {
      #[cfg(not(feature = "no_debug"))]
      pub trace: Option<RuntimeTrace>,
      pub round: u64,
 +    /// 仅网站遗物启用；普通引擎对局保持原始规则。
++    /// 自制语言包的所属方；默认关闭。
++    pub language_relic_team: Option<usize>,
 +    pub relic_heal_team: Option<usize>,
 +    pub relic_shield_team: Option<usize>,
 +    pub relic_damage_floor: bool,
@@ -1627,6 +1759,18 @@ index d45a33a8..e256c798 100644
                  clone_skills,
                  clone_build,
                  shadow_blueprint,
+diff --git a/crates/tswn_core/src/runtime/combat/skills_lifecycle.rs b/crates/tswn_core/src/runtime/combat/skills_lifecycle.rs
+index baf2a9c1..066aaf0f 100644
+--- a/crates/tswn_core/src/runtime/combat/skills_lifecycle.rs
++++ b/crates/tswn_core/src/runtime/combat/skills_lifecycle.rs
+@@ -292,6 +292,7 @@ impl CombatRuntime {
+             target.0 as usize,
+             60,
+         ));
++        self.language_debuff(actor, target);
+     }
+ 
+     pub fn drain_plain_shadow_skill_into(&mut self, actor: EntityIdx, fixed_lane: usize, updates: &mut RunUpdates) {
 diff --git a/crates/tswn_core/src/runtime/combat/skills_offense.rs b/crates/tswn_core/src/runtime/combat/skills_offense.rs
 index 48f2ebcc..1c638b72 100644
 --- a/crates/tswn_core/src/runtime/combat/skills_offense.rs
@@ -1639,6 +1783,18 @@ index 48f2ebcc..1c638b72 100644
          match prepared.selected.skill {
              BuiltinActiveSkill::Fire => {
                  let target = prepared.targets[0];
+diff --git a/crates/tswn_core/src/runtime/combat/skills_team.rs b/crates/tswn_core/src/runtime/combat/skills_team.rs
+index 77d21ce1..4681498a 100644
+--- a/crates/tswn_core/src/runtime/combat/skills_team.rs
++++ b/crates/tswn_core/src/runtime/combat/skills_team.rs
+@@ -274,6 +274,7 @@ impl CombatRuntime {
+                 actor.0, target.0, self.rng.i, self.rng.j,
+             );
+         }
++        self.language_debuff(actor, target);
+     }
+ 
+     pub fn select_plain_heal_targets(&mut self, actor: EntityIdx, smart: bool) -> PreparedTargetList {
 diff --git a/crates/tswn_core/src/runtime/effect/skill_context.rs b/crates/tswn_core/src/runtime/effect/skill_context.rs
 index 1700f510..ff1c1b66 100644
 --- a/crates/tswn_core/src/runtime/effect/skill_context.rs
@@ -2053,10 +2209,10 @@ index 20338ccb..5cce98a4 100644
  /// 将单名转换为 DIY 文本；old/minions 省略时为 false，冲突选项由 core 校验。
  pub fn to_diy(name: String, old: Option<bool>, minions: Option<bool>) -> WasmResult<String> {
 diff --git a/crates/tswn_wasm/src/model.rs b/crates/tswn_wasm/src/model.rs
-index 677714ae..fb1c1180 100644
+index 677714ae..1e27ec7b 100644
 --- a/crates/tswn_wasm/src/model.rs
 +++ b/crates/tswn_wasm/src/model.rs
-@@ -67,6 +67,24 @@ pub struct BattleOptions {
+@@ -67,6 +67,26 @@ pub struct BattleOptions {
      pub include_icons: Option<bool>,
      #[tsify(optional)]
      pub max_rounds: Option<usize>,
@@ -2078,10 +2234,12 @@ index 677714ae..fb1c1180 100644
 +    /// 帮测贴开场属性增益所属队伍。
 +    #[tsify(optional)]
 +    pub stat_relic_team: Option<usize>,
++    #[tsify(optional)]
++    pub language_relic_team: Option<usize>,
  }
  
  impl Default for BattleOptions {
-@@ -75,6 +93,13 @@ impl Default for BattleOptions {
+@@ -75,6 +95,14 @@ impl Default for BattleOptions {
              eval_rq: None,
              include_icons: None,
              max_rounds: None,
@@ -2092,10 +2250,11 @@ index 677714ae..fb1c1180 100644
 +            shielding_relic_team: None,
 +            relic_damage_floor: None,
 +            stat_relic_team: None,
++            language_relic_team: None,
          }
      }
  }
-@@ -89,6 +114,13 @@ impl BattleOptions {
+@@ -89,6 +117,14 @@ impl BattleOptions {
          if let Some(max_rounds) = self.max_rounds {
              options.max_rounds = max_rounds;
          }
@@ -2106,6 +2265,7 @@ index 677714ae..fb1c1180 100644
 +        options.shielding_relic_team = self.shielding_relic_team;
 +        options.relic_damage_floor = self.relic_damage_floor.unwrap_or(false);
 +        options.stat_relic_team = self.stat_relic_team;
++        options.language_relic_team = self.language_relic_team;
          options
      }
  }

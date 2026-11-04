@@ -709,7 +709,8 @@ function mapScreen() {
           const out = el('div', { class: 'cpu-result' });
           const showResult = (res) => out.replaceChildren(
             el('div', { class: 'muted small' }, '扫描 ' + res.scanned + ' 个名字'),
-            UI.charRowEl(res.card),
+            // 测号页显示原始属性和绿色倍率，入库卡保存增强后的永久基础增量。
+            UI.charRowEl(res.multiplier ? {...res.card,stats:res.baseStats,scanMult:res.multiplier} : res.card),
             el('div', { class: 'muted small' }, '已加入角色库：' + res.name + '（八围 ' + G.eightSum(res.card) + '）'));
           const scanButton = el('button', { class: 'primary', type: 'button', disabled: !!node.cpuScanUsed }, node.cpuScanUsed ? '已测号' : '测号（仅一次）');
           // 按钮立即锁定；实际次数由节点持久状态校验，不能靠重新打开弹窗绕过。

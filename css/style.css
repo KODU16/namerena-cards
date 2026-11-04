@@ -1459,3 +1459,14 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
 .relic-card { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
 .relic-card > em { display: block; margin: 6px 0 12px; font-size: 12px; line-height: 1.5; }
 .relic-card > button { margin-top: auto; }
+
+/* 遗物每张等高，图标统一占位，长说明缩字且销毁操作独立一行。 */
+.inv__grid:has(> .relic-card) { grid-auto-rows: 310px; }
+.relic-card { height: 100%; box-sizing: border-box; display: grid; grid-template-rows: 40px 32px minmax(0,1fr) 30px; align-items: start; gap: 8px; }
+.relic-card > .relic-icon { width: 32px; height: 32px; object-fit: contain; align-self: center; flex-shrink: 0; }
+.relic-card__text { font-size: 12px; line-height: 1.5; }
+.relic-card__text.is-long { font-size: 11px; line-height: 1.4; }
+.relic-card__text p { font-size: inherit; line-height: inherit; margin: 0 0 10px; }
+.relic-card__text em { display: block; font-size: inherit; line-height: inherit; }
+.relic-card__actions { width: 100%; align-self: end; display: block; }
+.scan-mult { color: #298443; font-style: normal; font-weight: 700; margin-left: 5px; }

@@ -561,6 +561,9 @@ export function clearNode(state) {
   const run = state.run;
   if (!run?.selectedId) return null;
   const node = run.graph.byId.get(run.selectedId);
+  if (!node || run.cleared.includes(node.id)) return null;
+  // 奖励在经过节点时结算，刚在该节点获得的战力币从下一节点开始计息。
+  if ((state.relics || []).includes('battle-coin')) changeScore(state, 50);
   run.nodeId = run.selectedId;
   run.cleared.push(run.selectedId);
   run.selectedId = null;
@@ -902,13 +905,22 @@ export function addScore(state, oppScore) {
   return gain;
 }
 
+// 所有扣分共用此入口；先销毁已有战力币，再进行交易或战败结算。
+function changeScore(state, amount) {
+  const run = state.run;
+  const before = Number.isFinite(run.score) ? run.score : 0;
+  run.score = Math.max(0, before + amount);
+  if (run.score < before) state.relics = (state.relics || []).filter(id => id !== 'battle-coin');
+  return run.score - before;
+}
+
 // 战败扣分：只扣 3%，最多 300
 export function loseScore(state) {
   const run = state.run;
   if (!run) return 0;
   const cur = Number.isFinite(run.score) ? run.score : 0;
   const loss = Math.min(300, cur) === 0 ? 0 : Math.min(300, Math.max(10, Math.round(cur * 0.03)));
-  run.score = Math.max(0, cur - loss);
+  changeScore(state, -loss);
   persist(state);
   return loss;
 }
@@ -916,7 +928,7 @@ export function loseScore(state) {
 export function addScorePoints(state, points) {
   const run = state.run;
   if (!run) return 0;
-  run.score = (Number.isFinite(run.score) ? run.score : 0) + Math.round(points);
+  changeScore(state, Math.round(points));
   persist(state);
   return Math.round(points);
 }
@@ -962,6 +974,14 @@ export function scanCpuNode(state, nodeId, prefix, startAt) {
   persist(state);
   try {
     const result = cpuScan(prefix, startAt, node.payload, state.run.clan || '无名');
+    // 开箱器只增强选出的最强名字，不改变测号排序或技能熟练度。
+    if (result && (state.relics || []).includes('box-opener')) {
+      result.baseStats = {...result.card.stats};
+      result.multiplier = 1.2;
+      result.card.forge = Object.fromEntries(STAT_LABELS.map(([key]) => [key, Math.round(result.baseStats[key] * 1.2) - result.baseStats[key]]));
+      result.card.stats = applyForge(result.baseStats, result.card.forge);
+      result.sum = eightSum(result.card);
+    }
     node.cpuScanResult = result;
     if (result && !state.collection.some((c) => c.name === result.card.name)) grantCard(state, result.card);
     persist(state);
@@ -1002,7 +1022,7 @@ export function constructCharacter(state, charId, amount) {
   gains.forEach((gain,i) => { gain.units += cuts[i+1] - cuts[i]; });
   card.forge ||= {};
   for (const gain of gains) { gain.amount = gain.units * (gain.key === 'hp' ? 3 : 1); card.forge[gain.key] = (card.forge[gain.key] || 0) + gain.amount; }
-  run.score -= quote.spend;
+  changeScore(state, -quote.spend);
   card.constructSpent = (card.constructSpent || 0) + quote.spend;
   card.stats = finalStats(card, build.stats);
   node.constructCount = (node.constructCount || 0) + 1;
@@ -1066,7 +1086,7 @@ export function buyMerchantWeapon(state, weaponId) {
   const offer = merchantStock(state).find((o) => o.weapon.id === weaponId);
   if (!offer || offer.sold || !Number.isFinite(state.run.score) || state.run.score < offer.price) return false;
   offer.sold = true;
-  state.run.score -= offer.price;
+  changeScore(state, -offer.price);
   (state.weapons ||= []).push({ ...offer.weapon });
   persist(state);
   return true;
@@ -1084,7 +1104,7 @@ export function reforgeWeapon(state, weaponId) {
   let name;
   do { name = randomWeapon(rng); } while (name === oldName);
   if (!weaponQuote({ name })) return null;
-  state.run.score -= quote.reforge;
+  changeScore(state, -quote.reforge);
   weapon.name = name;
   weapon.reforges = (weapon.reforges || 0) + 1;
   persist(state);
@@ -1274,7 +1294,7 @@ export function buyShopItem(state, item) {
   if (item.kind === 'relic' && (state.relics || []).includes(item.relic)) return false;
   const score = Number.isFinite(run.score) ? run.score : 0;
   if (score < item.price) return false;
-  run.score = score - item.price;
+  changeScore(state, -item.price);
   item.sold = true;
   applyReward(state, item);
   persist(state);

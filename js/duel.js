@@ -131,6 +131,7 @@ export class Duel {
           opening_relic_team: this.relics.includes('pl-tester-v1') ? this.playerTeam : undefined,
           healing_relic_team: this.relics.includes('cpu-fan') ? this.playerTeam : undefined,
           shielding_relic_team: this.relics.includes('rat-tail') ? this.playerTeam : undefined,
+          language_relic_team: this.relics.includes('language-pack') ? this.playerTeam : undefined,
           relic_damage_floor: this.relics.includes('heavy-spite'),
           // 属性遗物由引擎区分原始角色与派生单位。
           stat_relic_team: this.relics.includes('help-test-post') ? this.playerTeam : undefined,
