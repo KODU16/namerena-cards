@@ -1431,3 +1431,8 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
 @keyframes fortune-reveal { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: none; } }
 @media (max-width: 480px) { .fortune__paper { padding: 14px 15px 20px; } .fortune__stage { min-height: 210px; } .fortune-launch { right: 12px; bottom: max(12px, env(safe-area-inset-bottom)); padding: 8px 14px; } }
 @media (prefers-reduced-motion: reduce) { .fortune.is-drawing .fortune__tube, .fortune.is-revealed .fortune__result { animation: none; } }
+
+/* 构造结果保留到下次交易，输入区在窄屏也不超出商店。 */
+.construct-shop .field { display: grid; gap: 8px; margin: 16px 0; }
+.construct-shop input, .construct-shop select { width: 100%; min-width: 0; box-sizing: border-box; }
+.construct-result { margin-top: 20px; padding: 14px; border: 1px solid #b3d6ed; border-radius: 12px; color: #246fa0; overflow-wrap: anywhere; }

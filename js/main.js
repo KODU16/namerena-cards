@@ -70,11 +70,13 @@ function shopSheet(kind, ...kids) {
   const panel = overlay.querySelector('.sheet');
   const weapon = kind === 'weapon';
   const curse = kind === 'curse';
-  const title = weapon ? '武器商人' : curse ? '诅咒商人' : '商人';
+  // 构造商人沿用包含左侧立绘的商店窗口。
+  const construct = kind === 'construct';
+  const title = weapon ? '武器商人' : curse ? '诅咒商人' : construct ? '构造商人' : '商人';
   if (weapon) panel.classList.add('sheet--merchant');
   overlay.replaceChildren(el('div', { class: 'shop-stage' + (weapon ? ' shop-stage--weapon' : ''), role: 'dialog', 'aria-label': title },
     el('aside', { class: 'shop-stage__character' }, el('h2', {}, title),
-      el('img', { class: 'shop-stage__portrait', src: weapon ? 'assets/characters/weapon-merchant.webp' : curse ? 'assets/characters/curse-merchant.webp' : 'assets/characters/merchant.webp',
+      el('img', { class: 'shop-stage__portrait', src: construct ? 'assets/characters/construct-merchant.webp' : weapon ? 'assets/characters/weapon-merchant.webp' : curse ? 'assets/characters/curse-merchant.webp' : 'assets/characters/merchant.webp',
         alt: title + '立绘', width: 800, height: 800, decoding: 'async' })), panel));
 }
 
@@ -764,6 +766,20 @@ function mapScreen() {
           }));
         };
         openMerchant();
+        return;
+      }
+      // 构造仅操作出战队伍，双人组可选择本次强化的当前角色。
+      if (node?.kind === 'constructMerchant') {
+        if (!G.enterCamp(state, nodeId)) return;
+        mapScreen();
+        shopSheet('construct', UI.constructMerchantSheet(state, {
+          onConstruct: (id, amount) => {
+            const result = G.constructCharacter(state, id, amount);
+            if (result.ok) { UI.renderScoreBadge(state, true); paintTopbar(); }
+            return result;
+          },
+          onLeave: () => { closeSheet(); mapScreen(); },
+        }));
         return;
       }
       if (node?.kind === 'curseMerchant') {

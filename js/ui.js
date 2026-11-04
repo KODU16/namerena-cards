@@ -4,7 +4,7 @@ import {hasHonor} from './run-honor.js';
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta, effectiveSkillLevel } from './skills.js';
 import { burstAt } from './fx.js';
-import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote, scaleTactic } from './game.js';
+import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote, scaleTactic, constructQuote } from './game.js';
 import { makeCard, cardDisplayStats, displayEightSum } from './engine.js';
 import { emojiImg, mapIconSvg } from './emoji.js';
 // 生成和绘制共用尺寸，保持节点半径和几何约束一致。
@@ -626,6 +626,35 @@ export function curseCostEl(cost) {
       el('small', {}, '熟练度 ' + effectiveSkillLevel(cost.lv)));
 }
 
+// 输入预览与付款结果在同一面板更新，余额不足时保留输入并引导重填。
+export function constructMerchantSheet(state, h) {
+  const cards = state.collection.filter(c => state.run.teamIds.includes(c.id) && !state.run.downed?.includes(c.id));
+  const select = el('select', {}, cards.map(c => el('option', {value:c.id}, c.name + '@' + c.clan)));
+  const input = el('input', {type:'text', inputmode:'numeric', placeholder:'输入消耗的天梯分数', 'aria-label':'消耗的天梯分数', value:'1000'});
+  const balance = el('p', {class:'merchant-heading'});
+  const preview = el('p', {class:'muted small'});
+  const result = el('div', {class:'construct-result', role:'status', 'aria-live':'polite'});
+  const refresh = () => {
+    balance.textContent = '天梯分数 ' + Math.floor(state.run.score || 0);
+    const quote = constructQuote(cards.find(c => c.id === select.value), input.value);
+    preview.textContent = quote ? '本次属性额度：' + quote.units + ' 点（HP 每点增加 3）' : '请输入至少 250 的整数分数。';
+  };
+  input.addEventListener('input', refresh); select.addEventListener('change', refresh); refresh();
+  const last = state.run.graph.byId.get(state.run.nodeId)?.constructResult;
+  const show = r => { result.classList.remove('curse-loss'); result.replaceChildren(el('b', {}, r.name + ' · 消耗 ' + r.spend + ' 分'), el('p', {}, r.gains.map(g => g.label + ' +' + g.amount).join(' · '))); };
+  if (last) show(last);
+  const form = el('form', {onsubmit:event => {
+    event.preventDefault();
+    const r = h.onConstruct(select.value, input.value);
+    if (r.ok) { show(r); refresh(); }
+    else { result.classList.add('curse-loss'); result.textContent = r.reason; input.focus(); input.select(); }
+  }}, el('label', {class:'field'}, '当前角色', select), el('label', {class:'field'}, '投入天梯分数', input), preview,
+    el('button', {class:'primary', type:'submit', disabled:!cards.length}, '构造 · 永久增强'));
+  return el('section', {class:'construct-shop'}, balance,
+    el('p', {class:'muted small'}, '随机选择七属性与 HP 中的 1～8 项分配增益，HP 增益为三倍。消耗越多，总增益越多；同一角色累计投入越高，单位分数收益越低，拆分投入不会增加总额度。增益永久保留，换装不丢失。'),
+    form, result, el('div', {class:'result__actions'}, el('button', {class:'primary', type:'button', onclick:h.onLeave}, '离开')));
+}
+
 export function curseMerchantSheet(state, h) {
   return el('section', { class: 'curse-shop' },
     el('label', { class: 'field' }, '当前角色（用于技能交换）',
@@ -1100,6 +1129,8 @@ export function renderMap(root, state, h) {
       ? '<text y="6" text-anchor="middle" class="map-glyph">起</text>'
       : n.kind === 'event'
         ? objectArt('event')
+        : n.kind === 'constructMerchant'
+          ? objectArt('forge')
         : n.kind === 'curseMerchant'
           ? objectArt('sklcurse')
         : n.kind === 'weaponMerchant'
@@ -1127,6 +1158,7 @@ export function renderMap(root, state, h) {
               : n.kind === 'shop' ? '商店'
               : n.kind === 'camp' ? '篝火'
                 : n.kind === 'event' ? '补给'
+                  : n.kind === 'constructMerchant' ? '构造商人'
                   : n.kind === 'curseMerchant' ? '诅咒商人'
                   : n.kind === 'weaponMerchant' ? '武器商人'
                   : n.kind === 'chest' ? '宝箱'
@@ -1167,6 +1199,7 @@ export function renderMap(root, state, h) {
           el('span', { class: 'map-legend map-legend--chest' }, '宝箱 · 物品＋分数'),
           el('span', { class: 'map-legend map-legend--chest' }, '武器商人'),
           el('span', { class: 'map-legend map-legend--chest' }, '诅咒商人'),
+          el('span', { class: 'map-legend map-legend--chest' }, '构造商人'),
           el('span', { class: 'map-legend map-legend--end' }, '终点'))),
       el('div', { class: 'map__row' },
         el('div', { class: 'map__body' }),
@@ -1412,6 +1445,8 @@ const CODEX_PLAYER = [
   ['未存档皇冠', '同一局、同一地图位置第二次读档后永久失去皇冠，改用其他槽位或读取旧快照不会重置。保留皇冠通关显示金色胜利，单纯保存和自动续局不计读档。'],
   ['MP 时机', '抽牌时定好消耗（8~23），出牌立即扣除 MP。行动所有段落结束后再显示回复，单位 MP 槽右侧蓝字列出实际回复量。'],
   ['精英试炼', '第一层为属性 ×1.2，第二层为 ×1.5；第三层起出现属性 ×2 或双倍人数的精英，数值倍率以蓝字显示。'],
+  // 构造增益按外显属性计量，HP 三倍，长期投入采用递减收益。
+  ['构造商人', '每层有 33% 概率出现。输入可负担的整数分数（至少 250），为当前出战角色随机若干项属性永久增强，HP 按三倍增加。累计投入越多，后续单位分数收益越低。'],
   ['诅咒商人', '用全体角色黑字基础属性或卸下武器后的最高技能交换物品，HP 按三倍扣除。金色净化／幻术至少要求全体某项属性降低 50（HP 为 150），或原名字裸技能至少 70，武器、战术、锻造不计资格。成交时技能含锻造部分永久归零，武器贡献保留。'],
   ['谁听你指挥', '只有本体与分身会停下来等你下指令；幻影、使魔、丧尸由引擎自动行动。'],
   ['背刺', '潜行与背刺是两段，引擎会强制走完第二段，玩家不能在这中间插别的牌。'],

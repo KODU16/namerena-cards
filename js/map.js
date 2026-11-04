@@ -187,6 +187,11 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     const d = pickSparseDepth();
     if (d !== undefined) groups[d].push(mk('curseMerchant', null, null));
   }
+  // 构造商人独立以 33% 概率出现，将分数交换为当前角色的永久随机属性。
+  if (rng() < .33) {
+    const d = pickSparseDepth();
+    if (d !== undefined) groups[d].push(mk('constructMerchant', null, null));
+  }
   // 商店节点：花分数买卡，每层 1 个
   {
     const open = [];

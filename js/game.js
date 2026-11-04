@@ -189,7 +189,7 @@ export function snapshot(state) {
     id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
     cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
     weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, weaponItem: c.weaponItem || null, forge: c.forge || null,
-    skillTraining: c.skillTraining || null, curseStats: c.curseStats || null, lostSkills: c.lostSkills || null,starterReplacements:c.starterReplacements||null,
+    skillTraining: c.skillTraining || null, curseStats: c.curseStats || null, lostSkills: c.lostSkills || null,starterReplacements:c.starterReplacements||null, constructSpent:c.constructSpent||0,
     runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
   });
   return {
@@ -236,7 +236,7 @@ export function persist(state) {
       id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
       cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
       // 装备与武器信息也要存，否则刷新后武器就「消失」了
-      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, weaponItem: c.weaponItem || null, forge: c.forge || null, skillTraining: c.skillTraining || null, curseStats: c.curseStats || null, lostSkills: c.lostSkills || null,starterReplacements:c.starterReplacements||null, runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
+      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, weaponItem: c.weaponItem || null, forge: c.forge || null, skillTraining: c.skillTraining || null, curseStats: c.curseStats || null, lostSkills: c.lostSkills || null,starterReplacements:c.starterReplacements||null, constructSpent:c.constructSpent||0, runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
     });
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       v: 1,
@@ -958,6 +958,45 @@ export function scanCpuNode(state, nodeId, prefix, startAt) {
     persist(state);
     return { ok: false, reason: 'failed' };
   }
+}
+
+// 构造永久增益使用累计投入的平方根曲线，拆单不会增加总属性额度。
+export function constructQuote(card, amount) {
+  const text = String(amount).trim();
+  const spend = /^\d+$/.test(text) ? Number(text) : NaN;
+  const spent = card?.constructSpent || 0;
+  if (!card || !Number.isSafeInteger(spend) || spend < 250 || !Number.isSafeInteger(spent + spend)) return null;
+  const total = n => Math.floor(16 * Math.sqrt(1 + n / 1000) - 16);
+  return { spend, units: total(spent + spend) - total(spent) };
+}
+
+// 只允许当前构造节点为出战角色付款；先完成校验，再一次性扣款和记录增益。
+export function constructCharacter(state, charId, amount) {
+  const run = state.run, node = currentNode(state);
+  const card = state.collection.find(c => c.id === charId);
+  if (!run || run.status !== 'active' || node?.kind !== 'constructMerchant' || node.id !== run.nodeId || !run.teamIds?.includes(charId) || run.downed?.includes(charId)) return { ok:false, reason:'请选择当前可出战的角色' };
+  const quote = constructQuote(card, amount);
+  if (!quote) return { ok:false, reason:'请重新输入至少 250 的整数天梯分数' };
+  if (!Number.isFinite(run.score) || quote.spend > run.score) return { ok:false, reason:'天梯分数不足，请重新输入可负担的金额' };
+  if (!quote.units) return { ok:false, reason:'本次投入不足以增加属性，请重新输入更高金额' };
+  const build = card.weapon ? buildWithWeapon(card.name, card.clan, card.weapon) : makeCard(card.name, card.clan);
+  if (!build) return { ok:false, reason:'角色构建失败，请重新选择角色' };
+  // 节点交易序号参与种子；关闭重开面板不改变下一次结果。
+  const rng = mulberry32(nodeSeed(run, node, 0xc05712) ^ Math.imul(node.constructCount || 0, 2654435761));
+  const keys = shuffle(STAT_LABELS, rng).slice(0, 1 + Math.floor(rng() * Math.min(8, quote.units)));
+  const gains = keys.map(([key,label]) => ({key,label,units:1}));
+  // 按随机切点分配剩余额度，大额投入也只需处理最多八项。
+  const cuts = [0, ...Array.from({length:gains.length - 1}, () => Math.floor(rng() * (quote.units - gains.length + 1))), quote.units - gains.length].sort((a,b) => a-b);
+  gains.forEach((gain,i) => { gain.units += cuts[i+1] - cuts[i]; });
+  card.forge ||= {};
+  for (const gain of gains) { gain.amount = gain.units * (gain.key === 'hp' ? 3 : 1); card.forge[gain.key] = (card.forge[gain.key] || 0) + gain.amount; }
+  run.score -= quote.spend;
+  card.constructSpent = (card.constructSpent || 0) + quote.spend;
+  card.stats = finalStats(card, build.stats);
+  node.constructCount = (node.constructCount || 0) + 1;
+  node.constructResult = {charId, name:card.name, spend:quote.spend, gains};
+  persist(state);
+  return {ok:true, ...node.constructResult};
 }
 
 // 稳定的节点种子让存档、重新打开面板和购买都不刷新库存。
