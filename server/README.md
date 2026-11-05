@@ -1,3 +1,5 @@
+> 正式主站使用 Flask/PostgreSQL，本文独立 8800/SQLite 部署仅作本地/历史参考。多人生产接入以 [当前接入说明](../docs/arena-integration.md) 和主站 docs/cards-arena-integration.md 为准。
+
 # cards 后端（对局记录 + 静态站点）
 
 与主站同源部署：`https://shenjack.top/cards/` 提供游戏，`https://shenjack.top/api/cards/*` 提供接口。

@@ -337,15 +337,16 @@ export function renderPrep(root, state, h) {
 }
 // ————————————————————— 战斗
 
-export function renderBattleShell(root, state, battle, h) {
+// 单人与多人共用同一套尖塔战斗骨架；多人只替换服务器驱动的回合来源。
+export function battleShellEl(h) {
   const log = el('div', { class: 'log', id: 'battle-log' });
-  const shell = el('section', { class: 'battle' },
+  return el('section', { class: 'battle' },
     el('div', { class: 'battle__bar' },
       el('div', { class: 'battle__round', id: 'battle-round' }, '第 1 回合'),
       el('div', { class: 'battle__speed' },
-        [0.5, 1, 1.5, 2, 3, 4].map((x) => el('button', { class: `speed${x === 1 ? ' is-active' : ''}`, type: 'button', 'data-speed': x, onclick: () => h.onSpeed(x) }, `${x}×`)),
-        el('button', { class: 'speed', type: 'button', 'data-speed': 'manual', onclick: () => h.onSpeed('manual') }, '手动'),
-        el('button', { class: 'ghost', type: 'button', onclick: h.onSkip }, '跳过'),
+        [0.5, 1, 1.5, 2, 3, 4].map((x) => el('button', { class: `speed${x === 1 ? ' is-active' : ''}`, type: 'button', 'data-speed': x, disabled: h.readOnly || undefined, onclick: () => h.onSpeed(x) }, `${x}×`)),
+        el('button', { class: 'speed', type: 'button', 'data-speed': 'manual', disabled: h.readOnly || undefined, onclick: () => h.onSpeed('manual') }, '手动'),
+        el('button', { class: 'ghost', type: 'button', disabled: h.readOnly || undefined, onclick: h.onSkip }, '跳过'),
       ),
     ),
     el('div', { class: 'arena' },
@@ -361,6 +362,10 @@ export function renderBattleShell(root, state, battle, h) {
       el('div', { class: 'hand', id: 'battle-hand' }),
     ),
   );
+}
+
+export function renderBattleShell(root, state, battle, h) {
+  const shell = battleShellEl(h);
   root.replaceChildren(shell);
   return shell;
 }

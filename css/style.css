@@ -1572,3 +1572,136 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
   .arena-mode__actions button { min-height: 40px; }
   .arena-zone { min-height: 72px; }
 }
+
+/* 400 格地图始终左侧，操作/背包在右上，战报固定右下；手机采用横屏。 */
+body[data-screen="arena"] #screen { max-width:none; padding:8px 12px; }
+body[data-screen="arena"] .fortune-launch { display:none; }
+.arena-game { max-width:1500px; }
+.arena-game .arena-mode__header { min-height:36px; margin:0 0 6px; gap:6px; }
+.arena-game .arena-mode__header .arena-mode__actions { margin:0; gap:6px; }
+.arena-game button { font-size:13px; min-height:28px; }
+.arena-workspace { height:calc(100dvh - 135px); min-height:300px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1.05fr); gap:12px; }
+.arena-map-panel { min-width:0; min-height:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:6px; border:1px solid var(--line); border-radius:10px; background:#f5fbff; padding:8px; }
+.arena-map { flex:none; width:min(100%,calc(100dvh - 200px)); aspect-ratio:1; display:grid; grid-template-columns:repeat(9,minmax(0,1fr)); grid-template-rows:repeat(9,minmax(0,1fr)); gap:2px; margin:0; }
+.arena-map .arena-zone { min-height:0; height:100%; min-width:0; padding:1px; border-radius:3px; box-shadow:none; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:0; background:#edf4e9; border:1px solid #ccdbca; font-size:14px; line-height:1.1; color:#3b5146; }
+.arena-zone small { font-size:9px; }
+.arena-zone.loot-supplies { background:#dceaca; }
+.arena-zone.loot-skill { background:#e5e1f6; }
+.arena-zone.loot-weapon { background:#eee0c8; }
+.arena-zone.loot-healing { background:#d4efe8; }
+.arena-zone.loot-mixed { background:#d4eaf8; }
+.arena-map .arena-zone.is-next { background-image:repeating-linear-gradient(135deg,transparent,transparent 5px,#b5946740 5px,#b5946740 8px); }
+.arena-map .arena-zone.is-current { outline:2px solid #59b4e4; outline-offset:-2px; background-color:#c5eafb; color:#07699d; opacity:1; }
+.arena-map .arena-zone.is-closed { background:#eccbc6; border-color:#dcaaa1; color:#9f5145; opacity:1; }
+.arena-map .arena-zone:disabled:not(.is-closed):not(.is-current) { opacity:.65; }
+.arena-map-legend { font-size:11px; display:flex; flex-direction:column; gap:2px; text-align:center; }
+.arena-map-legend small { font-size:10px; }
+.arena-right { min-width:0; min-height:0; display:flex; flex-direction:column; gap:6px; }
+.arena-right-tabs { display:flex; flex:none; flex-wrap:wrap; gap:5px; justify-content:flex-end; }
+.arena-right-content { flex:1; min-height:0; overflow:auto; padding:9px; border:1px solid var(--line); border-radius:9px; background:#faffff; }
+.arena-right-content h2,.arena-right-content h3 { margin:0 0 8px; }
+.arena-right-content .char { margin:6px 0; }
+.arena-right-content .arena-mode__actions { gap:6px; margin:6px 0; }
+.arena-status-line { display:flex; gap:5px 12px; flex-wrap:wrap; font-size:13px; }
+.arena-right-content .arena-mode__stock { grid-template-columns:minmax(0,1fr); }
+.arena-right-content .arena-mode__item { padding:8px; gap:5px; }
+.arena-inventory { display:flex; flex-direction:column; align-items:stretch; gap:7px; }
+.arena-inventory__weapon { display:flex; align-items:center; justify-content:space-between; gap:8px; border-bottom:1px solid var(--line); padding:5px; overflow-wrap:anywhere; }
+.arena-mode__roster article { display:flex; flex-direction:column; padding:6px; border-bottom:1px solid var(--line); }
+.arena-broadcast { height:26%; min-height:75px; flex:none; display:flex; flex-direction:column; border:1px solid var(--line); border-radius:9px; background:#f6fbfe; padding:6px 8px; font-size:11px; }
+.arena-broadcast > div { overflow:auto; min-height:0; }
+.arena-broadcast p { margin:4px 0; overflow-wrap:anywhere; }
+.arena-right > .error { margin:0; font-size:12px; }
+.arena-rotate { display:none; }
+.arena-battle-modal { position:fixed; inset:0; z-index:90; background:#15384d80; display:grid; place-items:center; padding:12px; }
+.arena-battle-sheet { width:min(1050px,100%); max-height:calc(100dvh - 24px); height:660px; background:#fbfdff; border:2px solid #9dcfe8; border-radius:12px; padding:12px; display:flex; flex-direction:column; overflow:auto; box-shadow:0 12px 50px #122e4f66; }
+.arena-battle-sheet > .arena-mode__actions { margin:0 0 8px; justify-content:space-between; }
+.arena-battle-sheet .arena-battle { flex:1; min-height:0; max-width:none; gap:8px; overflow:hidden; }
+.arena-battle-sheet .arena-battle .battle__bar { flex:none; gap:8px; }
+.arena-battle-sheet .arena-battle .battle__speed { flex-wrap:wrap; justify-content:flex-end; }
+.arena-battle-sheet .arena-battle .arena { min-height:0; grid-template-columns:minmax(190px,.9fr) minmax(240px,1.1fr) minmax(190px,.9fr); gap:9px; }
+.arena-battle-sheet .arena-battle .unit { padding:10px; gap:6px; }
+.arena-battle-sheet .arena-battle .unit__icon { width:58px; height:58px; }
+.arena-battle-sheet .arena-battle .log { min-height:0; max-height:none; height:100%; padding:8px 10px; font-size:12px; }
+.arena-battle-sheet .arena-battle .handbar { flex:none; padding:8px 2px 0; }
+.arena-battle-sheet .arena-battle .hand { min-height:112px; padding-top:15px; }
+.arena-battle-sheet .arena-battle .hcard { width:180px; min-height:82px; padding:8px 9px 24px; }
+.arena-battle-sheet .arena-battle .hcard__glyph { width:32px; height:32px; }
+.arena-battle-sheet .arena-battle .hcard__body b { font-size:13px; }
+.arena-battle-sheet .arena-battle .hcard__body small { display:none; }
+.arena-battle-sheet .arena-battle .arena-mode__timer { margin-left:auto; white-space:nowrap; }
+.arena-battle-body { min-height:0; flex:1; display:grid; grid-template-columns:minmax(0,.85fr) minmax(0,1.15fr); grid-template-rows:auto minmax(0,1fr) 90px; gap:8px; }
+.arena-battle-body > h2 { display:none; }
+.arena-battle-body .arena-mode__timer { position:static; grid-column:1 / -1; margin:0; padding:6px 12px; }
+.arena-battle-body .arena-mode__combatants { grid-column:1; grid-row:2; max-height:none; min-height:0; align-content:start; }
+.arena-battle-body .arena-mode__hand { grid-column:2; grid-row:2; margin:0; min-height:0; overflow:auto; align-content:stretch; }
+.arena-battle-body > .muted { grid-column:2; grid-row:2; }
+.arena-battle-body .arena-mode__battle-log { grid-column:1 / -1; grid-row:3; max-height:none; margin:0; }
+@media (max-height:550px) and (orientation:landscape) {
+  body[data-screen="arena"] .topbar { min-height:36px; padding:4px 12px; }
+  body[data-screen="arena"] .topbar__brand { font-size:13px; }
+  body[data-screen="arena"] .topbar__actions { gap:4px; }
+  body[data-screen="arena"] .topbar button { font-size:11px; min-height:24px; }
+  body[data-screen="arena"] #screen { padding:3px 8px; }
+  .arena-game .arena-mode__header { min-height:28px; margin-bottom:3px; font-size:12px; }
+  .arena-game button { min-height:24px; font-size:11px; padding:3px 8px; }
+  .arena-workspace { height:calc(100dvh - 84px); min-height:230px; gap:7px; }
+  .arena-map { width:min(100%,calc(100dvh - 132px)); }
+  .arena-map-panel { padding:4px; gap:3px; }
+  .arena-map .arena-zone { font-size:10px; padding:0; }
+  .arena-zone small { font-size:7px; }
+  .arena-map-legend { font-size:9px; }
+  .arena-map-legend small { font-size:8px; }
+  .arena-right-content { font-size:12px; padding:6px; }
+  .arena-right-tabs { gap:4px; }
+  .arena-battle-modal { padding:7px; }
+  .arena-battle-sheet { max-height:calc(100dvh - 14px); padding:8px; }
+  .arena-battle-body { grid-template-rows:auto minmax(0,1fr) 55px; gap:5px; }
+  .arena-battle-sheet > .arena-mode__actions { margin-bottom:4px; }
+  .arena-battle-body .arena-mode__unit { padding:5px; font-size:12px; }
+  .arena-battle-body .arena-mode__hand { gap:5px; grid-template-rows:repeat(2,minmax(0,1fr)); }
+  .arena-battle-body .arena-mode__hand .hcard { min-height:0; padding:5px 6px 20px; gap:3px; }
+  .arena-battle-body .hcard__glyph { width:24px; height:24px; }
+  .arena-battle-body .hcard__glyph .emoji { width:24px; height:24px; }
+  .arena-battle-body .hcard__body b { font-size:12px; }
+  .arena-battle-body .hcard__lv { font-size:9px; letter-spacing:0; }
+  .arena-battle-body .hcard__body small,.arena-battle-body .hcard__cat { display:none; }
+  .arena-battle-body .hcard__cost { width:17px; height:17px; font-size:10px; bottom:3px; right:5px; }
+  .arena-battle-sheet .arena-battle .arena { grid-template-columns:minmax(150px,.9fr) minmax(180px,1.1fr) minmax(150px,.9fr); gap:5px; }
+  .arena-battle-sheet .arena-battle .battle__bar { align-items:flex-start; }
+  .arena-battle-sheet .arena-battle .battle__speed { display:none; }
+  .arena-battle-sheet .arena-battle .unit { padding:5px; gap:3px; }
+  .arena-battle-sheet .arena-battle .unit__icon { width:34px; height:34px; }
+  .arena-battle-sheet .arena-battle .unit__name b { font-size:12px; }
+  .arena-battle-sheet .arena-battle .unit__stats { gap:3px 6px; font-size:9px; }
+  .arena-battle-sheet .arena-battle .statuses { display:none; }
+  .arena-battle-sheet .arena-battle .log { padding:5px; font-size:10px; }
+  .arena-battle-sheet .arena-battle .hand { min-height:66px; padding-top:6px; }
+  .arena-battle-sheet .arena-battle .hcard { width:112px; min-height:54px; padding:4px 5px 17px; }
+  .arena-battle-sheet .arena-battle .hcard__glyph { width:22px; height:22px; }
+  .arena-battle-sheet .arena-battle .hcard__body b { font-size:10px; }
+  .arena-battle-sheet .arena-battle .hcard__lv, .arena-battle-sheet .arena-battle .hcard__cat { display:none; }
+}
+@media (max-width:900px) and (orientation:portrait) {
+  .arena-game .arena-workspace,.arena-game .arena-battle-modal { display:none; }
+  .arena-rotate { min-height:60dvh; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:12px; text-align:center; padding:20px; }
+  .arena-rotate b { font-size:24px; }
+}
+
+/* 二十格全图与放大滚动切换，其他玩家/AI/尸体坐标从不绘制。 */
+.arena-map-tools { display:flex; align-items:center; justify-content:space-between; width:100%; gap:6px; font-size:11px; flex:none; }
+.arena-map-scroll { flex:1; min-height:0; width:100%; overflow:auto; display:grid; place-items:start center; }
+.arena-map { grid-template-columns:repeat(20,minmax(0,1fr)); grid-template-rows:repeat(20,minmax(0,1fr)); width:min(100%,calc(100dvh - 225px)); }
+.arena-map.is-zoomed { width:640px; min-width:640px; height:640px; }
+.arena-map .arena-zone { font-size:10px; }
+.arena-map .arena-zone small { font-size:7px; }
+.arena-log-heading { display:flex; align-items:center; justify-content:space-between; flex:none; overflow:visible!important; }
+.arena-log-heading button { font-size:10px; min-height:20px; padding:1px 5px; }
+.arena-broadcast [data-arena-log] { flex:1; overflow:auto; }
+@media (max-height:550px) and (orientation:landscape) {
+ .arena-map { width:min(100%,calc(100dvh - 159px)); }
+ .arena-map .arena-zone { font-size:7px; }
+ .arena-map:not(.is-zoomed) .arena-zone small { display:none; }
+ .arena-map.is-zoomed { width:560px; min-width:560px; height:560px; }
+ .arena-map.is-zoomed .arena-zone { font-size:12px; }
+}

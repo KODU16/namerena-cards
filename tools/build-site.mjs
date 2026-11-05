@@ -109,6 +109,8 @@ html = html.replace(/css\/style\.css\?v=\d+/g, 'css/' + cssName)
   .replace(/js\/main\.js\?v=\d+/g, 'js/' + appName)
   .replace(/<!--[^]*?-->/g, '').replace(/>\s+</g, '><').trim();
 await emit('index.html', html);
+// 服务端兼容包随 dist 原子发布；客户端不请求此目录。
+for(const name of ['arena.py','arena-runtime.mjs','arena-wasm/tswn_wasm_bg.wasm','manifest.json'])await emit('arena-server/'+name,await read('server/generated/'+name));
 await emit('.nojekyll', '');
 await emit('NOTICE.md', await read('NOTICE.md'));
 // 仅估算文本压缩；WASM 和 PNG 按原始字节计，不依赖服务器开启 gzip。

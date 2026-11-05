@@ -26,3 +26,7 @@ python -m http.server 8123 --directory dist
 ```
 
 GitHub Pages 工作流仅保留手动触发，用于需要时发布独立演示；推送 `main` 不再自动部署旧站。
+
+## 多人后端
+
+生产自动拉取只发布静态 dist，不部署本仓库的 Python 后端。多人必须额外接入主站 Flask/PostgreSQL、安装匹配的 Node/WASM 并运行权威时钟，详见 [多人接入](arena-integration.md)。

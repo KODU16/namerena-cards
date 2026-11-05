@@ -1,3 +1,5 @@
+> 正式主站使用 Flask/PostgreSQL，本文独立 8800/SQLite 部署仅作本地/历史参考。多人生产接入以 [当前接入说明](../docs/arena-integration.md) 和主站 docs/cards-arena-integration.md 为准。
+
 # 让 `/cards/` 自动跟随最新版 + 存档跨设备
 
 > 面向：服务器管理员

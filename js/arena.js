@@ -1,45 +1,51 @@
 // 多人生存界面：只发送意图，角色、手牌、倒计时与胜负均以服务器结果为准。
-import {el,fullCharRow,handCardEl,qualityBadge} from './ui.js';
+import {battleShellEl,el,fullCharRow,handCardEl,qualityBadge,unitPanel} from './ui.js';
 import {iconFor,battleDisplayStats} from './engine.js';
 import {skillMeta} from './skills.js';
 
 export class ArenaView {
   constructor(root,{onHome}){
-    this.root=root;this.onHome=onHome;this.room=null;this.csrf='';this.user=null;this.busy=false;this.closed=false;this.message='';this.version=-1;this.epoch=0;
+    this.root=root;this.onHome=onHome;this.room=null;this.csrf='';this.user=null;this.busy=false;this.closed=false;this.message='';this.version=-1;this.epoch=0;this.tab='status';this.resultDismissed=null;this.battleMinimized=false;this.logCache=new Map();this.logIdentity='';this.zoom=false;
     this.timer=setInterval(()=>this.updateTimers(),200);
   }
   dispose(){this.closed=true;this.epoch++;clearInterval(this.timer);clearTimeout(this.pollTimer);}
   async call(path,body,retry=true){
     const response=await fetch('/api/cards'+path,{credentials:'same-origin',cache:'no-store',...(body?{method:'POST',body:JSON.stringify(body)}:{}),headers:{'Content-Type':'application/json',...(this.csrf?{'X-CSRFToken':this.csrf}:{})}});
-    let data;try{data=await response.json();}catch{throw Error('多人模式需要 cards 后端服务。当前页面可能只有静态文件。');}
+    let data;try{data=await response.json();}catch{
+      // 主站只更新静态网页时返回 HTML 404，明确区分 API 未接通与网络/引擎故障。
+      if(response.status===404)throw Error('多人服务尚未接通（HTTP 404）。网页已更新，主站还需要接入多人后端。');
+      throw Error('多人服务返回异常内容（HTTP '+response.status+'），请稍后重试。');
+    }
     if(data.csrf_token)this.csrf=data.csrf_token;
-    if(response.status===400&&data.error?.code==='csrf_failed'&&retry){await this.call('/session');return this.call(path,body,false);}
+    if(response.status===400&&data.error?.code==='csrf_failed'&&retry){await this.call('/arena/session');return this.call(path,body,false);}
     if(!response.ok||!data.ok)throw Error(data.error?.message||'请求失败，请稍后重试');
     return data;
   }
   async open(){
     this.root.replaceChildren(el('p',{},'正在连接多人房间…'));
-    try{const session=await this.call('/session');if(this.closed)return;this.user=session.logged_in?session.teamname:null;await this.lobby();const code=new URLSearchParams(location.hash.slice(1)).get('arena');if(code&&this.user)await this.openRoom(code);}
+    try{const session=await this.call('/arena/session');if(this.closed)return;this.user=session.logged_in?session.teamname:null;await this.lobby();const code=new URLSearchParams(location.hash.slice(1)).get('arena');if(code&&this.user)await this.openRoom(code);}
     catch(error){if(!this.closed)this.root.replaceChildren(el('section',{class:'arena-mode'},el('h1',{},'名字生存战'),el('p',{class:'error',role:'alert'},error.message),this.button('重试',()=>this.open()),this.button('返回首页',this.onHome)));}
   }
   button(text,action,disabled=false,kind='ghost'){return el('button',{class:kind,type:'button',disabled:disabled||this.busy,'data-arena-base-disabled':String(!!disabled),onclick:action},text);}
   async lobby(){
     clearTimeout(this.pollTimer);this.room=null;this.signature=null;this.version=-1;const epoch=++this.epoch;
     const data=await this.call('/arena/rooms');if(this.closed||epoch!==this.epoch)return;
-    const code=el('input',{placeholder:'输入六位房间号',maxlength:6,'aria-label':'房间号',autocomplete:'off'});
-    const tools=el('div',{class:'arena-mode__actions'},this.button('创建房间',()=>this.create(),!this.user,'primary'),data.my_room?this.button('返回我的房间',()=>this.openRoom(data.my_room)):null,this.button('返回首页',this.onHome));
-    const list=el('div',{class:'arena-mode__rooms'});
-    const paintRooms=rows=>list.replaceChildren(...(rows.length?rows.map(r=>el('article',{class:'arena-mode__room'},el('b',{},r.id+' · '+r.host),el('p',{},r.status==='waiting'?r.count+' / 12 人 · 等待开始':r.alive+' 人存活 · 进行中'),this.button(r.status==='waiting'?'进入房间':'查看对局',()=>this.openRoom(r.id),!this.user))):[el('p',{class:'muted'},'暂时没有房间，创建一个邀请朋友吧。')]));
-    paintRooms(data.rooms);
-    this.root.replaceChildren(el('section',{class:'arena-mode'},el('h1',{},'名字生存战'),
-      el('p',{class:'muted'},'移动、搜索、补给，与试炼敌人和其他玩家交战，争夺最终存活。'),
-      !this.user?el('p',{},'加入对局需要登录主站战队账号。',el('a',{href:'/',target:'_blank',rel:'noopener'},'前往主站登录')):el('p',{},'当前战队：'+this.user),
-      tools,el('form',{class:'arena-mode__actions',onsubmit:event=>{event.preventDefault();if(code.value.trim())this.openRoom(code.value.trim());}},code,el('button',{type:'submit',class:'ghost',disabled:!this.user},'按房间号进入')),
-      el('p',{class:'error',role:'alert','data-arena-message':''},this.message),list,
-      el('details',{},el('summary',{},'玩法'),el('p',{},'2～12 人，房主开始。每人获得一个随机名字，不能带入单人模式物品。每 90 秒新增危险区域，危险区域每 10 秒造成生命损失。只能移动到相邻安全区域；搜索可能遇到随机 @! 试炼敌人，或获得天梯分数、药水与技能成长。补给站可购买武器、技能与药水，武器立即替换当前装备。'),el('p',{},'每次出牌有 10 秒，超时由系统随机打出可用手牌；普通攻击始终可用。离开页面可重新进入，退出进行中的房间会立即淘汰。最后存活者获胜，本局不改动你的单人存档。'))));
-    const poll=async()=>{if(this.closed||this.room||epoch!==this.epoch)return;try{const fresh=await this.call('/arena/rooms');if(!this.closed&&!this.room&&epoch===this.epoch)paintRooms(fresh.rooms);}catch{}if(!this.closed&&!this.room&&epoch===this.epoch)this.pollTimer=setTimeout(poll,4000);};this.pollTimer=setTimeout(poll,4000);
+    const name=el('input',{placeholder:'角色：名字@战队（留空随机）',maxlength:181,'aria-label':'创建角色名'});
+    const key=el('input',{type:'password',placeholder:'私房密钥（4～80 字符）',minlength:4,maxlength:80,autocomplete:'off','aria-label':'创建私房密钥'});
+    const code=el('input',{placeholder:'六位私房号',maxlength:6,'aria-label':'房间号'});
+    const rooms=el('div',{class:'arena-mode__rooms'});
+    const paint=rows=>rooms.replaceChildren(...rows.filter(r=>r.mode==='private').map(r=>el('article',{class:'arena-mode__room'},el('b',{},r.id+' · '+r.host),el('span',{},r.count+' 人 · '+(r.status==='waiting'?'等待开局':'进行中')),this.button('输入密钥加入',()=>this.openRoom(r.id),!this.user))));paint(data.rooms);
+    this.root.replaceChildren(el('section',{class:'arena-mode arena-lobby'},el('h1',{},'名字生存战'),
+      el('p',{},this.user?'当前战队：'+this.user:'请先登录主站战队账号。'),
+      el('div',{class:'arena-mode__actions'},this.button('进入公房',()=>this.openRoom('PUBLIC'),!this.user,'primary'),data.my_room?this.button('返回我的房间',()=>this.openRoom(data.my_room)):null,this.button('返回首页',this.onHome)),
+      el('p',{},'公房持续开局，可中途加入；结算后冷却 1 分钟自动开始下一局。'),
+      el('form',{class:'arena-mode__actions',onsubmit:e=>{e.preventDefault();if(key.reportValidity()&&key.value.length>=4)this.create(key.value,name.value);}},name,key,el('button',{type:'submit',disabled:!this.user},'创建私房')),
+      el('form',{class:'arena-mode__actions',onsubmit:e=>{e.preventDefault();if(code.value.trim())this.openRoom(code.value.trim());}},code,el('button',{type:'submit',disabled:!this.user},'进入私房')),
+      el('p',{class:'error',role:'alert','data-arena-message':''},this.message),rooms,
+      el('p',{class:'muted'},'手机请横屏游玩。地图点击只移动，搜索在右侧行动栏进行；区域内可跨格相遇，野外必须同格；移动与搜索均有机会遇见角色或尸体。')));
+    const poll=async()=>{if(this.closed||this.room||epoch!==this.epoch)return;try{const fresh=await this.call('/arena/rooms');if(!this.closed&&!this.room&&epoch===this.epoch)paint(fresh.rooms);}catch{}if(!this.closed&&!this.room&&epoch===this.epoch)this.pollTimer=setTimeout(poll,4000);};this.pollTimer=setTimeout(poll,4000);
   }
-  async create(){await this.perform(async()=>{const epoch=++this.epoch;const data=await this.call('/arena/rooms',{});if(epoch===this.epoch)this.accept(data.room);});}
+  async create(key,name){await this.perform(async()=>{const epoch=++this.epoch;const data=await this.call('/arena/rooms',{key,name});if(epoch===this.epoch)this.accept(data.room);});}
   async openRoom(code){
     await this.perform(async()=>{const epoch=++this.epoch;clearTimeout(this.pollTimer);const data=await this.call('/arena/rooms/'+encodeURIComponent(code.toUpperCase()));if(epoch===this.epoch)this.accept(data.room);});
   }
@@ -50,6 +56,10 @@ export class ArenaView {
   }
   accept(room){
     if(this.closed||(this.room?.id===room.id&&room.version<this.version))return;
+    if(this.room?.battle?.id!==room.battle?.id)this.battleMinimized=false;
+    const identity=room.id+':'+room.round;if(identity!==this.logIdentity){this.logIdentity=identity;this.logCache=new Map();}
+    for(const entry of room.log||[])this.logCache.set(entry.seq,entry);
+    if(room.log)room.log=[...this.logCache.values()].sort((a,b)=>a.seq-b.seq);
     this.room=room;this.version=room.version;this.received=performance.now();
     history.replaceState(null,'','#arena='+room.id);
     if(!this.busy)this.renderRoom();
@@ -65,63 +75,95 @@ export class ArenaView {
   }
   updateTimers(){
     if(!this.room||this.closed)return;
-    const now=this.room.server_now+(performance.now()-this.received)/1000;
-    const b=this.room.battle,node=this.root.querySelector('[data-arena-timer]');
+    const now=this.room.server_now+(performance.now()-this.received)/1000,b=this.room.battle;
+    const node=this.root.querySelector('[data-arena-timer]');
     if(node&&b){const left=Math.max(0,Math.ceil(b.deadline-now));node.textContent=(b.your_turn?'你的出牌时间：':'等待对手出牌：')+left+' 秒';node.classList.toggle('is-urgent',left<=3);if(left===0)this.root.querySelectorAll('.arena-mode__hand button').forEach(button=>button.disabled=true);}
-    const ready=this.root.querySelector('[data-arena-cooldown]');if(ready)ready.textContent=this.room.me?.ready_at>now?'操作冷却 '+Math.ceil(this.room.me.ready_at-now)+' 秒':'';
-    this.root.querySelectorAll('[data-arena-map-action]').forEach(button=>{if(!this.busy)button.disabled=button.dataset.arenaUnavailable==='true'||!!this.room.battle||!this.room.me?.alive||this.room.me.ready_at>now;});
+    const ready=this.root.querySelector('[data-arena-cooldown]');if(ready)ready.textContent=this.room.me?.ready_at>now?'行动冷却 '+Math.ceil(this.room.me.ready_at-now)+' 秒':'';
+    const cycle=this.root.querySelector('[data-arena-cycle]');if(cycle)cycle.textContent=this.room.status==='cooldown'?'下一局倒计时 '+Math.max(0,Math.ceil(this.room.next_start-now))+' 秒':this.room.next_close_at?'下次缩圈 '+Math.max(0,Math.ceil(this.room.next_close_at-now))+' 秒':'';
+    this.root.querySelectorAll('[data-arena-map-action]').forEach(button=>{if(!this.busy)button.disabled=button.dataset.arenaUnavailable==='true'||!!b||!this.room.me?.alive||this.room.status!=='active'||this.room.me.ready_at>now;});
   }
+  mapAction(text,fn,unavailable=false){const b=this.button(text,fn,unavailable);b.dataset.arenaMapAction='';b.dataset.arenaUnavailable=String(unavailable);return b;}
+  async earlierLogs(){await this.perform(async()=>{const first=Math.min(...this.logCache.keys());const result=await this.call('/arena/rooms/'+this.room.id+'/log?before='+first);for(const e of result.log)this.logCache.set(e.seq,e);this.room.log=[...this.logCache.values()].sort((a,b)=>a.seq-b.seq);});}
+  regionName(cell){return String.fromCharCode(65+cell.row)+(cell.col+1)+' · '+cell.name;}
+  chooseTab(tab){this.tab=tab;this.signature=null;this.renderRoom();}
   renderRoom(){
     const r=this.room;if(!r||this.closed)return;
-    // 轮询没有实际变化时保留按钮 DOM，避免触屏按下/抬起之间被重绘吞掉点击。
-    const signature=JSON.stringify([r.status,r.me,r.players,r.battle,r.phase,r.stock,r.log,this.message]);if(signature===this.signature)return;this.signature=signature;
-    const me=r.me,waiting=r.status==='waiting',finished=r.status==='finished';
-    const header=el('header',{class:'arena-mode__header'},el('div',{},el('h1',{},'名字生存战'),el('b',{},'房间 '+r.id)),el('div',{class:'arena-mode__actions'},
-      this.button('复制邀请',async()=>{try{await navigator.clipboard.writeText(location.href);this.message='邀请链接已复制';}catch{this.message='房间号：'+r.id;}this.signature=null;this.renderRoom();}),
-      this.button('返回大厅',()=>this.perform(async()=>{history.replaceState(null,'',location.pathname+location.search);await this.lobby();})),
-      me&&!me.left?this.button(waiting?'退出房间':'退出本局（淘汰）',()=>this.action('leave'),finished):null));
-    let main;
-    if(waiting){
-      main=el('section',{class:'panel'},el('h2',{},'等待参赛者'),el('p',{},r.players.length+' / 12 人，至少两人加入后由房主开始。'),
-        !me||me.left?this.button('加入房间',()=>this.action('join'),false,'primary'):r.host===me.key?this.button('开始对局',()=>this.action('start'),r.players.length<2,'primary'):el('p',{class:'muted'},'等待房主开始…'),me?fullCharRow({...me.card,icon:iconFor(me.card.name,me.card.clan)}):null);
-    }else if(finished){
-      const winner=r.players.find(p=>p.key===r.winner);
-      main=el('section',{class:'result '+(r.ending?'end--gold':'')},el('h2',{},!r.started?'房间已关闭':winner?'最终存活':'无人存活'),el('p',{},winner?winner.team+' · 天梯分数 '+winner.score:'这片区域已没有存活者。'),
-        r.ending?el('p',{},'存活者的天梯分数超越了 1A 天梯榜首。'):null,
-        r.ending&&r.ladder?el('small',{class:'muted'},'判定榜首：'+r.ladder.score+' 分'+(r.ladder.source==='snapshot'?'（实时天梯暂不可用，使用已有快照）':'')):null,this.button('回到大厅',()=>this.perform(async()=>{history.replaceState(null,'',location.pathname+location.search);await this.lobby();})));
-    }else if(!me||me.left){main=el('p',{class:'muted'},'本局已开始，无法中途加入。');}
-    else{
-      const inBattle=!!r.battle,closed=r.closed.includes(me.zone);
-      const mapButtons=r.zones.map(z=>{const distance=Math.abs(z.id%3-me.zone%3)+Math.abs(Math.floor(z.id/3)-Math.floor(me.zone/3));const button=this.button(z.name+(z.shop?' · 补给站':'')+(z.id===me.zone?' · 当前位置':'')+(r.closed.includes(z.id)?' · 危险':''),()=>this.action('move',{zone:z.id}),!me.alive||inBattle||distance!==1||r.closed.includes(z.id),'arena-zone'+(z.id===me.zone?' is-current':'')+(r.closed.includes(z.id)?' is-closed':''));button.dataset.arenaMapAction='';button.dataset.arenaUnavailable=String(distance!==1||r.closed.includes(z.id));return button;});
-      const controls=el('div',{class:'arena-mode__actions'},...[
-        ['搜索',()=>this.action('search'),false],['生命药水（'+me.potions+'）',()=>this.action('heal'),me.potions<1||me.hp>=me.card.stats.hp],['休整 · 100 分',()=>this.action('rest'),me.score<100||me.hp>=me.card.stats.hp]
-      ].map(([text,fn,unavailable])=>{const b=this.button(text,fn,!me.alive||inBattle||unavailable);b.dataset.arenaMapAction='';b.dataset.arenaUnavailable=String(unavailable);return b;}));
-      const enemies=r.players.filter(p=>p.key!==me.key&&p.alive&&p.zone===me.zone);
-      main=el('div',{class:'arena-mode__layout'},el('section',{class:'panel'},el('h2',{},r.zones[me.zone].name),
-        el('p',{class:closed?'error':'muted'},closed?'当前区域危险，请尽快离开！':'存活 '+r.players.filter(p=>p.alive).length+' 人 · 天梯分数 '+me.score),
-        r.next_close!=null?el('p',{class:'muted small'},'下一危险区域：'+r.zones[r.next_close].name):el('p',{class:'error'},'所有区域均已危险。'),
-        el('div',{class:'arena-map'},mapButtons),controls,el('span',{'data-arena-cooldown':'',class:'muted small'}),
-        !me.alive?el('p',{class:'error'},'你已被淘汰：'+me.death):null,
-        fullCharRow({...me.card,stats:{...me.card.stats,hp:me.hp},icon:iconFor(me.card.name,me.card.clan)}),
-        el('p',{class:'muted small'},'当前生命 '+me.hp+' / '+me.card.stats.hp),
-        enemies.length?el('div',{},el('h3',{},'同区域玩家'),enemies.map(p=>el('div',{class:'arena-mode__actions'},el('b',{},p.team),(()=>{const button=this.button(p.busy?'对手正在交战':'交战',()=>this.action('attack',{target:p.key}),inBattle||!me.alive||p.busy);button.dataset.arenaMapAction='';button.dataset.arenaUnavailable=String(p.busy);return button;})()))):null),
-        el('section',{class:'panel'},inBattle?this.battlePanel(r.battle):this.shopPanel(r.stock,me)));
+    const oldLog=this.root.querySelector('[data-arena-log]'),follow=!oldLog||oldLog.scrollHeight-oldLog.scrollTop-oldLog.clientHeight<25,logOffset=oldLog?.scrollTop||0;
+    const signature=JSON.stringify([this.zoom,r.locked,r.status,r.round,r.me,r.players,r.battle,r.phase,r.stock,r.log,this.message,this.tab,this.battleMinimized,this.resultDismissed]);if(signature===this.signature)return;this.signature=signature;
+    const goLobby=()=>this.perform(async()=>{history.replaceState(null,'',location.pathname+location.search);await this.lobby();});
+    const header=el('header',{class:'arena-mode__header'},el('b',{},(r.mode==='public'?'公房':'私房 '+r.id)+' · 第 '+r.round+' 局'),el('span',{'data-arena-cycle':'',class:'small'}),el('div',{class:'arena-mode__actions'},this.button('大厅',goLobby),this.button('首页',this.onHome),r.me&&!r.me.left&&r.status!=='finished'&&r.status!=='cooldown'?this.button(r.status==='waiting'?'退出房间':'退出参赛',()=>this.action('leave')):null));
+    if(r.locked){
+      const name=el('input',{placeholder:'角色：名字@战队（留空随机）',maxlength:181,'aria-label':'加入角色名'});
+      const key=el('input',{type:'password',placeholder:'输入私房密钥',maxlength:80,'aria-label':'私房密钥',autocomplete:'off'});
+      this.root.replaceChildren(el('section',{class:'arena-mode'},header,el('h2',{},'此房间需要密钥'),el('form',{class:'arena-mode__actions',onsubmit:e=>{e.preventDefault();this.action('join',{key:key.value,name:name.value});}},name,key,el('button',{type:'submit'},'加入房间')),el('p',{class:'error','data-arena-message':''},this.message)));return;
     }
-    const roster=el('div',{class:'arena-mode__roster'},r.players.map(p=>el('div',{class:p.alive?'':'is-eliminated'},el('b',{},p.team),el('span',{},p.alive?r.zones[p.zone].name+' · HP '+p.hp:'已淘汰'),el('small',{},p.kills+' 次击败玩家 · '+p.score+' 分'))));
-    this.root.replaceChildren(el('section',{class:'arena-mode'},header,el('p',{class:'error',role:'alert','data-arena-message':''},this.message),main,el('details',{},el('summary',{},'参赛者'),roster),el('section',{class:'arena-mode__log','aria-label':'对局动态'},r.log.slice().reverse().map(e=>el('p',{},e.text)))));
-    const log=this.root.querySelector('.arena-mode__battle-log');if(log)log.scrollTop=log.scrollHeight;
-    this.updateTimers();
+    const me=r.me,ended=r.status==='finished'||r.status==='cooldown';
+    const rotate=el('div',{class:'arena-rotate'},el('b',{},'请将手机横屏'),el('p',{},'地图在左，状态与操作在右，横屏后继续游玩。'),this.button('返回首页',this.onHome));
+    const map=el('div',{class:'arena-map'+(this.zoom?' is-zoomed':''),'aria-label':'20×20 生存地图'},r.zones.map(z=>{
+      const closed=r.closed.includes(z.id),current=me?.zone===z.id,upcoming=r.next_close.includes(z.id);
+      const tile=this.mapAction('',()=>this.action('move',{zone:z.id}),closed||current||!me);
+      tile.className='arena-zone loot-'+z.loot+(closed?' is-closed':'')+(current?' is-current':'')+(upcoming?' is-next':'');
+      tile.title=this.regionName(z)+(closed?' · 已封锁':upcoming?' · 下次封锁':'')+'；点击移动，到达后在行动栏搜索';
+      tile.setAttribute('aria-label',tile.title);tile.dataset.cell=z.id;
+      tile.append(el('small',{},String.fromCharCode(65+z.row)+(z.col+1)),el('span',{},closed?'×':current?'●':z.region!=null?z.name.slice(0,1):'·'));return tile;
+    }));
+    const tabs=el('nav',{class:'arena-right-tabs','aria-label':'角色信息切换'},...[[ 'status','状态'],['inventory','物品栏'],['players','参赛者'],['rules','玩法']].map(([id,text])=>this.button(text,()=>this.chooseTab(id),false,this.tab===id?'primary':'ghost')));
+    let panel;
+    if(ended){const winner=r.players.find(p=>p.key===r.winner);panel=el('div',{class:r.ending?'end--gold':''},el('h2',{},winner?'最终存活':'本局结束'),el('p',{},winner?winner.team+' · '+winner.score+' 天梯分数':r.finish_reason||'本局无人最终存活。'),r.ending?el('p',{},'天梯分数超越了 1A 榜首。'):null,r.ending&&r.ladder?.source==='snapshot'?el('small',{},'实时天梯不可用，按已有快照判定。'):null,r.mode==='public'?el('p',{},'冷却结束后自动开始下一局，请重新加入参赛。'):this.button('回到大厅',goLobby));}
+    else if(!me||me.left){const name=el('input',{placeholder:'角色：名字@战队（留空随机）',maxlength:181,'aria-label':'加入角色名'});panel=el('div',{},el('h2',{},'公房正在进行'),el('p',{},'开局含 20 个天梯 1A AI 和 20 个随机试炼 AI。'),el('form',{onsubmit:e=>{e.preventDefault();this.action('join',{name:name.value});}},name,el('button',{type:'submit',class:'primary'},'加入本局')));}
+    else if(this.tab==='inventory'){
+      panel=el('div',{class:'arena-inventory'},el('h3',{},'药水'),this.mapAction('生命药水 ×'+me.potions+' · 恢复 35%',()=>this.action('heal'),!me.potions||me.hp>=me.card.stats.hp),this.mapAction('大瓶生命药水 ×'+me.large_potions+' · 恢复 60%',()=>this.action('heal',{large:true}),!me.large_potions||me.hp>=me.card.stats.hp),el('h3',{},'武器'),me.card.weapon?this.mapAction('卸下当前武器',()=>this.action('equip',{item:null})):null,...me.weapons.map(w=>el('article',{class:'arena-inventory__weapon'},el('span',{},w.name),this.mapAction(me.card.weaponItem?.id===w.id?'已装备':'装备',()=>this.action('equip',{item:w.id}),me.card.weaponItem?.id===w.id))),!me.weapons.length?el('p',{class:'muted'},'搜索废铸工坊、落日矿场，或前往补给站购买武器。'):null,this.shopPanel(r.stock,me));
+    }else if(this.tab==='players'){
+      panel=el('div',{class:'arena-mode__roster'},r.players.map(p=>el('article',{class:p.alive?'':'is-eliminated'},el('b',{},p.team),el('small',{},p.alive?'存活（位置不可见）':'已淘汰'),el('small',{},p.score+' 分 · 击败 '+p.kills+' 人'))));
+    }else if(this.tab==='rules'){
+      panel=el('div',{class:'small'},el('p',{},'点击任一安全格移动；行动栏点击搜索才会遇敌或获得物品。每 90 秒缩圈，危险格每 10 秒扣血；第九轮封锁最后一格并结算。'),el('p',{},'同一命名区域内可跨格相遇；野外玩家与 NPC 只能在同格相遇。两处补给站可买武器、技能与药水。'),el('p',{},'公房可中途加入，结束后冷却 60 秒自动开下一局。私房需密钥，至少两人由房主开局，时间独立。'),el('p',{},'每次出牌 10 秒，超时随机选择可用牌。普通攻击不受负 MP 限制；交战期间不能移动、换装或喝地图药水。'),el('p',{},'最终存活者获胜；分数严格超过 1A 天梯榜首时获得金色胜利。'));
+    }else{
+      const cell=r.zones[me.zone];
+      panel=el('div',{},el('div',{class:'arena-status-line'},el('b',{},this.regionName(cell)),el('span',{},me.score+' 分 · 玩家 '+r.players.filter(p=>p.alive).length+' / AI '+r.ai_alive)),!me.alive?el('p',{class:'error'},'你已被淘汰：'+me.death):null,
+        r.status==='waiting'?el('div',{class:'arena-mode__actions'},r.host===me.key?this.button('开始对局',()=>this.action('start'),r.players.length<2,'primary'):el('span',{},'等待房主开局')):el('div',{class:'arena-mode__actions arena-actions'},this.mapAction('搜索',()=>this.action('search')),this.mapAction('生命药水（'+me.potions+'）',()=>this.action('heal'),!me.potions||me.hp>=me.card.stats.hp),this.mapAction('休整 · 100 分',()=>this.action('rest'),me.score<100||me.hp>=me.card.stats.hp),r.battle?this.button('返回战斗',()=>{this.battleMinimized=false;this.signature=null;this.renderRoom();}):null),
+        fullCharRow({...me.card,stats:{...me.card.stats,hp:me.hp},icon:iconFor(me.card.name,me.card.clan)}),el('small',{},'当前生命 '+me.hp+' / '+me.card.stats.hp),
+        ...(r.corpses||[]).map(c=>this.mapAction('搜刮 '+c.name+' 的尸体',()=>this.action('loot',{corpse:c.id}))),el('small',{'data-arena-cooldown':''}),el('p',{class:'muted small'},'此区域偏向：'+({wild:'分数与普通补给',supplies:'生命药水',healing:'生命药水、大瓶药水',skill:'技能成长',weapon:'武器',mixed:'多种补给'}[cell.loot])),cell.shop?this.button('查看补给站',()=>this.chooseTab('inventory')):null);
+    }
+    const broadcast=el('section',{class:'arena-broadcast','aria-label':'战斗结果与系统广播'},el('div',{class:'arena-log-heading'},el('b',{},'战斗结果 / 系统广播'),r.log.length<r.log_count?this.button('更早消息',()=>this.earlierLogs()):null),el('div',{'data-arena-log':''},r.log.map(e=>el('p',{},e.text))));
+    const workspace=el('div',{class:'arena-workspace'},el('section',{class:'arena-map-panel'},el('div',{class:'arena-map-tools'},el('span',{},'20×20 地图 · 仅显示本人位置'),this.button(this.zoom?'全图':'放大',()=>{this.zoom=!this.zoom;this.signature=null;this.renderRoom();})),el('div',{class:'arena-map-scroll'},map),el('div',{class:'arena-map-legend'},el('span',{},'● 当前位置　斜纹：下次封锁　红色：已封锁'),el('small',{},'林：药水　台/库：技能　坊/场：武器　集/驿：补给站'))),el('aside',{class:'arena-right'},tabs,el('section',{class:'arena-right-content'},panel),el('p',{class:'error',role:'alert','data-arena-message':'',hidden:!this.message},this.message),broadcast));
+    const section=el('section',{class:'arena-mode arena-game'},header,rotate,workspace);
+    // 多人战斗复用尖塔的战斗骨架；收起仅查看地图，不暂停服务器倒计时。
+    if(r.battle&&!this.battleMinimized){section.append(el('div',{class:'arena-battle-modal',role:'dialog','aria-modal':'true','aria-label':'手牌战斗'},el('section',{class:'arena-battle-sheet'},el('div',{class:'arena-mode__actions'},el('b',{},r.battle.pvp?'玩家交战':'试炼交战'),this.button('收起查看地图',()=>{this.battleMinimized=true;this.signature=null;this.renderRoom();})),this.battlePanel(r.battle))));}
+    else if(!r.battle&&me?.last_battle&&this.resultDismissed!==me.last_battle.id){const result=me.last_battle;section.append(el('div',{class:'arena-battle-modal',role:'dialog','aria-modal':'true','aria-label':'战斗结果'},el('section',{class:'arena-battle-sheet'},el('h2',{},result.won?'交战获胜':'交战失利'),el('div',{class:'arena-mode__battle-log'},result.log.map(t=>el('p',{},t))),this.button('返回地图',()=>{this.resultDismissed=result.id;this.signature=null;this.renderRoom();}))));}
+    this.root.replaceChildren(section);const logView=this.root.querySelector('[data-arena-log]');if(logView)logView.scrollTop=follow?logView.scrollHeight:logOffset;this.updateTimers();
   }
   shopPanel(stock,me){
     return el('div',{},el('h2',{},'补给'),stock.length?el('div',{class:'arena-mode__stock'},stock.map(item=>{
       const label=item.kind==='weapon'?'武器 · '+item.weapon.name:item.kind==='skill'?skillMeta(item.skill.id).name+' +'+item.skill.lv:'生命药水 ×'+item.potion.n;
-      return el('article',{class:'arena-mode__item'},qualityBadge(item.rarity),el('b',{},label),this.button(item.sold?'已购买':'购买 · '+item.price+' 分',()=>this.action('buy',{item:item.id}),!me.alive||item.sold||me.score<item.price));
+      return el('article',{class:'arena-mode__item'},qualityBadge(item.rarity),el('b',{},label),this.mapAction(item.sold?'已购买':'购买 · '+item.price+' 分',()=>this.action('buy',{item:item.id}),!me.alive||item.sold||me.score<item.price));
     })):el('p',{class:'muted'},'前往地图中标注的补给站购买武器、技能和药水。'));
   }
   battlePanel(b){
-    return el('div',{},el('h2',{},b.pvp?'玩家交战':'试炼'),el('p',{'data-arena-timer':'',class:'arena-mode__timer'}),
-      el('div',{class:'arena-mode__combatants'},b.states.map(s=>el('article',{class:'arena-mode__unit'+(s.id===b.actor?' is-acting':'')},el('b',{},s.display_name+(s.minion_kind?' · '+({clone:'分身',summon:'使魔',shadow:'幻影',zombie:'丧尸'}[s.minion_kind]||'召唤物'):'')),el('span',{},'HP '+s.hp+' / '+s.max_hp+' · MP '+s.magic_point),el('small',{},Object.entries(battleDisplayStats(s)).filter(([k])=>k!=='hp').map(([k,v])=>({atk:'攻',def:'防',spd:'速',agi:'敏',mag:'魔',res:'抗',wis:'智'}[k])+' '+v).join(' · ')),el('small',{},s.status_labels.join(' · '))))),
-      b.your_turn?el('div',{class:'arena-mode__hand'},b.hand.map(c=>handCardEl(c,{onPlay:()=>this.action('card',{card:c.id,turn:b.turn}),disabled:this.busy||!c.usable}))):el('p',{class:'muted'},'对手正在选择手牌，超时会由系统出牌。'),
-      el('div',{class:'arena-mode__battle-log'},b.log.map(text=>el('p',{},text))));
+    // 同一 tswn 状态结构映射到单人尖塔 UI，不在浏览器重算伤害、回合或胜负。
+    const shell=battleShellEl({readOnly:true,onSpeed:()=>{},onSkip:()=>{}});
+    shell.classList.add('arena-battle');
+    shell.querySelector('#battle-round').textContent='第 '+b.rounds+' 回合 · '+(b.pvp?'玩家交战':'试炼交战');
+    const timer=el('span',{'data-arena-timer':'',class:'arena-mode__timer'});
+    shell.querySelector('.battle__bar').append(timer);
+    const splitName=value=>{const text=String(value||'未知角色'),at=text.lastIndexOf('@');return at>0?{name:text.slice(0,at),clan:text.slice(at+1)}:{name:text,clan:'竞技场'};};
+    const roots=b.states.filter(s=>s.owner_id==null),mine=roots.find(s=>s.input_team_index===b.your_side)||roots[0],enemy=roots.find(s=>s!==mine)||roots[0];
+    const convert=(s,side)=>{const who=splitName(s.display_name),stats=battleDisplayStats(s);return {uid:String(s.id),name:who.name,clan:who.clan,icon:iconFor(who.name,who.clan),hp:s.hp,maxHp:s.max_hp,base:stats,side,alive:s.alive};};
+    const mount=(state,side)=>{
+      if(!state)return;
+      const wrap=shell.querySelector('#unit-'+side),node=unitPanel(convert(state,side),{side});
+      if(!state.alive)node.classList.add('is-dead');
+      if(state.id===b.actor)node.classList.add('is-acting');
+      const status=node.querySelector('.statuses');
+      status.replaceChildren(...(state.status_labels||[]).map(label=>el('span',{class:'st'+(/冰冻|减速|狂暴|中毒|眩晕|虚弱/.test(label)?' st--bad':'')},label)));
+      wrap.append(node);
+      b.states.filter(s=>s.owner_id===state.id).forEach(minion=>node.querySelector('.minions').append(el('div',{class:'minion-chip'+(!minion.alive?' is-dead':'')},el('b',{},splitName(minion.display_name).name),el('span',{class:'minion-hp'},Math.max(0,minion.hp)+'/'+minion.max_hp))));
+    };
+    mount(mine,'player');mount(enemy,'enemy');
+    const log=shell.querySelector('#battle-log');
+    log.replaceChildren(...b.log.map(text=>el('div',{class:'log__line'},text)));log.scrollTop=log.scrollHeight;
+    const hand=shell.querySelector('#battle-hand');
+    if(b.your_turn)hand.replaceChildren(...b.hand.map(c=>handCardEl(c,{onPlay:()=>this.action('card',{card:c.id,turn:b.turn}),disabled:this.busy||!c.usable,locked:!c.usable})));
+    else hand.replaceChildren(el('p',{class:'muted'},'对手正在选择手牌，超时会由系统出牌。'));
+    return shell;
   }
 }

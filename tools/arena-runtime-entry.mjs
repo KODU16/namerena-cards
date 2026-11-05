@@ -65,8 +65,30 @@ export async function execute(q){
     catch { const entries=ladderSnapshot.lanes?.['1A']?.queue||[];return {score:entries.length?Math.max(...entries.map(e=>Number(e.score))):null,source:'snapshot',fetched_at:ladderSnapshot.meta?.fetchedAt||null,lane:'1A'}; }
   }
   const rng=G.mulberry32(q.seed>>>0);
+  if(q.op==='spawn_npcs'){
+    // 开局固定二十个真实 1A 名字与二十个原版随机试炼，测试仅替换外部天梯输入。
+    let entries=q.ladder_entries,source=q.ladder_entries?'fixture':'live';
+    if(!entries){try{entries=await G.fetchLaneEntries('1A',{signal:AbortSignal.timeout(4000)});if(!entries.length)throw Error('empty');}catch{entries=ladderSnapshot.lanes['1A'].queue;source='snapshot';}}
+    entries=[...entries];for(let i=entries.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[entries[i],entries[j]]=[entries[j],entries[i]];}
+    const cards=Array.from({length:20},(_,i)=>({kind:'ladder',card:G.opponentFromEntry(entries[i%entries.length],1).cards[0]}));
+    cards.push(...Array.from({length:20},()=>({kind:'trial',card:G.makeFiller(1,rng)[0]})));return clean({npcs:cards,source});
+  }
+  if(q.op==='ai_battle'){
+    // AI 对战不启用手牌控制，随机 seed 完全交给 tswn，结束后释放独立会话。
+    const input=q.cards.map(c=>buildLine(c)).join('\n\n')+'\nseed:'+q.seed+'@!';
+    const session=new wasm.BattleSession(input,{include_icons:false,max_rounds:5000});
+    try{
+      const initial=session.initial_states(),log=[];
+      session.set_initial_hp(new Uint32Array(initial.filter(s=>s.owner_id==null).flatMap(s=>[s.id,Math.max(1,Math.min(s.max_hp,q.hp[s.input_team_index]))])));
+      for(let f;(f=session.next_frame())!=null;){log.push(...f.updates.map(u=>u.message_rendered).filter(Boolean));if(log.length>30)log.splice(0,log.length-16);}
+      const states=session.current_states(),teams=session.result()?.winner_team_indices||[];
+      let winner=initial.find(s=>s.owner_id==null&&teams.includes(s.team_index))?.input_team_index??null;
+      if(winner===null&&!session.is_done()){const hp=q.cards.map((_,i)=>Math.max(0,...states.filter(s=>s.input_team_index===i&&s.alive).map(s=>s.hp)));winner=hp[0]===hp[1]?Math.floor(rng()*2):hp[0]>hp[1]?0:1;}
+      return {winner,log:log.slice(-12),rounds:session.rounds_advanced()};
+    }finally{session.free();}
+  }
   if(q.op==='create'){
-    const card=G.replaceStarterRareSkills(makeCard(G.randomName(rng),q.clan),rng);G.refreshRunBuff(stateFor(card));return clean({card});
+    const card=G.replaceStarterRareSkills(makeCard(q.name||G.randomName(rng),q.clan),rng);G.refreshRunBuff(stateFor(card));return clean({card});
   }
   if(q.op==='npc'){
     // 普通 AI 与单人模式试炼完全共用随机 @! 构建，不额外缩放数值。
@@ -75,6 +97,12 @@ export async function execute(q){
   if(q.op==='shop'){
     const s={run:{clan:q.clan},tacticsPool:tactics.tactics,ownedTactics:[],relics:[]};
     const stock=G.rollShop(s,q.seed,q.layer||1).filter(i=>['skill','weapon','potion'].includes(i.kind)).map(i=>({...i,price:Math.max(100,Math.round(i.price*.5/25)*25),...(i.potion?{potion:{id:'hp',n:2}}:{})}));return clean({stock});
+  }
+  if(q.op==='equip'){
+    // 地图物品栏装卸沿用单人构建；战斗中由服务器拒绝换装。
+    const card=structuredClone(q.card),state=stateFor(card);G.refreshRunBuff(state);
+    if(q.weapon){state.weapons.push(q.weapon);G.equipWeapon(state,q.weapon.id,card.id);}else G.unequipWeapon(state,card.id);
+    return clean({card});
   }
   if(q.op==='buy'){
     const card=structuredClone(q.card),s=stateFor(card);G.refreshRunBuff(s);
@@ -89,7 +117,7 @@ export async function execute(q){
   }
   if(q.op==='battle')return battle(q);
   if(q.op==='release'){const e=battles.get(q.id);if(e)e.session.free();battles.delete(q.id);return {};}
-  if(q.op==='health')return {ready:true,sessions:battles.size};
+  if(q.op==='health')return {ready:true,sessions:battles.size,revision:process.env.ARENA_REVISION||''};
   throw Error('unknown arena operation');
 }
 // 仅回环地址提供内部 RPC，秘密来自服务器环境，浏览器不能提交战斗结果或角色数值。
@@ -97,7 +125,8 @@ const secret=process.env.CARDS_SECRET||'dev-secret-change-me';
 const server=createServer(async(req,res)=>{
   const token=String(req.headers['x-arena-secret']||''),a=Buffer.from(token),b=Buffer.from(secret);
   if(a.length!==b.length||!timingSafeEqual(a,b)){res.writeHead(403);res.end();return;}
-  let body='';try{for await(const chunk of req){body+=chunk;if(body.length>2_000_000)throw Error('request too large');}const result=await execute(JSON.parse(body||'{}'));res.setHeader('Content-Type','application/json');res.end(JSON.stringify(clean({ok:true,...result})));}
+  if(req.headers['x-arena-revision']&&req.headers['x-arena-revision']!==(process.env.ARENA_REVISION||'')){res.writeHead(409);res.end();return;}
+  let body='';try{for await(const chunk of req){body+=chunk;if(body.length>2_000_000)throw Error('request too large');}const q=JSON.parse(body||'{}');if(q.op==='shutdown'){res.end(JSON.stringify({ok:true}));server.close(()=>process.exit(0));return;}const result=await execute(q);res.setHeader('Content-Type','application/json');res.end(JSON.stringify(clean({ok:true,protocol:3,...result})));}
   catch(error){res.writeHead(400,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:false,error:String(error)}));}
 });
 server.listen(Number(process.env.ARENA_RUNTIME_PORT||8801),'127.0.0.1');

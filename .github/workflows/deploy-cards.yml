@@ -1,4 +1,5 @@
-﻿name: Deploy cards to shenjack.top
+﻿# 正式站由主站自动拉取 dist；本流程构建成功不代表平台多人 API 已部署。
+name: Build cards (optional standalone deploy)
 
 on:
   push:

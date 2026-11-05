@@ -10,7 +10,7 @@ from flask import request,jsonify
 def fixture():
     data=request.get_json();code=data['room']
     r=json.loads(db().execute('SELECT state_json FROM cards_arena_room WHERE id=?',(code,)).fetchone()[0])
-    for p in r['players'].values():p['zone']=4;p['ready_at']=0
+    for p in r['players'].values():p['zone']=189;p['ready_at']=0
     if not data.get('expire') and not r['battles']:
         for p in r['players'].values():p['hp']=20000;p['card']['stats']['hp']=20000
     if data.get('expire'):
