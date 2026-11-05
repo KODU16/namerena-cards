@@ -1,5 +1,5 @@
 import { abilityFor, abilityMpCost, abilityPacket } from './abilities.js';
-import {hasRareSource,playerSkillLevel} from './rare-skills.js';
+import {playerSkillLevel} from './rare-skills.js';
 // 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
 // 前端只负责「轮到玩家单位时，从手牌里选一张写进强制队列」。
 import { el, sleep, handCardEl } from './ui.js';
@@ -9,21 +9,11 @@ import { potionPreview } from './game.js';
 import { playSkillFX } from './fx.js';
 import { battleDisplayStats } from './engine.js';
 
-const ACTIVE_ID = {
-  sklfire: 0, sklice: 1, sklthunder: 2, sklquake: 3, sklabsorb: 4, sklpoison: 5, sklrapid: 6,
-  sklcritical: 7, sklhalf: 8, sklexchange: 9, sklberserk: 10, sklcharm: 11, sklhaste: 12,
-  sklslow: 13, sklcurse: 14, sklheal: 15, sklrevive: 16, skldisperse: 17, skliron: 18,
-  sklcharge: 19, sklaccumulate: 20, sklassassinate: 21, sklsummon: 22, sklclone: 23, sklshadow: 24,
-};
-export const NORMAL_ID = 255;
-
-// 普攻的可用性不参与 MP 比较；重绘、喝药和点击共用同一条规则。
-export function canPlayHandCard(card,mp) {
-  return card.id==='normal'||(ACTIVE_ID[card.id]!=null&&Number.isFinite(mp)&&(card.cost||0)<=mp);
-}
+// 抽牌与合法性也供服务器使用；原有模块导出保持兼容。
+import {ACTIVE_ID,NORMAL_ID,drawHand,rollMpCost,canPlayHandCard} from './hand.js';
+export {NORMAL_ID,drawHand,rollMpCost,canPlayHandCard} from './hand.js';
 
 export const previewCost = (lv) => (lv >= 45 ? 3 : lv >= 15 ? 2 : 1);
-const weightOf = (lv) => 1 + effectiveSkillLevel(lv) / 6;
 
 // 引擎 state 里的技能名是 `core.skill.fire` 这种导出名，转成 overlay 的 sklfire
 function skillsOf(unit, champion) {
@@ -39,29 +29,6 @@ function skillsOf(unit, champion) {
     if (list.length) return list;
   }
   return champion?.skillList || [];
-}
-
-// MP 消耗在“抽到这张牌”的时候就掷好（tswn 原本是行动时现掷），范围 8~23
-export const rollMpCost = (rng) => 8 + (Math.floor(rng() * 256) & 15);
-
-export function drawHand(skills, rng, count = 3, exclude = null) {
-  // 玩家仅能通过武器或合法获得并锻造的净化卡将净化加入手牌。
-  const pool = (skills || [])
-    .filter((s) => ACTIVE_ID[s.id] != null && hasRareSource(s))
-    .filter((s) => !exclude || !exclude.has(s.id))
-    .map((s) => ({ ...s, weight: weightOf(playerSkillLevel(s)) }));
-  const out = [];
-  while (out.length < count && pool.length) {
-    const total = pool.reduce((a, b) => a + b.weight, 0);
-    let x = rng() * total;
-    let idx = 0;
-    for (; idx < pool.length; idx++) { x -= pool[idx].weight; if (x <= 0) break; }
-    idx = Math.min(idx, pool.length - 1);
-    const [picked] = pool.splice(idx, 1);
-    const cost = Math.max(1, Math.round(rollMpCost(rng) * (picked.mpMul || 1)));
-    out.push({ id: picked.id, lv: playerSkillLevel(picked), cost });
-  }
-  return out;
 }
 
 const mulberry32 = (a) => () => {

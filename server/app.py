@@ -501,5 +501,10 @@ def serve_cards(filename: str = 'index.html'):
     return resp
 
 
+# 大逃杀资料与场次使用独立表，沿用现有服务的账号识别和 CSRF。
+from arena import install_arena
+install_arena(app, globals())
+
+
 if __name__ == '__main__':
     app.run(host='127.0.0.1', port=int(env('PORT', '8800')), debug=True)

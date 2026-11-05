@@ -39,7 +39,7 @@ jobs:
           npm ci
           npm run build:site
 
-      # 只有后端代码变了才需要动进程；静态页面由 Flask 现读磁盘，推完即生效
+      # 多人运行时复用 JS/数据/WASM；这些输入变化后也必须重启常驻 Node。
       - name: Detect backend changes
         id: diff
         run: |
@@ -49,7 +49,7 @@ jobs:
             CHANGED=$(git show --pretty=format: --name-only HEAD)
           fi
           echo "$CHANGED" | sed 's/^/  changed: /'
-          if echo "$CHANGED" | grep -qE '^server/.*\.py$|^server/requirements\.txt$'; then
+          if echo "$CHANGED" | grep -qE '^server/.*\.py$|^server/requirements\.txt$|^tools/(arena-runtime-entry|build-arena)\.mjs$|^js/|^data/|^vendor/'; then
             echo "backend=true" >> "$GITHUB_OUTPUT"
           else
             echo "backend=false" >> "$GITHUB_OUTPUT"
@@ -121,7 +121,7 @@ jobs:
           TARGET="${TARGET:-/srv/namerena-cards/dist}"
           SERVER_DIR="$(dirname "$TARGET")/server"
           ssh -i ~/.ssh/id_deploy -p "$PORT" "$USER@$HOST" "cd '$SERVER_DIR' && pip install --user -r requirements.txt"
-      # 后端没变就不动进程；变了也优先 HUP 平滑重载（不断连接）
+      # 完整重启会一并清理旧 Node；未结束战斗从数据库恢复。
       - name: Reload backend
         if: steps.gate.outputs.enabled == 'true' && steps.diff.outputs.backend == 'true'
         env:
@@ -131,7 +131,7 @@ jobs:
           RELOAD: ${{ secrets.CARDS_RELOAD_CMD }}
         run: |
           PORT="${PORT:-22}"
-          ssh -i ~/.ssh/id_deploy -p "$PORT" "$USER@$HOST" "${RELOAD:-sudo systemctl reload-or-restart cards-backend}"
+          ssh -i ~/.ssh/id_deploy -p "$PORT" "$USER@$HOST" "${RELOAD:-sudo systemctl restart cards-backend}"
 
       - name: Note skipped reload
         if: steps.gate.outputs.enabled == 'true' && steps.diff.outputs.backend != 'true'

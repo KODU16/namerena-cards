@@ -167,6 +167,8 @@ export function renderHome(root, state, h) {
           el('button', { class: 'secondary big', type: 'button', onclick: h.onSaves }, hasRun ? `存档 · 第 ${state.run.index + 1} 战进行中` : '选择存档'),
           el('button', { class: 'ghost big', type: 'button', onclick: h.onForge }, '名字工坊'),
           el('button', { class: 'ghost big', type: 'button', onclick: h.onHeroes }, '英雄角色'),
+          // 多人模式有独立房间和存活进度，不覆盖单人存档。
+          el('button', { class: 'secondary big', type: 'button', onclick: h.onArena }, '多人 · 大逃杀'),
         ),
         el('div', { class: 'home__facts' },
           el('div', { class: 'fact' }, el('b', {}, String(state.pool.length)), el('span', {}, '张名字卡')),

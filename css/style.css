@@ -1533,3 +1533,42 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
 
 /* 竖屏战报不再保留桌面半屏的最小高度，让角色与手牌更容易同时看到。 */
 @media (max-width: 620px) { .log { flex: none; height: 24dvh; min-height: 120px; max-height: 220px; padding: 10px; font-size: 13px; } .turn-slot { min-height: 42px; } }
+/* 多人生存沿用 cards 蓝白卡片，移动网格和手牌在窄屏中自动换行。 */
+.arena-mode { max-width: 1180px; margin: 0 auto; min-width: 0; }
+.arena-mode h1 { margin: 0 0 12px; }
+.arena-mode__header, .arena-mode__actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.arena-mode__header { justify-content: space-between; margin-bottom: 18px; }
+.arena-mode__actions { margin: 10px 0; }
+.arena-mode__actions input { width: 190px; max-width: 100%; }
+.arena-mode__layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; }
+.arena-mode .panel { min-width: 0; }
+.arena-mode__rooms, .arena-mode__stock { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(240px,100%),1fr)); gap: 12px; }
+.arena-mode__room, .arena-mode__item { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; overflow-wrap: anywhere; }
+.arena-mode__item > button { margin-top: auto; }
+.arena-map { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 8px; margin: 16px 0; }
+.arena-zone { min-width: 0; min-height: 64px; font-size: 12px; padding: 8px; border-radius: 12px; overflow-wrap: anywhere; }
+.arena-zone.is-current { outline: 2px solid #73bde6; opacity: 1; }
+.arena-zone.is-closed { background: #f5d6d3; color: #833936; opacity: .8; }
+.arena-mode__timer { padding: 10px 14px; background: #e2f3fd; border-radius: 12px; font-weight: 700; color: #14618b; }
+.arena-mode__timer.is-urgent { background: #ffe4de; color: #a34330; }
+.arena-mode__combatants { max-height: 240px; overflow: auto; display: grid; gap: 8px; }
+.arena-mode__unit { padding: 9px; border: 1px solid var(--line); border-radius: 10px; display: flex; flex-direction: column; gap: 3px; overflow-wrap: anywhere; }
+.arena-mode__unit.is-acting { border-color: #4ca3d4; background: #eef9ff; }
+.arena-mode__unit small { font-size: 11px; }
+.arena-mode__hand { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 10px; margin: 16px 0; }
+/* 网格手牌原位淡入，避免沿用桌面飞入动画造成手机横向溢出。 */
+.arena-mode__hand .hcard { width: 100%; min-width: 0; flex-direction: column; min-height: 160px; padding-bottom: 34px; animation: arenaHandIn .2s ease both; }
+@keyframes arenaHandIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.arena-mode__hand .hcard__body { overflow-wrap: anywhere; }
+.arena-mode__battle-log, .arena-mode__log { max-height: 220px; overflow: auto; padding: 10px; border: 1px solid var(--line); border-radius: 12px; font-size: 12px; margin: 16px 0; }
+.arena-mode__battle-log p, .arena-mode__log p { margin: 5px 0; overflow-wrap: anywhere; }
+.arena-mode__roster { display: grid; gap: 6px; margin: 12px 0; }
+.arena-mode__roster > div { display: flex; flex-wrap: wrap; gap: 8px 14px; padding: 9px; border-bottom: 1px solid var(--line); }
+.arena-mode__roster .is-eliminated { color: var(--muted); }
+@media (max-width: 760px) {
+  .arena-mode__layout { grid-template-columns: minmax(0,1fr); }
+  .arena-mode__layout:has(.arena-mode__timer) > section:last-child { order: -1; }
+  .arena-mode__timer { position: sticky; top: 0; z-index: 2; }
+  .arena-mode__actions button { min-height: 40px; }
+  .arena-zone { min-height: 72px; }
+}

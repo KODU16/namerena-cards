@@ -21,3 +21,6 @@ __pycache__/
 # 云端生成的高清原稿与本地预览不参与发布
 output/
 
+
+# 由 build:site 生成的服务器 WASM 运行时
+server/generated/

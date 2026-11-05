@@ -1749,8 +1749,9 @@ export function loadCachedLaneEntries(lane) {
   }
 }
 
-export async function fetchLaneEntries(lane) {
-  const res = await fetch(LADDER_API + '/' + String(lane).toLowerCase() + '?active=1&limit=500', { cache: 'no-store' });
+// 服务器结局判定可设置抓取超时，网页原有调用保持相同默认行为。
+export async function fetchLaneEntries(lane, {signal} = {}) {
+  const res = await fetch(LADDER_API + '/' + String(lane).toLowerCase() + '?active=1&limit=500', { cache: 'no-store', signal });
   if (!res.ok) throw new Error('HTTP ' + res.status);
   const data = await res.json();
   if (!data || data.ok === false) throw new Error((data && data.error && data.error.message) || 'api error');

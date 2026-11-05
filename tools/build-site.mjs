@@ -8,6 +8,8 @@ import { gzipSync } from 'node:zlib';
 // 所有构建平台由同一份独立 32px 图标生成图集。
 import './build-icons.mjs';
 import './build-fortunes.mjs';
+// 多人模式后端与网页一同构建，服务器拉取后即可使用同版本引擎。
+import './build-arena.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'dist');

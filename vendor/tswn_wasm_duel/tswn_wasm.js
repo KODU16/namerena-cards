@@ -190,6 +190,25 @@ export class BattleSession {
         }
     }
     /**
+     * 大逃杀在开局设置各角色当前 HP，最大 HP 保持原始构建值。
+     * @param {Uint32Array} packet
+     */
+    set_initial_hp(packet) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passArray32ToWasm0(packet, wasm.__wbindgen_export);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.battlesession_set_initial_hp(retptr, this.__wbg_ptr, ptr0, len0);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
+    /**
      * @returns {BattleStatus}
      */
     status() {

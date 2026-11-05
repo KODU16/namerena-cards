@@ -21,6 +21,7 @@ export const battlesession_paused_actor: (a: number) => number;
 export const battlesession_result: (a: number, b: number) => void;
 export const battlesession_rounds_advanced: (a: number) => number;
 export const battlesession_set_abilities: (a: number, b: number, c: number, d: number) => void;
+export const battlesession_set_initial_hp: (a: number, b: number, c: number, d: number) => void;
 export const battlesession_status: (a: number, b: number) => void;
 export const battlesession_stop_reason: (a: number, b: number) => void;
 export const battlesession_submit_action: (a: number, b: number, c: number, d: number, e: number) => void;

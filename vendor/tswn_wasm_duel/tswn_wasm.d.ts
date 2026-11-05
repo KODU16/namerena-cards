@@ -511,6 +511,10 @@ export class BattleSession {
      * 独立能力乘区与 MP 减耗；三元组为技能编号、减耗量、倍率万分数。
      */
     set_abilities(packet: Uint32Array): void;
+    /**
+     * 大逃杀在开局设置各角色当前 HP，最大 HP 保持原始构建值。
+     */
+    set_initial_hp(packet: Uint32Array): void;
     status(): BattleStatus;
     stop_reason(): BattleStopReason | null;
     /**
@@ -708,6 +712,7 @@ export interface InitOutput {
     readonly battlesession_result: (a: number, b: number) => void;
     readonly battlesession_rounds_advanced: (a: number) => number;
     readonly battlesession_set_abilities: (a: number, b: number, c: number, d: number) => void;
+    readonly battlesession_set_initial_hp: (a: number, b: number, c: number, d: number) => void;
     readonly battlesession_status: (a: number, b: number) => void;
     readonly battlesession_stop_reason: (a: number, b: number) => void;
     readonly battlesession_submit_action: (a: number, b: number, c: number, d: number, e: number) => void;

@@ -157,3 +157,9 @@ sudo systemctl reload cards-backend   # 只有后端代码回滚才需要
 - 存档数据在 `DATABASE_PATH`（默认 `/var/lib/cards/cards.sqlite3`），**不在仓库里**，回滚代码不会丢档；
 - 停用自动更新：`sudo systemctl disable --now cards-pull.timer`（方案 A）
   或删掉仓库 Secrets 里的 `CARDS_DEPLOY_HOST`（方案 B）。
+
+## 多人存活模式的额外部署要求
+
+运行后端的账号需要 Node.js 18+（可用 NODE_BINARY 设置绝对路径）。build:site 同时生成 server/generated 下的运行时与 WASM，部署时需要同步整个 server 目录。常驻引擎或其共享 JS/数据/WASM 更新后必须完整重启 cards-backend，使旧 Node 子进程退出。
+
+如果此前仅反代了 /api/cards/saves，还需将 /api/cards/arena/ 反代到同一个 8800 后端，沿用 Cookie、Host 和 X-Forwarded-For；/api/cards/session 继续使用主站已有登录接口。内部 8801 仅回环监听，不对公网开放。完整同源反代示例见 nginx.conf。

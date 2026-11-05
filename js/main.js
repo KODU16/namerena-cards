@@ -9,6 +9,7 @@ import { el, cardEl, renderBattleShell, sleep, statLine } from './ui.js';
 import { skillMeta, effectiveSkillLevel } from './skills.js';
 import { workshopAccount, workshopNameValid } from './workshop.js';
 import { HEROES } from './heroes.js';
+import {ArenaView} from './arena.js';
 import { installFortune } from './fortune.js';
 import {isTacticEnabled,shownSkillLevel} from './rare-skills.js';
 
@@ -34,6 +35,7 @@ function downloadLog() {
 const state = G.createState();
 let current = 'home';
 let duelView = null;
+let arenaView = null;
 let forgeSel = null;
 let draft = null;
 
@@ -100,7 +102,7 @@ overlay.addEventListener('click', (e) => { if (e.button === 0 && e.target === ov
 function paintTopbar() {
   const slot = document.getElementById('topbar-slot');
   if (!slot) return;
-  slot.replaceChildren(UI.topbar(state, {
+  slot.replaceChildren(UI.topbar(current==='arena'?{...state,run:null}:state, {
     screen: current,
     onHome: () => { if (!duelView) home(); },
     onHelp: help,
@@ -283,12 +285,20 @@ async function openSaves() {
   };
   await paint();
 }
+// 大逃杀返回首页只停止轮询，服务器中的参赛状态保留，可从大厅重连。
+function arenaScreen() {
+  arenaView?.dispose();
+  nav('arena',()=>{arenaView=new ArenaView(root,{onHome:home});arenaView.open();});
+}
+
 function home() {
+  arenaView?.dispose();arenaView=null;
   // 放弃或结束战斗后及时释放持久会话。
   duelView?.duel.dispose();
   duelView = null;
   nav('home', () => UI.renderHome(root, state, {
     versions: { wasm: state.wasm || '0.5.6', core: state.core || '0.7.0' },
+    onArena: arenaScreen,
     onNewRun: newRunSetup,
     onSaves: openSaves,
     onContinue: () => (state.run?.selectedId ? prep() : mapScreen()),
@@ -964,6 +974,7 @@ async function boot() {
     state.ladder = null;
     state.ladderSource = 'live';
     home();
+    if(new URLSearchParams(location.hash.slice(1)).has('arena'))arenaScreen();
     loadSayTitle();
   } catch (e) {
     console.error(e);
