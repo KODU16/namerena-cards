@@ -8,6 +8,9 @@ import * as path from 'node:path';
 const CHROME = process.env.CHROME || 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 const url = process.argv[2] || 'http://127.0.0.1:8123/';
 const out = process.argv[3] || path.join(tmpdir(), 'cdp-shot.png');
+// 手机回归使用真实设备视口。
+const viewportWidth = Number(process.env.CARDS_VIEWPORT_WIDTH || 1440);
+const viewportHeight = Number(process.env.CARDS_VIEWPORT_HEIGHT || 1000);
 const waitMs = Number(process.argv[4] || 4000);
 const evalJs = process.argv[5] || '';
 
@@ -63,7 +66,7 @@ const send = (method, params = {}) => new Promise((res) => {
 await send('Runtime.enable');
 await send('Log.enable');
 await send('Page.enable');
-await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1000, deviceScaleFactor: 1, mobile: false });
+await send('Emulation.setDeviceMetricsOverride', { width: viewportWidth, height: viewportHeight, deviceScaleFactor: 1, mobile: viewportWidth <= 620 });
 await send('Page.navigate', { url });
 await sleep(waitMs);
 

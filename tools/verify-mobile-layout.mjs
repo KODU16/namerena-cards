@@ -1,0 +1,31 @@
+// 手机竖屏回归：测量真实页面组件的按钮碰撞和横向溢出。
+import {spawn} from 'node:child_process';
+import {mkdirSync} from 'node:fs';
+mkdirSync('output',{recursive:true});
+const script=`(async()=>{try{
+const E=await import('/js/engine.js'),G=await import('/js/game.js'),U=await import('/js/ui.js'),H=await import('/js/run-honor.js');await E.loadEngine();
+const s=G.createState(),c=E.makeCard('竖屏长名字与武器显示检查','青');s.collection=[c];s.ownedTactics=[];s.tacticsPool=[];s.run={seed:51,status:'active',index:10,layer:1,lane:'1A',clan:'青',score:123456,teamSize:1,teamIds:[c.id],forged:[],tacticIds:[],skillCards:[],cleared:[],potions:['hp','mp','atk','def','spd','agi','mag','res','wis'].map(id=>({id,n:12})),entries:Array.from({length:100},(_,i)=>({rank:i+1,score:10000-i,cards:[c]}))};H.beginHonor(s.run);G.buildGraphForLayer(s);G.refreshRunBuff(s);
+const root=document.querySelector('#screen'),over=document.querySelector('#overlay'),results=[];
+const audit=(name,scope=document)=>{const controls=[...scope.querySelectorAll('button,a.ghost,input,select')].filter(e=>{const r=e.getBoundingClientRect();return r.width>0&&r.height>0&&getComputedStyle(e).visibility!=='hidden'&&!e.closest('#overlay.hidden')});const collisions=[];for(let i=0;i<controls.length;i++)for(let j=i+1;j<controls.length;j++){const a=controls[i],b=controls[j];if(a.contains(b)||b.contains(a))continue;const x=a.getBoundingClientRect(),y=b.getBoundingClientRect();if(Math.min(x.right,y.right)-Math.max(x.left,y.left)>3&&Math.min(x.bottom,y.bottom)-Math.max(x.top,y.top)>3)collisions.push([a.textContent.slice(0,12),b.textContent.slice(0,12)]);}results.push({name,overflow:document.documentElement.scrollWidth>document.documentElement.clientWidth+1,collisions:collisions.slice(0,6)});};
+audit('home');
+U.renderNewRun(root,s,{draft:{clan:'青',lane:'1A',names:[c.name],cards:[c],rerolls:3},onHome(){},onStart(){},onReroll(){},onChangeClan(){},onChangeLane(){}});audit('setup');
+U.renderPrep(root,s,{tacticsByIds:()=>[],ownedTacticObjects:()=>[],onFight(){},onBack(){}});audit('prep');
+document.querySelector('#topbar-slot').replaceChildren(U.topbar(s,{screen:'map',onHome(){},onHelp(){},onCodex(){},onLog(){}}));U.renderMap(root,s,{onPick(){},onHome(){},onInventory(){}});U.renderScoreBadge(s,true);audit('map');
+document.body.dataset.screen='battle';U.renderBattleShell(root,s,null,{onSpeed(){},onSkip(){},onEndTurn(){}});const {Duel,DuelView}=await import('/js/duel.js');const foe=E.makeCard('敌方长名字和召唤物显示检查','赤');const duel=new Duel({wasm:E.engineWasm(),iconFor:E.iconFor},{input:E.buildLine(c)+String.fromCharCode(10,10)+E.buildLine(foe),playerTeam:0,champion:c,team:[c],enemies:[foe]});const replay=duel.simulate();const view=new DuelView(root,duel,{onFinish(){}});for(const unit of replay.initial_states)view.patchUnit(unit);duel.dispose();U.renderPotionDock(s,()=>{});const settle=U.el('div',{id:'settle-bar',class:'settle-bar'},U.el('button',{class:'primary'},'结算'));document.querySelector('#app').append(settle);if(U.mountUtility)U.mountUtility(settle);document.querySelector('#battle-hand').append(...['normal','sklfire','sklice','sklclone'].map(id=>U.handCardEl({id,lv:40,cost:3},{onPlay(){}})));await new Promise(r=>setTimeout(r,500));audit('battle');
+settle.remove();document.querySelector('#potion-dock').style.display='none';U.renderScoreBadge(s,false);document.body.dataset.screen='map';over.classList.remove('hidden');
+const sheet=body=>{over.replaceChildren(U.el('div',{class:'sheet'},body));};
+sheet(U.inventorySheet(s,{}));audit('inventory',over);
+sheet(U.codexSheet(s));audit('codex',over);
+sheet(U.constructMerchantSheet(s,{onConstruct(){},onLeave(){}}));audit('construct',over);
+sheet(U.curseMerchantSheet(s,{charId:c.id,stock:[],canBuy:()=>false,onChange(){},onLeave(){}}));audit('curse',over);
+const save=U.el('div',{},Array.from({length:3},(_,i)=>U.el('div',{class:'save-row'},U.el('span',{class:'save-slot'},'槽位 '+i),U.el('div',{class:'save-info'},'第一层 · 很长的存档说明与出战角色名称'),U.el('div',{class:'save-ops'},['读取','存档','下载','删除'].map(t=>U.el('button',{class:'ghost'},t))))));sheet(save);audit('saves',over);
+const n={id:'weapon-test',kind:'weaponMerchant',next:[]};s.run.graph.byId.set(n.id,n);s.run.nodeId=n.id;const body=U.weaponMerchantSheet(s,{stock:G.merchantStock(s),onBuy(){},onTab(){},onLeave(){}});over.replaceChildren(U.el('div',{class:'shop-stage shop-stage--weapon'},U.el('aside',{class:'shop-stage__character'},U.el('h2',{},'武器商人'),U.el('img',{class:'shop-stage__portrait',src:'assets/characters/weapon-merchant.webp'})),U.el('div',{class:'sheet sheet--merchant'},body)));audit('merchant',over);
+over.classList.add('hidden');U.renderReward(root,s,[{kind:'score',points:100},{kind:'card',card:c},{kind:'skill',skill:{id:'sklfire',lv:10}}],{onPickOffer(){}});audit('reward');
+const {HEROES}=await import('/js/heroes.js');U.renderHeroes(root,HEROES.slice(0,4).map(h=>({...h,cards:(h.members||[h]).map(m=>E.makeCard(m.name,m.clan))})),{onHome(){}});await new Promise(r=>setTimeout(r,200));audit('heroes');
+over.classList.add('hidden');document.querySelector('.fortune-launch').click();await new Promise(r=>setTimeout(r,150));audit('fortune',document.querySelector('.fortune'));document.querySelector('.fortune').close();
+return {width:document.documentElement.clientWidth,results};
+}catch(e){return {error:String(e),stack:e.stack}}})()`;
+const evaluated=process.env.CARDS_CAPTURE_SCREEN==='battle'?script.replace("audit('battle');","audit('battle');return {width:document.documentElement.clientWidth,results};"):script;
+const widths=process.argv.includes('--quick')?[320]:[320,360,390,430];
+const outcomes=await Promise.all(widths.map(width=>new Promise(resolve=>{const child=spawn(process.execPath,['tools/cdp.mjs','http://127.0.0.1:8127/','output/mobile-'+width+'.png','1400',evaluated],{env:{...process.env,CARDS_VIEWPORT_WIDTH:String(width),CARDS_VIEWPORT_HEIGHT:process.env.CARDS_VIEWPORT_HEIGHT||'844'},stdio:['ignore','pipe','pipe']});let out='';child.stdout.on('data',d=>out+=d);child.stderr.on('data',d=>out+=d);child.on('exit',()=>{const line=out.split('\n').find(l=>l.startsWith('EVAL '));try{resolve(JSON.parse(line.slice(5)))}catch{resolve({error:out})}})})));
+for(const o of outcomes)console.log(JSON.stringify(o));if(outcomes.some(o=>!Array.isArray(o?.results)||o.error||o.results?.some(r=>r.overflow||r.collisions.length)))process.exitCode=1;

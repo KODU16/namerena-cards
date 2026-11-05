@@ -1470,3 +1470,65 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
 .relic-card__text em { display: block; font-size: inherit; line-height: inherit; }
 .relic-card__actions { width: 100%; align-self: end; display: block; }
 .scan-mult { color: #298443; font-style: normal; font-weight: 700; margin-left: 5px; }
+
+/* 手机工具区按内容占位；不依赖顶栏、药水数量或浏览器地址栏的固定高度。 */
+#mobile-tools { display: contents; }
+@media (max-width: 620px) {
+  .screen { min-width: 0; padding: 16px 12px 28px; }
+  .topbar { position: relative; grid-template-columns: minmax(0, 1fr) auto; }
+  .topbar__actions { justify-content: flex-start; min-width: 0; }
+  .topbar__actions .engine-badge { font-size: 10px; padding: 3px 7px; }
+  .topbar__actions > button, .topbar__actions > a { min-height: 36px; }
+  #mobile-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 0 12px; min-width: 0; }
+  #mobile-tools:has(> [style*="display: flex"]) { padding-top: 10px; padding-bottom: 6px; }
+  #mobile-tools #score-badge, #mobile-tools .settle-bar, #mobile-tools #potion-dock { position: static; inset: auto; margin: 0; max-width: 100%; z-index: auto; }
+  #mobile-tools .settle-bar { margin-left: auto; }
+  #mobile-tools #potion-dock { order: 3; width: 100%; flex-wrap: wrap; gap: 4px; padding: 4px; }
+  #potion-dock .potion { min-height: 40px; justify-content: center; flex: 1 0 58px; }
+  .map, .battle, .prep, .setup, .home, .inv, .inv__body { min-width: 0; max-width: 100%; }
+  .map { margin-top: 0; }
+  .map__head { flex-direction: column; gap: 12px; }
+  .map__head > div { min-width: 0; width: 100%; }
+  .map__tools { flex-wrap: wrap; gap: 8px; }
+  .map__boss { flex: 1 1 140px; min-width: 0; }
+  .map__boss > div { min-width: 0; overflow-wrap: anywhere; }
+  .map__body { width: 100%; max-width: 100%; }
+  .battle__bar { align-items: flex-start; gap: 10px; }
+  .battle__speed { width: 100%; flex-wrap: wrap; gap: 6px; }
+  .battle__speed button { min-height: 36px; }
+  .arena { min-width: 0; grid-template-columns: minmax(0,1fr); }
+  .arena > *, .unit-wrap, .arena__center { min-width: 0; }
+  .hand-label { flex-wrap: wrap; gap: 4px 10px; }
+  .hand { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); align-items: stretch; gap: 10px; min-height: 0; padding: 8px 0; }
+  .hand .hcard:nth-child(n) { width: 100%; margin: 0; min-width: 0; transform: none; }
+  .hand .hcard:hover:not(:disabled) { transform: none; }
+  .hand .hcard:not(.card-flying) { display: grid; grid-template-columns: minmax(0,1fr); gap: 8px; padding: 10px; min-height: 160px; }
+  .hand .hcard__glyph { width: 32px; height: 32px; }
+  .hand .hcard__body { width: 100%; overflow-wrap: anywhere; }
+  .hand .hcard__body b { font-size: 14px; }
+  .hand .hcard__cost { top: 12px; bottom: auto; }
+  .prep__foot, .result__actions, .inv__ops, .weapon-pick { flex-wrap: wrap; gap: 8px; }
+  .prep__foot { position: static; }
+  .prep__foot > .muted { flex-basis: 100%; }
+  .result__actions > button { flex: 1 1 100px; max-width: 100%; }
+  .overlay { padding: 12px; }
+  .sheet, .sheet--full { min-width: 0; width: 100%; max-width: 100%; padding: 16px; max-height: calc(100dvh - 24px); }
+  .sheet--full { height: calc(100dvh - 24px); }
+  .inv__chars { grid-template-columns: minmax(0,1fr); }
+  .inv__grid { grid-template-columns: repeat(auto-fill,minmax(min(180px,100%),1fr)); }
+  .shop-stage, .shop-stage--weapon { grid-template-columns: minmax(0,1fr); align-items: start; max-height: calc(100dvh - 24px); overflow: auto; padding: 12px; }
+  .shop-stage__character { flex-direction: row; justify-content: flex-start; gap: 12px; }
+  .shop-stage__portrait { order: -1; width: 80px; max-height: 96px; }
+  .shop-stage__character h2 { font-size: 20px; text-align: left; }
+  .shop-stage > .sheet { max-height: none; overflow: visible; padding: 4px; }
+  .merchant-grid { grid-template-columns: minmax(0,1fr); }
+  .merchant-tabs { flex-wrap: wrap; }
+  input, select, textarea { max-width: 100%; min-width: 0; }
+  /* 抽签入口独占页尾一行，不能覆盖手牌、弹窗或底部操作按钮。 */
+  .fortune-launch { position: static; width: max-content; max-width: calc(100% - 24px); margin: 12px 12px max(12px,env(safe-area-inset-bottom)) auto; }
+  body:has(#overlay:not(.hidden)) .fortune-launch { visibility: hidden; }
+  .toast { max-width: calc(100% - 24px); white-space: normal; }
+}
+
+/* 竖屏战报不再保留桌面半屏的最小高度，让角色与手牌更容易同时看到。 */
+@media (max-width: 620px) { .log { flex: none; height: 24dvh; min-height: 120px; max-height: 220px; padding: 10px; font-size: 13px; } .turn-slot { min-height: 42px; } }

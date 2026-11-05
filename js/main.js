@@ -554,7 +554,7 @@ function showSettleBar(won) {
     bar = document.createElement('div');
     bar.id = 'settle-bar';
     bar.className = 'settle-bar';
-    document.getElementById('app').append(bar);
+    UI.mountUtility(bar);
   }
   bar.replaceChildren(el('button', { class: 'primary', type: 'button', onclick: () => { bar.remove(); afterBattle(won); } }, '结算'));
 }

@@ -1426,11 +1426,23 @@ export function showCardChanges(charId, before, after) {
 
 // ————————————————————— 分数徽标
 
+// 手机将分数、药水与结算放进同一流式工具区，桌面仍沿用原来的悬浮位置。
+export function mountUtility(node) {
+  let host = document.getElementById('mobile-tools');
+  if (!host) {
+    host = el('div', {id:'mobile-tools','aria-label':'当前游戏操作'});
+    const screen = document.getElementById('screen');
+    if (screen) screen.before(host); else document.body.append(host);
+  }
+  host.append(node);
+  return node;
+}
+
 export function renderScoreBadge(state, visible) {
   let node = document.getElementById('score-badge');
   if (!node) {
     node = el('div', { id: 'score-badge' });
-    document.body.appendChild(node);
+    mountUtility(node);
   }
   node.style.display = visible ? 'flex' : 'none';
   const run = state.run;
@@ -1652,7 +1664,7 @@ export function renderPotionDock(state, onUse) {
   if (!dock) {
     dock = document.createElement('div');
     dock.id = 'potion-dock';
-    document.body.appendChild(dock);
+    mountUtility(dock);
   }
   const run = state.run;
   const list = (run?.potions || []).filter((p) => p.n > 0);
