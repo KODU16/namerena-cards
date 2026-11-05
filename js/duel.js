@@ -199,10 +199,11 @@ export class Duel {
 
 // ————————————————————— 面板
 
-function iconForState(engine, state) {
+// 多人弹窗也调用此处，保证头像取名、属性外显值和尖塔战斗完全同源。
+export function duelIconForState(iconFactory, state) {
   const key = state.icon_key || state.id_key_name || state.display_name;
   const at = key.lastIndexOf('@');
-  return at >= 0 ? engine.iconFor(key.slice(0, at), key.slice(at + 1)) : engine.iconFor(key, '');
+  return at >= 0 ? iconFactory(key.slice(0, at), key.slice(at + 1)) : iconFactory(key, '');
 }
 
 function clanOf(state) {
@@ -276,6 +277,28 @@ function panelHtml(state, side, icon, base) {
     el('div', { class: 'statuses' }),
   );
 }
+
+// 静态服务端快照同样走尖塔单位组件；不在多人前端重新换算七围或伪造数值。
+export function duelUnitRow(state, side, { icon = '', base = null, mult = 1 } = {}) {
+  const node=panelHtml(state,side,icon,base);
+  const hp=Math.max(0,Math.min(100,(state.hp/(state.max_hp||1))*100));
+  node.dataset.maxhp=String(state.max_hp||1);node.dataset.mp=String(state.magic_point||0);
+  node.querySelector('.hp').style.width=hp+'%';
+  const shield=Math.max(0,state.shield||0),shieldWrap=node.querySelector('.unit-row__shield');
+  shieldWrap.style.display=shield>0?'block':'none';
+  shieldWrap.querySelector('i').style.width=shield>0?Math.min(100,shield/(state.max_hp||1)*100).toFixed(1)+'%':'0%';
+  const hpnum=node.querySelector('.hpnum');
+  hpnum.textContent=shield>0?'血量'+state.max_hp+'/护盾'+Math.round(shield):String(state.max_hp);
+  if(mult>1)hpnum.append(el('em',{class:'unit-row__buff'},'*'+mult));
+  const mp=Math.max(0,Math.min(100,state.magic_point||0)),mpBar=node.querySelector('.unit-row__mp');
+  mpBar.querySelector('i').style.width=mp+'%';mpBar.querySelector('span').textContent='魔力 '+(state.magic_point||0);
+  mpBar.style.width=(12+88*Math.min(1,mp/100)).toFixed(1)+'%';
+  node.querySelector('.unit-row__bars').style.width='100%';
+  node.querySelector('.unit-row__stats').replaceChildren(...statsLineFor(state,base,mult));
+  node.querySelector('.statuses').replaceChildren(...(state.status_labels||[]).map(name=>el('span',{class:`st ${/中毒|诅咒|冰冻|迟缓|魅惑|垂死|灼烧/.test(name)?'st--bad':'st--good'}`},name)));
+  if(state.alive===false)node.classList.add('is-dead');
+  return node;
+}
 // ————————————————————— 视图
 
 export class DuelView {
@@ -310,7 +333,7 @@ export class DuelView {
     if (node) return node;
     const wrap = this.root.querySelector(`#unit-${side}`);
     if (!wrap) return null;
-    node = panelHtml(state, side, iconForState(this.duel.engine, state), this.duel.baseFor(state));
+    node = panelHtml(state, side, duelIconForState(this.duel.engine.iconFor, state), this.duel.baseFor(state));
     node.dataset.maxhp = String(state.max_hp || 1);
     node.style.cursor = 'pointer';
     node.title = '点击查看属性与技能';

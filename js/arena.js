@@ -1,6 +1,7 @@
 // 多人生存界面：只发送意图，角色、手牌、倒计时与胜负均以服务器结果为准。
-import {battleShellEl,el,fullCharRow,handCardEl,qualityBadge,unitPanel} from './ui.js';
-import {iconFor,battleDisplayStats} from './engine.js';
+import {battleShellEl,el,fullCharRow,handCardEl,qualityBadge} from './ui.js';
+import {iconFor} from './engine.js';
+import {duelIconForState,duelUnitRow} from './duel.js';
 import {skillMeta} from './skills.js';
 
 export class ArenaView {
@@ -139,24 +140,19 @@ export class ArenaView {
     })):el('p',{class:'muted'},'前往地图中标注的补给站购买武器、技能和药水。'));
   }
   battlePanel(b){
-    // 同一 tswn 状态结构映射到单人尖塔 UI，不在浏览器重算伤害、回合或胜负。
+    // 同一 tswn 状态直接交给尖塔的单位组件，不在浏览器重算伤害、属性或胜负。
     const shell=battleShellEl({readOnly:true,onSpeed:()=>{},onSkip:()=>{}});
     shell.classList.add('arena-battle');
     shell.querySelector('#battle-round').textContent='第 '+b.rounds+' 回合 · '+(b.pvp?'玩家交战':'试炼交战');
     const timer=el('span',{'data-arena-timer':'',class:'arena-mode__timer'});
     shell.querySelector('.battle__bar').append(timer);
-    const splitName=value=>{const text=String(value||'未知角色'),at=text.lastIndexOf('@');return at>0?{name:text.slice(0,at),clan:text.slice(at+1)}:{name:text,clan:'竞技场'};};
     const roots=b.states.filter(s=>s.owner_id==null),mine=roots.find(s=>s.input_team_index===b.your_side)||roots[0],enemy=roots.find(s=>s!==mine)||roots[0];
-    const convert=(s,side)=>{const who=splitName(s.display_name),stats=battleDisplayStats(s);return {uid:String(s.id),name:who.name,clan:who.clan,icon:iconFor(who.name,who.clan),hp:s.hp,maxHp:s.max_hp,base:stats,side,alive:s.alive};};
     const mount=(state,side)=>{
       if(!state)return;
-      const wrap=shell.querySelector('#unit-'+side),node=unitPanel(convert(state,side),{side});
-      if(!state.alive)node.classList.add('is-dead');
+      const wrap=shell.querySelector('#unit-'+side),node=duelUnitRow(state,side,{icon:duelIconForState(iconFor,state)});
       if(state.id===b.actor)node.classList.add('is-acting');
-      const status=node.querySelector('.statuses');
-      status.replaceChildren(...(state.status_labels||[]).map(label=>el('span',{class:'st'+(/冰冻|减速|狂暴|中毒|眩晕|虚弱/.test(label)?' st--bad':'')},label)));
       wrap.append(node);
-      b.states.filter(s=>s.owner_id===state.id).forEach(minion=>node.querySelector('.minions').append(el('div',{class:'minion-chip'+(!minion.alive?' is-dead':'')},el('b',{},splitName(minion.display_name).name),el('span',{class:'minion-hp'},Math.max(0,minion.hp)+'/'+minion.max_hp))));
+      b.states.filter(s=>s.owner_id===state.id).forEach(minion=>wrap.append(duelUnitRow(minion,side,{icon:duelIconForState(iconFor,minion)})));
     };
     mount(mine,'player');mount(enemy,'enemy');
     const log=shell.querySelector('#battle-log');
