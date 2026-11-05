@@ -26,6 +26,23 @@ export const HEROES = [{
   description: '年轻人不讲武德',
   scores: { pp: 8500, pd: 9210, qp: 6122, qd: 7241 },
 }, {
+  // pbb 单人卡置于 2020 年列表开头，确保两张在五列和三列布局中左右紧邻。
+  id: 'pbb-532343286302753-1087394599195173',
+  year: 2020,
+  members: [{name:'532343286302753',clan:'pbb'},{name:'1087394599195173',clan:'pbb'}],
+  portrait: 'assets/heroes/pbb-duo-2020.webp',
+  description: '【pbb】一队独占整榜，【胜利】又一次全盘刷新',
+}, {
+  id: 'pbb-610202597647079', year:2020, name:'610202597647079', clan:'pbb',
+  portrait:'assets/heroes/pbb-610202597647079.webp',
+  description:'测号器，宛如战争中的单兵装备',
+  scores:{pp:7681,pd:8977,qp:5404,qd:6731,sum:28793},
+}, {
+  id: 'pbb-564227710267221', year:2020, name:'564227710267221', clan:'pbb',
+  portrait:'assets/heroes/pbb-564227710267221.webp',
+  description:'在重武器齐全，轻武器的彻底升级遥不可及的当下，枪械任何性能上的优化都是进步。',
+  scores:{pp:6796,pd:8291,qp:5276,qd:6008,sum:26371},
+}, {
   // 2020 年英雄按提供的名字生成属性，榜单评分独立保留。
   id: 'bingcha-xinshi',
   year: 2020,
