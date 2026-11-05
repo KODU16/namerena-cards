@@ -75,7 +75,8 @@
     "boss",
     "chest",
     "chest-open",
-    "weaponMerchant"
+    "weaponMerchant",
+    "crown"
   ],
   "aliases": {
     "normal": "atk",

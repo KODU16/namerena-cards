@@ -50,7 +50,7 @@ export const HEROES = [{
   name: '烁露凰',
   clan: '库瓒',
   portrait: 'assets/heroes/shuolu-huang.webp',
-  description: '譬如朝露',
+  description: '在6500都没几个的情况下横空出世的7000',
   scores: { pp: 6957, pd: 7699, qp: 4297, qd: 3963, sum: 22916 },
 }, {
   id: 'yinying-67031736',
@@ -260,4 +260,8 @@ export const HEROES = [{
     "qd": 7322,
     "sum": 32166
   }
-}];
+},
+// 第十七届归入 2025 年，第十八届归入 2026 年，姓名与评分保留原始数据。
+{ id:'asama-tsukasa-candle',year:2025,name:'浅间司 9swptcQWL',clan:'candle',portrait:'assets/heroes/asama-tsukasa-candle.webp',description:'第十七届武术大赛冠军',scores:{pp:8541,pd:9233,qp:6202,qd:7066,sum:31042} },
+{ id:'fangfei-six-symbols',year:2026,name:'芳菲駳潻淒',clan:'四象柯',portrait:'assets/heroes/fangfei-six-symbols.webp',description:'第十八届武术大赛冠军',scores:{pp:8378,pd:9270,qp:6049,qd:7096,sum:30793} }
+];

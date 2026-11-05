@@ -139,7 +139,7 @@ export function topbar(state, { screen, onHome, onHelp, onLog, onCodex }) {
     el('div', { class: 'topbar__meta' }, meta.map((m) => el('span', { class: 'pill' }, m))),
     el('div', { class: 'topbar__actions' },
       // 同一位置第二次读档后皇冠消失，单纯存档不取消资格。
-      run&&['active','won'].includes(run.status)&&hasHonor(run)?el('span',{class:'run-crown',title:'同一局同一位置第二次读档后皇冠消失；保留皇冠通关可获得金色胜利。'},el('i',{class:'run-crown__icon','aria-hidden':'true'}),'未存档'):null,
+      run&&['active','won'].includes(run.status)&&hasHonor(run)?el('span',{class:'run-crown',title:'同一局同一位置第二次读档后皇冠消失；保留皇冠通关可获得金色胜利。'},emojiImg('crown','emoji run-crown__icon'),'未存档'):null,
       el('span', { class: `engine-badge engine-badge--${state.ladderSource}`, title: state.ladder?.meta?.fetchedAt || '' },
         emojiImg('ladder', 'emoji emoji--xs'),
         state.ladderSource === 'live' ? '天梯 · 实时' : state.ladderSource === 'cache' ? '天梯 · 缓存' : '天梯 · 快照'),
@@ -827,7 +827,7 @@ export function renderEnd(root, state, h) {
   const gold=won&&hasHonor(run);
   root.replaceChildren(
     el('section', { class: `end ${won ? 'end--win' : 'end--lose'}${gold?' end--gold':''}` },
-      el('div', { class: 'end__badge' }, gold?el('i',{class:'run-crown__icon','aria-hidden':'true'}):null,gold?'金色胜利':won?'通关':'止步'),
+      el('div', { class: 'end__badge' }, gold?emojiImg('crown','emoji run-crown__icon'):null,gold?'金色胜利':won?'通关':'止步'),
       // 通关标题对应十层天梯，避免沿用旧版八战流程的文案。
       el('h1', {}, won ? '天梯登顶，游戏胜利' : `倒在第 ${run.index + 1} 战`),
       el('p', { class: 'muted' }, won ? '你的名字走到了天梯顶端。' : '名字的强度，有时只差一次重抽。'),

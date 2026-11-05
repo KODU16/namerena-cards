@@ -1398,7 +1398,8 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
 
 /* 小尺寸像素皇冠与保留资格的金色通关画面。 */
 .run-crown { display: inline-flex; align-items: center; gap: 5px; color: #88600b; font-size: 12px; white-space: nowrap; }
-.run-crown__icon { display: inline-block; flex: none; width: 24px; height: 22px; background: #d4a52f; filter: drop-shadow(0 1px #89620b); clip-path: polygon(0 14%,17% 14%,17% 32%,25% 32%,25% 23%,34% 23%,34% 0,66% 0,66% 23%,75% 23%,75% 32%,83% 32%,83% 14%,100% 14%,100% 72%,92% 72%,92% 100%,8% 100%,8% 72%,0 72%); vertical-align: middle; }
+/* 皇冠使用与技能、节点共用的 32px 图集，整数像素显示避免模糊。 */
+.run-crown__icon { --cell: 32px; display: inline-block; flex: none; width: 32px; height: 32px; image-rendering: pixelated; vertical-align: middle; }
 .end--gold { background: radial-gradient(ellipse at top,#fff1ba,transparent 75%); border: 1px solid #d9b250; border-radius: 20px; }
 .end--gold h1 { color: #946814; text-shadow: 0 1px #fff9e4; }
 .end--gold .end__badge { display: inline-flex; align-items: center; gap: 8px; color: #88600b; background: #fff1bb; border-color: #d5b25a; }
@@ -1410,7 +1411,7 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
   .topbar__actions > * { flex-shrink: 0; white-space: nowrap; }
   .topbar__actions .ghost { font-size: 12px; padding: 5px 9px; }
   .run-crown { position: absolute; top: 16px; right: 14px; font-size: 11px; gap: 4px; }
-  .run-crown__icon { width: 20px; height: 19px; }
+  .run-crown__icon { width: 32px; height: 32px; }
   #score-badge, .settle-bar { top: 108px; }
   #potion-dock { top: 150px; }
 }
