@@ -126,6 +126,7 @@ export function createState() {
     collection: [],
     ownedTactics: [],
     abilities: [],
+    weapons: [],
     relics: [],
     run: null,
     best: 0,
@@ -343,6 +344,10 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     }
   }
   const queue = liveEntries && liveEntries.length ? liveEntries : (laneData?.queue || []);
+  // 新开局清空全部局内物品；读档/继续通过独立恢复入口保留原局状态。
+  state.abilities=[];state.weapons=[];state.relics=[];state.tacticPower={};
+  const freshStarter=card=>({...makeCard(card.name,card.clan),id:card.id,custom:card.custom,flavor:card.flavor});
+  state.customCards=(state.customCards||[]).map(freshStarter);
   state.run = {
     seed,
     lane,
@@ -378,10 +383,10 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
   }
   // 开局角色：人数 = 线号
   const base = starters && starters.length ? starters : [];
-  const collection = (state.customCards || []).map(card=>replaceStarterRareSkills(card,r));
+  const collection = (state.customCards || []).map(card=>replaceStarterRareSkills(freshStarter(card),r));
   const used = new Set(collection.map((c) => c.id));
   for (let i = 0; i < teamSize; i++) {
-    let card = base[i];
+    let card = base[i]?freshStarter(base[i]):null;
     if (!card) {
       const clan = ['青', '赤', '玄', '白'][Math.floor(r() * 4)];
       card = makeCard(randomName(r), clan);
