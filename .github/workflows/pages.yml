@@ -1,6 +1,18 @@
-# GitHub Pages 仅保留手动演示；主站 /cards/ 由服务器自动跟随 main。
+# README 指向 GitHub Pages；main 的每次静态更新都需重建，避免演示站长期停在旧模块缓存。
 name: Deploy compressed Pages
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'js/**'
+      - 'css/**'
+      - 'index.html'
+      - 'data/**'
+      - 'assets/**'
+      - 'vendor/**'
+      - 'tools/**'
+      - 'package.json'
+      - 'package-lock.json'
   workflow_dispatch:
 permissions:
   contents: read
