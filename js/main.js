@@ -482,7 +482,8 @@ async function fight() {
   // 已落在角色基础值上的保底/锻造不再重复乘算；开战前修复旧换装丢失的技能。
   const lines = team.map((c) => {
     const ready = G.prepareBattleCard(state, c);
-    return buildLine(applyTactics(ready.runMult ? ready : applyRunBuff(ready, mult), tactics));
+    const prepared = applyTactics(ready.runMult ? ready : applyRunBuff(ready, mult), tactics);
+    return buildLine(G.applyRelicBattleBonuses(prepared, state.relics || []));
   });
   const oppLines = (opp.cards || []).map((c) => buildLine(c));
   const input = [...lines, '', ...oppLines, `seed:${G.battleSeed(run)}@!`].join('\n');

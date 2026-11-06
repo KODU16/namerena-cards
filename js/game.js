@@ -742,6 +742,17 @@ export function prepareBattleCard(state, card) {
   return card;
 }
 
+// 遗物战斗加成只生成本场副本，绝不写回名字的基础熟练度或锻造记录。
+export function applyRelicBattleBonuses(card, relics = []) {
+  if (!relics.includes('say-and-do')) return card;
+  return {
+    ...card,
+    skillList: (card.skillList || []).map((skill) => skill.id === 'sklclone'
+      ? { ...skill, lv: Number(skill.lv || 0) + 10 }
+      : skill),
+  };
+}
+
 // 构建结果再叠锻造、再套开局保底（保持与装备前一致）
 function finalStats(card, stats) {
   const mult = card.runMult || 1;
@@ -1478,7 +1489,9 @@ export function rollRewards(state, seed, elite = false, guaranteeScore = false, 
     card = { ...card, stats: s0 };
   }
   const potionMeta = POTIONS[Math.floor(r() * POTIONS.length)];
-  const scorePoints = rollRewardPoints(run, r, elite);
+  // “接受”只影响战斗结束后的三选一分数项，宝箱等独立结算不受影响。
+  const baseScorePoints = rollRewardPoints(run, r, elite);
+  const scorePoints = (state.relics || []).includes('accept') ? Math.round(baseScorePoints * 1.2) : baseScorePoints;
   // 保留两个非分数随机奖励，分数固定占一项并随机排列位置。
   const pool = [
     { kind: 'skill', skill: { id: skillId, lv, uid: `sk-${seed}-${Math.floor(r() * 1e9)}` } },

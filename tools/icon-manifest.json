@@ -76,7 +76,10 @@
     "chest",
     "chest-open",
     "weaponMerchant",
-    "crown"
+    "crown",
+    "relic-accept",
+    "relic-attribute-modifier",
+    "relic-say-and-do"
   ],
   "aliases": {
     "normal": "atk",

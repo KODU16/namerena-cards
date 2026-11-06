@@ -15,6 +15,9 @@ export const RELICS = Object.freeze({
   'language-pack': Object.freeze({id:'language-pack',name:'自制语言包',icon:'assets/icons32/relic-language-pack.png',description:'友方向敌人成功施加狂暴以外的负面状态时，同时施加 1 回合狂暴。净化等移除状态的效果不触发。',flavor:'显然我看不懂这个'}),
   'box-opener': Object.freeze({id:'box-opener',name:'开箱器',icon:'assets/icons32/relic-box-opener.png',description:'电脑测得的最强名字入库时，八项基础属性 ×1.2，技能熟练度不变。测号结果显示绿色 ×1.2 标记。',flavor:'使用方法一目了然，并没有技术上的突破'}),
   'constructor-shard': Object.freeze({ id: 'constructor-shard', name: '构造器残片', icon: 'assets/icons32/relic-constructor-shard.png', description: '在篝火选择休息时，当前出战角色随机获得 10 点技能熟练度，包含净化和幻术。', flavor: '据说残片的完整体拥有足以终结全名竞的实力' }),
+  'accept': Object.freeze({ id: 'accept', name: '接受', icon: 'assets/icons32/relic-accept.png', description: '战斗结束后的三选一奖励中，天梯分数提高 20%。', flavor: '一段很棒的代码，似乎能通过此次测试' }),
+  'attribute-modifier': Object.freeze({ id: 'attribute-modifier', name: '+属性修改器@!', icon: 'assets/icons32/relic-attribute-modifier.png', description: '友方向敌人施加的负面状态持续时间延长 1 回合；净化不受影响。', flavor: '加属性修改器算什么...最草的是还加错了' }),
+  'say-and-do': Object.freeze({ id: 'say-and-do', name: '说和做', icon: 'assets/icons32/relic-say-and-do.png', description: '全部名字的分身熟练度 +10；分身造成的属性削弱降低 20%。加成不计入基础熟练度，销毁后立即失效。', flavor: '在远古时代流传的传说，靠一个普通名字单挑蚊的存在' }),
 });
 
 export const relicById = (id) => RELICS[id] || null;

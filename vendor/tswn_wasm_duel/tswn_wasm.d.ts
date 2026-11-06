@@ -45,6 +45,8 @@ export interface BattleOptions {
      */
     stat_relic_team?: number;
     language_relic_team?: number;
+    debuff_relic_team?: number;
+    clone_relic_team?: number;
 }
 
 // 规范 core DTO 形状。没有单独的 Rust 绑定 schema。

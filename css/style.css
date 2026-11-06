@@ -918,7 +918,8 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
 .tip--green { background: rgba(26, 122, 74, .95); color: #f2fff8; }
 /* ——— 地图 */
 .map { max-width: 1180px; margin: 18px auto 0; }
-.map__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.map__head { display: grid; grid-template-columns: minmax(235px, 1fr) minmax(0, 760px); align-items: start; gap: 12px 20px; }
+.map__head > :first-child { min-width: 0; }
 .map__head h2 { margin: 4px 0 2px; }
 /* 地图遗物从左到右每排十件，悬停使用原生标题展示完整效果。 */
 .map__relics { display: grid; grid-template-columns: repeat(10, minmax(0, 38px)); gap: 5px; width: min(425px, 100%); margin-top: 10px; }
@@ -932,7 +933,7 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
 .relic-icon { display: block; width: 32px; height: 32px; image-rendering: pixelated; }
 .relic-icon--large { width: 40px; height: 40px; }
 .relic-card p { margin: 7px 0; font-size: 12px; line-height: 1.5; }
-.map__legend { display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); }
+.map__legend { grid-column: 1 / -1; display: flex; gap: 10px; flex-wrap: wrap; font-size: 11.5px; color: var(--muted); }
 .map-legend { display: inline-flex; align-items: center; gap: 5px; }
 .map-legend::before { content: ''; width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
 .map-legend--avail::before { background: #2f8ec9; box-shadow: 0 0 0 3px #cfe9f9; }
@@ -1038,13 +1039,14 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
   100% { opacity: 0; translate: 0 -4px; }
 }
 /* 地图工具区：本层终点 / 层数 / 物品栏 */
-.map__tools { display: flex; align-items: center; gap: 10px; }
-.map__boss { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.map__tools { display: flex; min-width: 0; align-items: center; justify-content: flex-end; gap: 10px; }
+.map__boss { display: flex; min-width: 0; flex: 1 1 auto; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.map__boss > div { min-width: 0; }
 .map__boss small { display: block; font-size: 10px; color: var(--muted); letter-spacing: .12em; }
-.map__boss b { font-size: 13px; color: var(--ink); }
+.map__boss b { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; color: var(--ink); }
 .map__boss-icon { width: 24px; height: 24px; image-rendering: pixelated; border-radius: 6px; }
 .map__rank { font-family: var(--mono); font-size: 12px; color: #c0392b; }
-.map__layers { padding: 6px 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.map__layers { flex: 0 0 auto; padding: 6px 10px; border: 1px solid var(--line); border-radius: 12px; background: #fff; white-space: nowrap; }
 .map__layers small { display: block; font-size: 10px; color: var(--muted); letter-spacing: .12em; }
 .map__layers b { font-size: 13px; }
 .map__bag { white-space: nowrap; }
@@ -1488,7 +1490,7 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
   #potion-dock .potion { min-height: 40px; justify-content: center; flex: 1 0 58px; }
   .map, .battle, .prep, .setup, .home, .inv, .inv__body { min-width: 0; max-width: 100%; }
   .map { margin-top: 0; }
-  .map__head { flex-direction: column; gap: 12px; }
+  .map__head { display: flex; flex-direction: column; gap: 12px; }
   .map__head > div { min-width: 0; width: 100%; }
   .map__tools { flex-wrap: wrap; gap: 8px; }
   .map__boss { flex: 1 1 140px; min-width: 0; }

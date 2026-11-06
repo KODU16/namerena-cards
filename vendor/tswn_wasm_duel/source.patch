@@ -2367,3 +2367,244 @@ index f474a931..1ea95ab7 100644
 +暂停时 stop_reason 为 paused、status 为 running，回放包含 paused_actor；BattlePlayerState.skills 为技能导出名及当前熟练度的数组。WASM 流式会话通过 paused_actor() 查询，submit_action(actor, skill, packed_mp) 后继续 next_frame()。暂停不会消费待执行行动的随机流或药效。
 +
 +battle_replay_forced 的 actions 为 Uint32Array 三元组，技能编号 0..24 或普攻 255，packed_mp 低 8 位为 MP、高 8 位为药水编号（0、1..7、9、10）。不完整或非法封包报错；不可施放技能退化普攻时记录原因。药水按实体于其下次行动前失效。完整构建和接口示例见 FORK.md。
+diff --git "a/crates/tswn_core/src/cli_api/battle/dto.rs" "b/crates/tswn_core/src/cli_api/battle/dto.rs"
+index f1d82c1..e685d11 100644
+--- "a/crates/tswn_core/src/cli_api/battle/dto.rs"
++++ "b/crates/tswn_core/src/cli_api/battle/dto.rs"
+@@ -28,6 +28,10 @@ pub struct BattleOptions {
+     pub stat_relic_team: Option<usize>,
+     /// 自制语言包：成功施加负面状态时附带一回合狂暴。
+     pub language_relic_team: Option<usize>,
++    /// +属性修改器：该队施加到敌方的可计时负面状态额外持续一回合。
++    pub debuff_relic_team: Option<usize>,
++    /// 说和做：该队分身后的本体属性衰减降低 20%。
++    pub clone_relic_team: Option<usize>,
+ }
+ 
+ impl Default for BattleOptions {
+@@ -44,6 +48,8 @@ impl Default for BattleOptions {
+             relic_damage_floor: false,
+             stat_relic_team: None,
+             language_relic_team: None,
++            debuff_relic_team: None,
++            clone_relic_team: None,
+         }
+     }
+ }
+diff --git "a/crates/tswn_core/src/cli_api/battle/driver.rs" "b/crates/tswn_core/src/cli_api/battle/driver.rs"
+index acdf117..dcdeed1 100644
+--- "a/crates/tswn_core/src/cli_api/battle/driver.rs"
++++ "b/crates/tswn_core/src/cli_api/battle/driver.rs"
+@@ -49,6 +49,8 @@ impl BattleDriver {
+         {
+             let runtime = runner.runtime_mut();
+             runtime.language_relic_team = options.language_relic_team;
++            runtime.debuff_relic_team = options.debuff_relic_team;
++            runtime.clone_relic_team = options.clone_relic_team;
+             runtime.relic_heal_team = options.healing_relic_team;
+             runtime.relic_shield_team = options.shielding_relic_team;
+             runtime.relic_damage_floor = options.relic_damage_floor;
+diff --git "a/crates/tswn_core/src/runtime/combat/mod.rs" "b/crates/tswn_core/src/runtime/combat/mod.rs"
+index 21dbe9f..254dfa9 100644
+--- "a/crates/tswn_core/src/runtime/combat/mod.rs"
++++ "b/crates/tswn_core/src/runtime/combat/mod.rs"
+@@ -95,6 +95,8 @@ pub struct CombatRuntime {
+     /// 仅网站遗物启用；普通引擎对局保持原始规则。
+     /// 自制语言包的所属方；默认关闭。
+     pub language_relic_team: Option<usize>,
++    pub debuff_relic_team: Option<usize>,
++    pub clone_relic_team: Option<usize>,
+     pub relic_heal_team: Option<usize>,
+     pub relic_shield_team: Option<usize>,
+     pub relic_damage_floor: bool,
+@@ -103,6 +105,13 @@ pub struct CombatRuntime {
+ }
+ 
+ impl CombatRuntime {
++    /// 遗物只加强己方向敌方施加的计时负面状态，避免影响净化或友方状态。
++    pub(crate) fn relic_extends_debuff(&self, caster: EntityIdx, target: EntityIdx) -> bool {
++        self.debuff_relic_team.zip(self.entities.get(caster).zip(self.entities.get(target))).is_some_and(|(team, (from, to))| {
++            from.runtime.team == team && from.runtime.team != to.runtime.team
++        })
++    }
++
+     /// 戾气只拦截敌对双方的低额伤害，队友、自伤与回复不受影响。
+     pub(crate) fn relic_blocks_damage(&self, caster: EntityIdx, target: EntityIdx, amount: i32) -> bool {
+         self.relic_damage_floor
+diff --git "a/crates/tswn_core/src/runtime/combat/lifecycle.rs" "b/crates/tswn_core/src/runtime/combat/lifecycle.rs"
+index 2e48113..56d1570 100644
+--- "a/crates/tswn_core/src/runtime/combat/lifecycle.rs"
++++ "b/crates/tswn_core/src/runtime/combat/lifecycle.rs"
+@@ -42,6 +42,8 @@ impl CombatRuntime {
+             round: 0,
+             relic_heal_team: None,
+             language_relic_team: None,
++            debuff_relic_team: None,
++            clone_relic_team: None,
+             relic_shield_team: None,
+             relic_damage_floor: false,
+             relic_shields: Default::default(),
+diff --git "a/crates/tswn_core/src/runtime/combat/skills_control.rs" "b/crates/tswn_core/src/runtime/combat/skills_control.rs"
+index e256c79..556a4b5 100644
+--- "a/crates/tswn_core/src/runtime/combat/skills_control.rs"
++++ "b/crates/tswn_core/src/runtime/combat/skills_control.rs"
+@@ -267,7 +267,8 @@ impl CombatRuntime {
+                 .clone_build
+                 .as_mut()
+                 .unwrap_or_else(|| panic!("runtime clone build data missing for entity {}", actor.0));
+-            build.decay_owner();
++            let weakening = if self.clone_relic_team == Some(owner.runtime.team) { 0.8 } else { 1.0 };
++            build.decay_owner_with_weakening(weakening);
+             let stats = build.derive_stats();
+             owner.apply_derived_stats(stats);
+             owner.runtime.hp = next_hp;
+diff --git "a/crates/tswn_core/src/runtime/combat/defense.rs" "b/crates/tswn_core/src/runtime/combat/defense.rs"
+index 31f81c8..fe9543e 100644
+--- "a/crates/tswn_core/src/runtime/combat/defense.rs"
++++ "b/crates/tswn_core/src/runtime/combat/defense.rs"
+@@ -631,7 +631,7 @@ impl CombatRuntime {
+             .entities
+             .get(caster)
+             .is_some_and(|entity| entity.runtime.at_boost_millionths >= 3_000_000);
+-        let frozen_step = 1024 + if charge_active { 2048 } else { 0 };
++        let frozen_step = 1024 + if charge_active { 2048 } else { 0 } + if self.relic_extends_debuff(caster, target) { 1024 } else { 0 };
+         let target_entity = self.entities.get_mut(target).unwrap();
+         let first_application = target_entity.states.entry(PLAIN_ICE_STATE_KEY).is_none();
+         target_entity.states.add_ice_frozen_step(PLAIN_ICE_STATE_KEY, frozen_step);
+diff --git "a/crates/tswn_core/src/runtime/combat/skills_team.rs" "b/crates/tswn_core/src/runtime/combat/skills_team.rs"
+index 4681498..0afa2b2 100644
+--- "a/crates/tswn_core/src/runtime/combat/skills_team.rs"
++++ "b/crates/tswn_core/src/runtime/combat/skills_team.rs"
+@@ -200,6 +200,7 @@ impl CombatRuntime {
+             return;
+         }
+ 
++        let extended = self.relic_extends_debuff(actor, target);
+         let existing = self
+             .entities
+             .get(target)
+@@ -213,7 +214,7 @@ impl CombatRuntime {
+                     .map(|entity| entity.runtime.team)
+             });
+             if existing_team_idx == Some(caster_effective_team_idx) {
+-                step += 1;
++                step += 1 + i32::from(extended);
+             } else {
+                 group_id = actor.0 as usize;
+                 source_team_idx = Some(caster_effective_team_idx);
+@@ -252,7 +253,7 @@ impl CombatRuntime {
+                     Some(caster_effective_team_idx),
+                     Some(caster_effective_team_idx),
+                     Some(target.0),
+-                    if charge_active { 4 } else { 1 },
++                    (if charge_active { 4 } else { 1 }) + i32::from(extended),
+                     charm_priority,
+                 )),
+                 "runtime charm state should be inserted"
+diff --git "a/crates/tswn_core/src/runtime/combat/skills_lifecycle.rs" "b/crates/tswn_core/src/runtime/combat/skills_lifecycle.rs"
+index 066aaf0..714fe5b 100644
+--- "a/crates/tswn_core/src/runtime/combat/skills_lifecycle.rs"
++++ "b/crates/tswn_core/src/runtime/combat/skills_lifecycle.rs"
+@@ -262,6 +262,7 @@ impl CombatRuntime {
+             .state(slow_state_id)
+             .expect("default runtime core slow state disappeared")
+             .priority;
++        let extended = self.relic_extends_debuff(actor, target);
+         let target_entity = self
+             .entities
+             .get_mut(target)
+@@ -270,6 +271,7 @@ impl CombatRuntime {
+         target_entity.runtime.move_state.speed_points -= reduce_move_point;
+         let next_step = target_entity.states.entry(78).and_then(StateEntry::slow_value).map_or(2, |step| step + 2)
+             + if charge_active { 4 } else { 0 };
++        let next_step = next_step + if extended { 2 } else { 0 };
+         if target_entity.states.entry(78).is_some() {
+             assert!(
+                 target_entity.states.set_payload(78, StatePayload::Slow { step: next_step }),
+diff --git "a/crates/tswn_core/src/runtime/combat/infection.rs" "b/crates/tswn_core/src/runtime/combat/infection.rs"
+index e9cdaab..076c25c 100644
+--- "a/crates/tswn_core/src/runtime/combat/infection.rs"
++++ "b/crates/tswn_core/src/runtime/combat/infection.rs"
+@@ -40,6 +40,7 @@ impl CombatRuntime {
+             .registry
+             .state_id_by_export_name(DEFAULT_CORE_POISON_STATE_EXPORT)
+             .expect("default runtime profile must register poison state");
++        let extended = i32::from(self.relic_extends_debuff(caster, target));
+         let target_entity = self
+             .entities
+             .get_mut(target)
+@@ -61,7 +62,7 @@ impl CombatRuntime {
+                         caster: Some(caster.0),
+                         target: existing_target.or(Some(target.0)),
+                         atp_bits: (existing_atp + poison_atp).to_bits(),
+-                        count: 4,
++                        count: 4 + extended,
+                     },
+                 ),
+                 "runtime poison state disappeared while stacking"
+@@ -74,7 +75,7 @@ impl CombatRuntime {
+                     Some(caster.0),
+                     Some(target.0),
+                     poison_atp,
+-                    4,
++                    4 + extended,
+                     SkillPriority(150),
+                 )),
+                 "runtime poison state key should be vacant"
+diff --git "a/crates/tswn_core/src/runtime/entity.rs" "b/crates/tswn_core/src/runtime/entity.rs"
+index f272c1e..07d89b9 100644
+--- "a/crates/tswn_core/src/runtime/entity.rs"
++++ "b/crates/tswn_core/src/runtime/entity.rs"
+@@ -160,10 +160,17 @@ impl CloneBuildData {
+     pub(crate) fn score_skill_boost_plan(&self) -> Option<&ScoreCloneSkillBoostPlan> { self.score_skill_boost_plan.as_ref() }
+ 
+     pub fn decay_owner(&mut self) {
++        self.decay_owner_with_weakening(1.0);
++    }
++
++    /// `weakening` 为原始分身削弱的比例；0.8 代表少削弱 20%。
++    pub fn decay_owner_with_weakening(&mut self, weakening: f64) {
++        let attr_factor = 1.0 - (1.0 - CLONE_ATTR_DECAY) * weakening;
++        let hp_factor = 1.0 - 0.5 * weakening;
+         for attr in &mut self.attrs[..7] {
+-            *attr = ((*attr as f64) * CLONE_ATTR_DECAY).ceil() as u32;
++            *attr = ((*attr as f64) * attr_factor).ceil() as u32;
+         }
+-        self.attrs[7] = ((self.attrs[7] as f64) * 0.5).ceil() as u32;
++        self.attrs[7] = ((self.attrs[7] as f64) * hp_factor).ceil() as u32;
+     }
+ 
+     pub fn child(&self) -> Self {
+diff --git "a/crates/tswn_wasm/src/model.rs" "b/crates/tswn_wasm/src/model.rs"
+index 1e27ec7..e83bd3d 100644
+--- "a/crates/tswn_wasm/src/model.rs"
++++ "b/crates/tswn_wasm/src/model.rs"
+@@ -87,6 +87,10 @@ pub struct BattleOptions {
+     pub stat_relic_team: Option<usize>,
+     #[tsify(optional)]
+     pub language_relic_team: Option<usize>,
++    #[tsify(optional)]
++    pub debuff_relic_team: Option<usize>,
++    #[tsify(optional)]
++    pub clone_relic_team: Option<usize>,
+ }
+ 
+ impl Default for BattleOptions {
+@@ -103,6 +107,8 @@ impl Default for BattleOptions {
+             relic_damage_floor: None,
+             stat_relic_team: None,
+             language_relic_team: None,
++            debuff_relic_team: None,
++            clone_relic_team: None,
+         }
+     }
+ }
+@@ -125,6 +131,8 @@ impl BattleOptions {
+         options.relic_damage_floor = self.relic_damage_floor.unwrap_or(false);
+         options.stat_relic_team = self.stat_relic_team;
+         options.language_relic_team = self.language_relic_team;
++        options.debuff_relic_team = self.debuff_relic_team;
++        options.clone_relic_team = self.clone_relic_team;
+         options
+     }
+ }
