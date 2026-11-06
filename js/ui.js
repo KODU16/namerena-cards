@@ -684,6 +684,8 @@ export function curseMerchantSheet(state, h) {
     el('p', { class: 'muted small' }, '不消耗天梯分数。属性代价扣除所有已有角色的黑字基础值（含永久锻造，不含武器和开局加成）。技能交换按卸下武器后的本体技能组选择最高项，连同锻造熟练度永久移除；原武器贡献仍正常生效。HP 按三倍降低，物品强度按原始代价值计算。'),
     el('p',{class:'muted small'},'金色净化／幻术：全体单项基础属性至少降低 50（HP 为 150），或献祭技能的原名字裸熟练度至少 70。武器、战术和锻造不计入金卡资格；成交仍移除全部锻造。'),
     el('div', { class: 'inv__grid' }, h.stock.length ? h.stock.map((offer) => {
+      // 已交换的商品保留等大的空栏位，避免视觉上像商人补了新货。
+      if (offer.sold) return el('div', { class: 'inv__item shop-item merchant-empty-slot', 'aria-label': '已交换的空栏位' });
       const summary = rewardSummary(offer);
       return el('div', { class: 'inv__item shop-item shop-item--' + offer.rarity }, qualityBadge(offer.rarity),
         // 能力卡沿用技能原图标，不套战术卡羊皮纸底。
@@ -709,9 +711,12 @@ export function weaponMerchantSheet(state, h) {
       el('small', {}, '对不同角色的实际增益以装备预览为准。'));
   };
   const grid = el('div', { class: 'merchant-grid' });
-  if (tab === 'buy') grid.append(...h.stock.map((offer) => el('div', { class: 'merchant-item' + (offer.sold ? ' is-sold' : '') },
+  if (tab === 'buy') grid.append(...h.stock.map((offer) => offer.sold
+    // 武器售出后永久留空，三格库存不再补货或重新抽取。
+    ? el('div', { class: 'merchant-item merchant-empty-slot', 'aria-label': '已售出的空栏位' })
+    : el('div', { class: 'merchant-item' },
     qualityBadge(offer.rarity), emojiImg('weapon', 'emoji emoji--xxl'), el('b', {}, offer.weapon.name), describe(offer.weapon),
-    el('button', { class: 'primary', type: 'button', disabled: offer.sold || score < offer.price, onclick: () => h.onBuy(offer.weapon.id) }, offer.sold ? '已售出' : '购买 · ' + offer.price + ' 分'))));
+    el('button', { class: 'primary', type: 'button', disabled: score < offer.price, onclick: () => h.onBuy(offer.weapon.id) }, '购买 · ' + offer.price + ' 分'))));
   else {
     grid.append(...(state.weapons || []).map((weapon) => {
       const quote = weaponQuote(weapon, state.run.layer);

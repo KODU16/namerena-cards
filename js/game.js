@@ -1259,8 +1259,8 @@ export function curseStock(state, charId) {
     }).filter(Boolean);
     persist(state);
   }
-  // 无法支付或旧版廉价的金色技能不继续陈列，也不能在购买接口绕过门槛。
-  return node.curseStocks[charId].filter(o=>(o.kind!=='tactic'||isTacticEnabled(o.tactic))&&(!isRareSkill(o.skill?.id)||o.sold||canBuyCurse(state,o)));
+  // 库存一经生成即锁定：买走或后来付不起的商品仍占原栏位，绝不重掷或补货。
+  return node.curseStocks[charId].filter(o => o.kind !== 'tactic' || isTacticEnabled(o.tactic));
 }
 
 // 同时校验所有角色，绝不让部分角色先扣款；技能报价必须仍为该人物的最高技能。

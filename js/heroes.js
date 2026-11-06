@@ -40,7 +40,7 @@ export const HEROES = [{
 }, {
   id: 'pbb-564227710267221', year:2020, name:'564227710267221', clan:'pbb',
   portrait:'assets/heroes/pbb-564227710267221.webp',
-  description:'在重武器齐全，轻武器的彻底升级遥不可及的当下。',
+  description:'在重武器齐全，轻武器的彻底升级遥不可及的当下，',
   scores:{pp:6796,pd:8291,qp:5276,qd:6008,sum:26371},
 }, {
   // 紧随轻武器卡，让两张 2020 pbb 卡在画廊中左右相邻。

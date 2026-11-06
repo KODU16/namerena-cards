@@ -1274,6 +1274,8 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .merchant-item { display: flex; flex-direction: column; gap: 12px; padding: 15px; border: 1px solid #8dbce5; border-radius: 12px; background: #f8fbff; overflow-wrap: anywhere; }
 .merchant-item > button { margin-top: auto; }
 .merchant-item.is-sold { opacity: .55; }
+/* 已购货位保持原网格尺寸，以明确表达此商人不会补货。 */
+.merchant-empty-slot { min-height: 118px; background: repeating-linear-gradient(-45deg, #f7fafc, #f7fafc 8px, #eef4f7 8px, #eef4f7 16px); border-style: dashed; border-color: #b8cbd6; }
 .merchant-value { display: flex; flex-direction: column; gap: 8px; font-size: 12px; line-height: 1.6; }
 .merchant-value p { margin: 0; }
 .merchant-value small { color: #657e8c; }

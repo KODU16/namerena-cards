@@ -819,7 +819,10 @@ function mapScreen() {
       if (node?.kind === 'shop') {
         const openShop = () => {
           const items = G.shopStock(state);
-          const body = el('div', { class: 'inv__grid' }, items.map((it) => el('div', { class: 'inv__item shop-item shop-item--' + it.rarity },
+          const body = el('div', { class: 'inv__grid' }, items.map((it) => it.sold
+            // 普通商店的已购位置也永久留空，不能让重新打开窗口看起来像刷新了库存。
+            ? el('div', { class: 'inv__item shop-item merchant-empty-slot', 'aria-label': '已售出的空栏位' })
+            : el('div', { class: 'inv__item shop-item shop-item--' + it.rarity },
             UI.qualityBadge(it.rarity),
             it.kind === 'ability' ? UI.abilityIcon(it.ability) : it.kind === 'relic' ? UI.relicPreview(it.relic) : null,
             el('b', {}, it.kind === 'skill' ? '技能卡 ' + skillMeta(it.skill.id).name
@@ -832,12 +835,12 @@ function mapScreen() {
             el('p', { class: 'muted small' }, G.rewardSummary(it).detail),
             el('small', {}, it.price + ' 分'),
             el('button', {
-              class: 'ghost', type: 'button', disabled: it.sold || (state.run.score || 0) < it.price,
+              class: 'ghost', type: 'button', disabled: (state.run.score || 0) < it.price,
               onclick: () => {
                 if (G.buyShopItem(state, it)) { toast('购买成功：' + it.price + ' 分', 1600); UI.renderScoreBadge(state, true); openShop(); }
                 else toast('分数不够', 1400);
               },
-            }, it.sold ? '已售出' : '购买'))));
+            }, '购买'))));
           shopSheet('general', el('div', {}, el('p', { class: 'muted' }, '当前分数 ' + Math.round(state.run.score || 0)), body,
             el('div', { class: 'result__actions' }, el('button', { class: 'primary', type: 'button', onclick: () => { closeSheet(); mapScreen(); } }, '离开'))));
         };
