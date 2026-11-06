@@ -1247,8 +1247,10 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 /* 商店品质和武器交易共用清晰的边框、文字标记及窄屏布局。 */
 .quality-badge { display: inline-flex; align-self: flex-start; padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; }
 .quality-badge--blue { color: #1666b3; background: #e5f1ff; border: 1px solid #8dbce5; }
+.quality-badge--purple { color: #6f3ea6; background: #f0e5ff; border: 1px solid #b490df; }
 .quality-badge--gold { color: #875c00; background: #fff3c4; border: 1px solid #d6a636; }
 .shop-item--blue { border-color: #8dbce5; }
+.shop-item--purple { border-color: #b490df; background: #fcf9ff; }
 .shop-item--gold { border-color: #d6a636; background: #fffaf0; }
 .shop-item { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .shop-item p { margin: 0; }
@@ -1467,7 +1469,7 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
 
 /* 遗物每张等高，图标统一占位，长说明缩字且销毁操作独立一行。 */
 .inv__grid:has(> .relic-card) { grid-auto-rows: 310px; }
-.relic-card { height: 100%; box-sizing: border-box; display: grid; grid-template-rows: 40px 32px minmax(0,1fr) 30px; align-items: start; gap: 8px; }
+.relic-card { height: 100%; box-sizing: border-box; display: grid; grid-template-rows: 32px 24px 24px minmax(0,1fr) 30px; align-items: start; gap: 8px; }
 .relic-card > .relic-icon { width: 32px; height: 32px; object-fit: contain; align-self: center; flex-shrink: 0; }
 .relic-card__text { font-size: 12px; line-height: 1.5; }
 .relic-card__text.is-long { font-size: 11px; line-height: 1.4; }

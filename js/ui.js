@@ -637,7 +637,8 @@ export function relicPreview(id) {
   return relic ? el('span', { class: 'relic-preview', tabindex: '0', 'aria-label': `${relic.name}：${relic.description}。${relic.flavor}` }, relicIcon(id), relicTooltip(id)) : null;
 }
 export function qualityBadge(rarity = 'blue') {
-  return el('span', { class: 'quality-badge quality-badge--' + rarity }, rarity === 'gold' ? '金色 · 稀有' : '蓝色 · 精良');
+  const labels = { blue: '蓝色 · 精良', purple: '紫色 · 稀有', gold: '金色 · 传说' };
+  return el('span', { class: 'quality-badge quality-badge--' + rarity }, labels[rarity] || labels.blue);
 }
 
 // 红字只突出支付的降低量或失去的技能名，获得的物品正常展示。
@@ -1628,7 +1629,7 @@ export function inventorySheet(state, h = {}) {
       body.replaceChildren((state.relics || []).length
         ? el('div', { class: 'inv__grid' }, state.relics.map((relicId) => {
           const relic = relicById(relicId);
-          return relic ? el('div', { class: 'inv__item relic-card', tabindex: '0' }, relicIcon(relicId), el('b', {}, relic.name), el('div', {class:'relic-card__text' + (relic.description.length + relic.flavor.length > 90 ? ' is-long' : '')}, el('p', {}, relic.description), el('em', {}, relic.flavor)), relicTooltip(relicId), el('div', {class:'relic-card__actions'}, del('relic', relicId, relic.name))) : null;
+          return relic ? el('div', { class: 'inv__item relic-card shop-item--' + relic.rarity, tabindex: '0' }, relicIcon(relicId), qualityBadge(relic.rarity), el('b', {}, relic.name), el('div', {class:'relic-card__text' + (relic.description.length + relic.flavor.length > 90 ? ' is-long' : '')}, el('p', {}, relic.description), el('em', {}, relic.flavor)), relicTooltip(relicId), el('div', {class:'relic-card__actions'}, del('relic', relicId, relic.name))) : null;
         })) : el('p', { class: 'muted' }, '还没有遗物，可从宝箱、事件或商店获得。'));
     } else if (id === 'potions') {
       const list = (run.potions || []).filter((p) => p.n > 0);

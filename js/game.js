@@ -1,5 +1,5 @@
 import { acquireAbility, normalizeAbilities, rollAbility, abilityDescription, abilityKey } from './abilities.js';
-import { RELICS, relicById, normalizeRelics } from './relics.js';
+import { RELIC_RARITIES, relicById, normalizeRelics, rollRelic } from './relics.js';
 // 局内状态、爬塔流程与存档。
 import { makeCard, hydrateCard, iconFor, statsWithWeapon, buildWithWeapon, applyRunBuff, runMultiplier, displayEightSum } from './engine.js';
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
@@ -1168,10 +1168,9 @@ export function rollShop(state, seed, layer = 1) {
   // 蓝色能力卡比普通技能/战术卡稍贵，仅在商店或补给生成。
   items.push({kind:'ability',price:priceOf(1750),ability:rollAbility(r)});
   // 遗物与其它商店稀有物一样按概率抽一个候选，绝不把未持有遗物全部铺进库存。
-  const relicPool = Object.values(RELICS).filter((relic) => !(state.relics || []).includes(relic.id));
-  if (relicPool.length && r() < .24) {
-    const relic = relicPool[Math.floor(r() * relicPool.length)];
-    items.push({ kind: 'relic', rarity: 'gold', price: priceOf(2300), relic: relic.id });
+  const relic = r() < .24 ? rollRelic(r, state.relics) : null;
+  if (relic) {
+    items.push({ kind: 'relic', rarity: relic.rarity, price: priceOf(RELIC_RARITIES[relic.rarity].shopPrice), relic: relic.id });
   }
   // 两种稀有技能均小概率出售；幻术价低于净化，单卡熟练度为 1～5。
   for(const [id,rule] of Object.entries(RARE_SKILLS))if(r()<.08)items.push({kind:'skill',rarity:'gold',price:priceOf(rule.price),
@@ -1506,9 +1505,9 @@ export function rollRewards(state, seed, elite = false, guaranteeScore = false, 
     pool.push({ kind: 'weapon', weapon: { id: 'w-rw-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } });
   }
   if (allowAbility) pool.push({kind:'ability',rarity:'blue',ability:rollAbility(r)});
-  if (allowRelic) for (const relic of Object.values(RELICS)) if (!(state.relics || []).includes(relic.id)) {
-    pool.push({ kind: 'relic', rarity: 'gold', relic: relic.id });
-  }
+  // 补给与宝箱只放入一个按稀有度加权的遗物候选，避免稀有遗物被全池等概率稀释。
+  const relic = allowRelic && r() < .24 ? rollRelic(r, state.relics) : null;
+  if (relic) pool.push({ kind: 'relic', rarity: relic.rarity, relic: relic.id });
   const candidates = pool.filter((offer) => offer.kind !== 'card' || offer.card);
   const score = { kind: 'score', points: scorePoints };
   if (guaranteeScore && includeScore) return shuffle([score, ...shuffle(candidates, r).slice(0, 2)], r);
