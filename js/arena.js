@@ -8,12 +8,14 @@ const ARENA_SAYS=['风会记住最后仍在移动的名字。','地图很大，�
 
 export class ArenaView {
   constructor(root,{onHome}){
-    this.root=root;this.onHome=onHome;this.room=null;this.csrf='';this.user=null;this.busy=false;this.closed=false;this.message='';this.version=-1;this.epoch=0;this.tab='status';this.resultDismissed=null;this.battleMinimized=false;this.logCache=new Map();this.logIdentity='';this.zoom=false;this.battleHandKey='';this.mapSay=ARENA_SAYS[0];
+    this.root=root;this.onHome=onHome;this.room=null;this.csrf='';this.user=null;this.guest=false;this.busy=false;this.closed=false;this.message='';this.version=-1;this.epoch=0;this.tab='status';this.resultDismissed=null;this.battleMinimized=false;this.logCache=new Map();this.logIdentity='';this.zoom=false;this.battleHandKey='';this.mapSay=ARENA_SAYS[0];
+    // 浏览器持久化访客标识，使未登录玩家刷新页面后仍能回到同一局。
+    this.guestId=localStorage.getItem('cards-arena-guest');if(!this.guestId){this.guestId=crypto.randomUUID();localStorage.setItem('cards-arena-guest',this.guestId);}
     this.timer=setInterval(()=>this.updateTimers(),200);
   }
   dispose(){this.closed=true;this.epoch++;clearInterval(this.timer);clearTimeout(this.pollTimer);}
   async call(path,body,retry=true){
-    const response=await fetch('/api/cards'+path,{credentials:'same-origin',cache:'no-store',...(body?{method:'POST',body:JSON.stringify(body)}:{}),headers:{'Content-Type':'application/json',...(this.csrf?{'X-CSRFToken':this.csrf}:{})}});
+    const response=await fetch('/api/cards'+path,{credentials:'same-origin',cache:'no-store',...(body?{method:'POST',body:JSON.stringify(body)}:{}),headers:{'Content-Type':'application/json','X-Cards-Arena-Guest':this.guestId,...(this.csrf?{'X-CSRFToken':this.csrf}:{})}});
     let data;try{data=await response.json();}catch{
       // 主站只更新静态网页时返回 HTML 404，明确区分 API 未接通与网络/引擎故障。
       if(response.status===404)throw Error('多人服务尚未接通（HTTP 404）。网页已更新，主站还需要接入多人后端。');
@@ -26,7 +28,7 @@ export class ArenaView {
   }
   async open(){
     this.root.replaceChildren(el('p',{},'正在连接多人房间…'));
-    try{const session=await this.call('/arena/session');if(this.closed)return;this.user=session.logged_in?session.teamname:null;await this.lobby();const code=new URLSearchParams(location.hash.slice(1)).get('arena');if(code&&this.user)await this.openRoom(code);}
+    try{const session=await this.call('/arena/session');if(this.closed)return;this.guest=!!session.guest;this.user=session.logged_in?session.teamname:(this.guest?'随机访客':null);await this.lobby();const code=new URLSearchParams(location.hash.slice(1)).get('arena');if(code&&this.user)await this.openRoom(code);}
     catch(error){if(!this.closed)this.root.replaceChildren(el('section',{class:'arena-mode'},el('h1',{},'名字生存战'),el('p',{class:'error',role:'alert'},error.message),this.button('重试',()=>this.open()),this.button('返回首页',this.onHome)));}
   }
   button(text,action,disabled=false,kind='ghost'){return el('button',{class:kind,type:'button',disabled:disabled||this.busy,'data-arena-base-disabled':String(!!disabled),onclick:action},text);}
@@ -47,14 +49,25 @@ export class ArenaView {
         el('span',{},`存活 AI ${room.ai_alive ?? '—'} · 第 ${Math.min(9,(room.phase || 0)+1)} 次缩圈`)))
       : el('p',{class:'muted'},'公房正在准备下一局。'));};paintPublic(data.rooms);
     this.root.replaceChildren(el('section',{class:'arena-mode arena-lobby'},el('h1',{},'名字生存战'),
-      el('p',{},this.user?'当前战队：'+this.user:'请先登录主站战队账号。'),
-      el('div',{class:'arena-mode__actions'},this.button('进入公房',()=>this.openRoom('PUBLIC'),!this.user,'primary'),data.my_room?this.button('返回我的房间',()=>this.openRoom(data.my_room)):null,this.button('返回首页',this.onHome)),
+      el('p',{},this.guest?'当前身份：随机访客（仅可使用系统随机名字）':this.user?'当前战队：'+this.user:'请先登录主站战队账号。'),
+      el('div',{class:'arena-mode__actions'},this.button('进入公房',()=>this.openRoom('PUBLIC'),!this.user,'primary'),data.my_room?this.button('返回我的房间',()=>this.openRoom(data.my_room)):null,this.button('返回首页',this.onHome),this.button('历史对局',()=>this.history())),
       publicInfo,el('p',{},'公房持续开局，可中途加入；结算后冷却 1 分钟自动开始下一局。'),
-      el('form',{class:'arena-mode__actions',onsubmit:e=>{e.preventDefault();if(key.reportValidity()&&key.value.length>=4)this.create(key.value,name.value);}},name,key,el('button',{type:'submit',disabled:!this.user},'创建私房')),
-      el('form',{class:'arena-mode__actions',onsubmit:e=>{e.preventDefault();if(code.value.trim())this.openRoom(code.value.trim());}},code,el('button',{type:'submit',disabled:!this.user},'进入私房')),
+      el('form',{class:'arena-mode__actions',onsubmit:e=>{e.preventDefault();if(key.reportValidity()&&key.value.length>=4)this.create(key.value,name.value);}},name,key,el('button',{type:'submit',disabled:!this.user||this.guest},'创建私房')),
+      el('form',{class:'arena-mode__actions',onsubmit:e=>{e.preventDefault();if(code.value.trim())this.openRoom(code.value.trim());}},code,el('button',{type:'submit',disabled:!this.user||this.guest},'进入私房')),
       el('p',{class:'error',role:'alert','data-arena-message':''},this.message),rooms,
       el('p',{class:'muted'},'手机请横屏游玩。地图点击只移动，搜索在右侧行动栏进行；区域内可跨格相遇，野外必须同格；移动与搜索均有机会遇见角色或尸体。')));
     const poll=async()=>{if(this.closed||this.room||epoch!==this.epoch)return;try{const fresh=await this.call('/arena/rooms');if(!this.closed&&!this.room&&epoch===this.epoch){paint(fresh.rooms);paintPublic(fresh.rooms);}}catch{}if(!this.closed&&!this.room&&epoch===this.epoch)this.pollTimer=setTimeout(poll,4000);};this.pollTimer=setTimeout(poll,4000);
+  }
+  async history(){
+    await this.perform(async()=>{
+      clearTimeout(this.pollTimer);this.room=null;const data=await this.call('/arena/history');
+      const format=at=>at?new Date(at*1000).toLocaleString('zh-CN',{hour12:false}):'—';
+      const rows=(data.matches||[]).map(match=>el('tr',{},el('td',{},match.victory),el('td',{},String(match.score)),el('td',{},match.name),el('td',{},match.clan),el('td',{},format(match.finished_at))));
+      const table=el('table',{},
+        el('thead',{},el('tr',{},...['胜利方式','分数','优胜者名','战队名','游戏结束时间'].map(text=>el('th',{},text)))),
+        el('tbody',{},...rows));
+      this.root.replaceChildren(el('section',{class:'arena-mode arena-history'},el('h1',{},'历史对局'),el('div',{class:'arena-mode__actions'},this.button('返回大厅',()=>this.lobby()),this.button('返回首页',this.onHome)),rows.length?el('div',{class:'arena-history__scroll'},table):el('p',{class:'muted'},'尚无已结算的公房对局。')));
+    });
   }
   async create(key,name){await this.perform(async()=>{const epoch=++this.epoch;const data=await this.call('/arena/rooms',{key,name});if(epoch===this.epoch)this.accept(data.room);});}
   async openRoom(code){

@@ -1562,6 +1562,11 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
 .arena-mode__layout { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 16px; }
 .arena-mode .panel { min-width: 0; }
 .arena-mode__rooms, .arena-mode__stock { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(240px,100%),1fr)); gap: 12px; }
+.arena-history__scroll { overflow-x: auto; border: 1px solid var(--line, #c9ddeb); border-radius: 12px; }
+.arena-history table { width: 100%; min-width: 650px; border-collapse: collapse; text-align: center; }
+.arena-history th, .arena-history td { padding: 10px 12px; border-bottom: 1px solid var(--line, #c9ddeb); white-space: nowrap; }
+.arena-history th { color: var(--ink, #173d58); background: #edf8ff; }
+.arena-history tr:last-child td { border-bottom: 0; }
 .arena-mode__room, .arena-mode__item { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; padding: 16px; border: 1px solid var(--line); border-radius: 14px; overflow-wrap: anywhere; }
 .arena-public-info { margin:12px 0; padding:14px 16px; border:1px solid #b9dcea; border-radius:14px; background:linear-gradient(120deg,#f4fbff,#ffffff); }
 .arena-public-info h2 { margin:0 0 8px; font-size:15px; color:var(--sky-3); }

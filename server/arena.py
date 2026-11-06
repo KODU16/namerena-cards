@@ -131,6 +131,11 @@ def install_arena(app, api, router=None):
         room['ending']=bool(winner and room['ladder'].get('score') is not None and winner['score']>room['ladder']['score'])
         room['winner']=winner['key'] if winner else None
         room['winner_name']=winner_name
+        # 结算快照不依赖仍在场的角色，供大厅的公房历史稳定显示。
+        winner_card=winner['card'] if winner else (ai_winner['card'] if ai_winner else None)
+        room['winner_card_name']=winner_card['name'] if winner_card else None
+        room['winner_clan']=winner_card['clan'] if winner_card else None
+        room['winner_score']=(winner['score'] if winner else ai_winner.get('score',0) if ai_winner else 0)
         if not reason and ai_winner:reason='最终存活：'+winner_name
         room['finished_at']=now;room['finish_reason']=reason;room['status']='cooldown' if room['mode']=='public' else 'finished'
         if room['mode']=='public':room['next_start']=now+COOLDOWN_SECONDS
@@ -409,10 +414,12 @@ def install_arena(app, api, router=None):
 
 
     def new_player(user,body=None):
-        # 身份来自登录态，名字由服务器生成；不能导入单人存档或伪造角色数值。
+        # 访客只能得到运行时随机名字；登录用户仍可填写展示名，双方都不能导入单人存档。
         clan = re.sub(r'[\r\n@+]', '', user['teamname'])[:40] or '旅人'
         body=body or {};name=str(body.get('name','')).strip()
-        if '@' in name:name,clan=name.rsplit('@',1)
+        if user.get('guest'):
+            clan='系统旅人';name=''
+        elif '@' in name:name,clan=name.rsplit('@',1)
         elif body.get('clan'):clan=str(body['clan']).strip()
         if len(name)>100 or not clan or len(clan)>80 or any(c in name+clan for c in '\r\n@+'):raise Error(400,'arena_name','请输入合法的名字@战队；本名最多 100 字，战队最多 80 字，不含 + 或换行。')
         card=runtime(op='create',seed=secrets.randbits(32),clan=clan,name=name)['card']
@@ -420,7 +427,14 @@ def install_arena(app, api, router=None):
 
     def identity(write=False):
         api['rate_limit'](600 if write else 900)
-        user = api['require_user']()
+        user = api['current_user']()
+        if user is None:
+            # 匿名身份由浏览器保存的高熵 UUID 派生，不共享登录态也不会接纳自定义角色。
+            guest_id=request.headers.get('X-Cards-Arena-Guest','')
+            if re.fullmatch(r'[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',guest_id,re.I):
+                user={'user_key':'guest:'+guest_id.lower(),'teamname':'随机访客','guest':True}
+            else:
+                user=api['require_user']()
         if write:
             api['check_csrf'](user['user_key'])
         return user
@@ -428,8 +442,8 @@ def install_arena(app, api, router=None):
     @router.get('/api/cards/arena/session')
     def arena_session():
         api['rate_limit'](900)
-        user=api['current_user']()
-        return api['ok']({'logged_in':bool(user),'teamname':user['teamname'] if user else None,'csrf_token':api['csrf_for'](user['user_key'] if user else 'anon')})
+        user=identity()
+        return api['ok']({'logged_in':not user.get('guest',False),'guest':bool(user.get('guest')),'teamname':user['teamname'],'csrf_token':api['csrf_for'](user['user_key'])})
 
     @router.get('/api/cards/arena/health')
     def arena_health():
@@ -443,7 +457,7 @@ def install_arena(app, api, router=None):
     @router.get('/api/cards/arena/rooms')
     def arena_rooms():
         api['rate_limit'](900)
-        user = api['current_user']()
+        user = identity()
         maintenance()
         rows = db().execute("SELECT state_json FROM cards_arena_room WHERE status IN ('waiting','active','cooldown') ORDER BY updated DESC LIMIT 40").fetchall()
         rooms = []
@@ -455,11 +469,28 @@ def install_arena(app, api, router=None):
                 # 大厅只展示公房概况，不暴露玩家位置或未发现目标。
                 'map_cells':CELL_COUNT if r.get('mode')=='public' else None,'phase':r.get('phase',0),'closed_count':len(closed_cells(r)),'ai_alive':sum(n['alive'] for n in r.get('npcs',[])),'next_close_at':r.get('started',0)+(r.get('phase',0)+1)*90 if r.get('started') and r.get('phase',0)<9 else None})
         active = db().execute('SELECT room_id FROM cards_arena_member WHERE user_key=?',(user['user_key'],)).fetchone() if user else None
-        return api['ok']({'rooms':rooms,'logged_in':bool(user),'my_room':active['room_id'] if active else None})
+        return api['ok']({'rooms':rooms,'logged_in':not user.get('guest',False),'guest':bool(user.get('guest')),'my_room':active['room_id'] if active else None})
+
+    @router.get('/api/cards/arena/history')
+    def arena_match_history():
+        # 私房结算不对外公开；公房保留最近十局的固定结算快照。
+        api['rate_limit'](120)
+        rows=db().execute("SELECT state_json FROM cards_arena_room WHERE status IN ('cooldown','archived') ORDER BY updated DESC LIMIT 80").fetchall()
+        matches=[]
+        for row in rows:
+            room=json.loads(row['state_json'])
+            if room.get('mode')!='public' or not room.get('finished_at'):
+                continue
+            matches.append({'victory':'最终存活','score':round(room.get('winner_score',0)),'name':room.get('winner_card_name') or room.get('winner_name') or '无人','clan':room.get('winner_clan') or '—','finished_at':room['finished_at']})
+            if len(matches)>=10:
+                break
+        return api['ok']({'matches':matches})
 
     @router.post('/api/cards/arena/rooms')
     def arena_create():
         user=identity(True)
+        if user.get('guest'):
+            raise Error(403,'arena_guest_private','随机访客只能加入公房；登录后才能创建私房。')
         conn=db();conn.execute('BEGIN IMMEDIATE')
         try:
             old=conn.execute('SELECT room_id FROM cards_arena_member WHERE user_key=?',(user['user_key'],)).fetchone()
@@ -483,7 +514,10 @@ def install_arena(app, api, router=None):
         if room_id.upper()==PUBLIC_ID and not db().execute('SELECT id FROM cards_arena_room WHERE id=?',(PUBLIC_ID,)).fetchone():maintenance()
         conn=db();conn.execute('BEGIN IMMEDIATE')
         try:
-            room=load(room_id.upper());tick(room,clock());out=view(room,user['user_key']);save(room);conn.commit()
+            room=load(room_id.upper())
+            if user.get('guest') and room['mode']!='public':
+                raise Error(403,'arena_guest_private','随机访客只能加入公房；登录后才能进入私房。')
+            tick(room,clock());out=view(room,user['user_key']);save(room);conn.commit()
             return api['ok']({'room':out})
         except Exception:
             conn.rollback();raise
@@ -543,6 +577,8 @@ def install_arena(app, api, router=None):
             kind=body.get('kind')
             if kind=='join':
                 public=room['mode']=='public'
+                if user.get('guest') and not public:
+                    raise Error(403,'arena_guest_private','随机访客只能加入公房；登录后才能进入私房。')
                 if room['status']!='waiting' and not (public and room['status']=='active'):raise Error(409,'arena_started','当前不能加入，请等待下一局。')
                 if not public and not check_password_hash(room['key_hash'],str(body.get('key',''))):raise Error(403,'arena_key','私房密钥不正确。')
                 prior=room['players'].get(user['user_key'])
