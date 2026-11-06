@@ -116,14 +116,18 @@ def install_arena(app, api, router=None):
     def end_round(room,now,reason=''):
         if room['status']!='active':return
         remaining=alive(room);bots=[n for n in room['npcs'] if n['alive']]
+        # 最终存活者可以是玩家、天梯 AI 或试炼 AI；仅玩家才参与天梯分数真结局判定。
         winner=remaining[0] if len(remaining)==1 and not bots else None
+        ai_winner=bots[0] if len(bots)==1 and not remaining else None
+        winner_name=winner['team'] if winner else (actor_name(ai_winner)+'（'+('天梯 AI' if ai_winner['kind']=='ladder' else '试炼 AI')+'）' if ai_winner else None)
         room['ladder']=runtime(op='ladder',seed=0) if winner else None
         room['ending']=bool(winner and room['ladder'].get('score') is not None and winner['score']>room['ladder']['score'])
         room['winner']=winner['key'] if winner else None
-        if not reason and len(bots)==1 and not remaining:reason='最终存活：'+actor_name(bots[0])+'（AI）'
+        room['winner_name']=winner_name
+        if not reason and ai_winner:reason='最终存活：'+winner_name
         room['finished_at']=now;room['finish_reason']=reason;room['status']='cooldown' if room['mode']=='public' else 'finished'
         if room['mode']=='public':room['next_start']=now+COOLDOWN_SECONDS
-        log(room,'最终存活：'+winner['team'] if winner else (reason or '本局无人最终存活。'))
+        log(room,'最终存活：'+winner_name if winner_name else (reason or '本局无人最终存活。'))
         db().execute('DELETE FROM cards_arena_member WHERE room_id=?',(room['id'],))
         for battle in room['battles'].values():
             if not battle.get('done'):
@@ -249,7 +253,8 @@ def install_arena(app, api, router=None):
             if side != winner:
                 eliminate(room,p,'被 '+actor_name(room['players'][b['keys'][1-side]] if b['pvp'] else npc)+'击杀。')
             else:
-                surviving_hp=result['root_hp'][side] or max([s['hp'] for s in result['states'] if s['team_index'] in result['winner'] and s['alive']]+[1])
+                # 运行时已按存活本体返回真实 HP；不能以 1 HP 兜底覆盖胜者的实际战斗结果。
+                surviving_hp=result['root_hp'][side]
                 p['hp'] = max(0,min(p['card']['stats']['hp'], surviving_hp)-b['hazard'][side])
                 if p['hp']<=0:
                     eliminate(room,p,'危险区域伤害')
@@ -387,7 +392,7 @@ def install_arena(app, api, router=None):
                 room['shops'][stock_key] = runtime(op='shop', seed=seed, clan='补给站', layer=min(10,room['phase']+1))['stock']
             stock = [{**i, 'sold': i['id'] in p['purchased']} for i in room['shops'][stock_key]]
         mine = None if not p else {k: p[k] for k in ('key', 'team', 'alive', 'zone', 'hp', 'score', 'kills', 'death', 'card', 'potions', 'ready_at', 'left','weapons','large_potions','last_battle','found_corpse')}
-        return {'protocol':3,'id':room['id'],'mode':room['mode'],'locked':False,'round':room['round'],'status':room['status'],'host':room['host'],'winner':room.get('winner'),'players':visible,'me':mine,'battle':battle,'stock':stock,'phase':room['phase'],'closed':closed_cells(room),'next_close':room['close_stages'][room['phase']] if room['phase']<9 else [],'next_close_at':room['started']+(room['phase']+1)*90 if room.get('started') and room['phase']<9 else None,'next_start':room.get('next_start'),'zones':CELLS,'log':room['log'][-100:],'log_count':len(room['log']),'ai_alive':sum(n['alive'] for n in room['npcs']),'corpses':[{'id':c['id'],'name':c['name']} for c in room['corpses'] if p and c['id']==p.get('found_corpse') and not c['looted'] and same_area(c['zone'],p['zone'])],'server_now':now,'version':room['version'],'started':bool(room.get('started')),'ending':room.get('ending',False),'ladder':room.get('ladder') if room['status'] in ('finished','cooldown') else None,'finish_reason':room.get('finish_reason','')}
+        return {'protocol':3,'id':room['id'],'mode':room['mode'],'locked':False,'round':room['round'],'status':room['status'],'host':room['host'],'winner':room.get('winner'),'winner_name':room.get('winner_name'),'players':visible,'me':mine,'battle':battle,'stock':stock,'phase':room['phase'],'closed':closed_cells(room),'next_close':room['close_stages'][room['phase']] if room['phase']<9 else [],'next_close_at':room['started']+(room['phase']+1)*90 if room.get('started') and room['phase']<9 else None,'next_start':room.get('next_start'),'zones':CELLS,'log':room['log'][-100:],'log_count':len(room['log']),'ai_alive':sum(n['alive'] for n in room['npcs']),'corpses':[{'id':c['id'],'name':c['name']} for c in room['corpses'] if p and c['id']==p.get('found_corpse') and not c['looted'] and same_area(c['zone'],p['zone'])],'server_now':now,'version':room['version'],'started':bool(room.get('started')),'ending':room.get('ending',False),'ladder':room.get('ladder') if room['status'] in ('finished','cooldown') else None,'finish_reason':room.get('finish_reason','')}
 
 
     def new_player(user,body=None):
@@ -433,7 +438,9 @@ def install_arena(app, api, router=None):
             r = json.loads(row['state_json'])
             if r['status'] == 'waiting' and clock()-r['created']>3600:
                 continue
-            rooms.append({'id':r['id'],'status':r['status'],'count':len([p for p in r['players'].values() if not p.get('left')]),'alive':len(alive(r)),'host':r['players'][r['host']]['team'] if r.get('host') in r['players'] else '公共房间','mode':r.get('mode','private'),'round':r.get('round',1),'next_start':r.get('next_start')})
+            rooms.append({'id':r['id'],'status':r['status'],'count':len([p for p in r['players'].values() if not p.get('left')]),'alive':len(alive(r)),'host':r['players'][r['host']]['team'] if r.get('host') in r['players'] else '公共房间','mode':r.get('mode','private'),'round':r.get('round',1),'next_start':r.get('next_start'),
+                # 大厅只展示公房概况，不暴露玩家位置或未发现目标。
+                'map_cells':CELL_COUNT if r.get('mode')=='public' else None,'phase':r.get('phase',0),'closed_count':len(closed_cells(r)),'ai_alive':sum(n['alive'] for n in r.get('npcs',[])),'next_close_at':r.get('started',0)+(r.get('phase',0)+1)*90 if r.get('started') and r.get('phase',0)<9 else None})
         active = db().execute('SELECT room_id FROM cards_arena_member WHERE user_key=?',(user['user_key'],)).fetchone() if user else None
         return api['ok']({'rooms':rooms,'logged_in':bool(user),'my_room':active['room_id'] if active else None})
 

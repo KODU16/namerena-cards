@@ -106,6 +106,14 @@ assert a.get(code).get_json()['room']['me']['potions']==before['potions']+offer[
 fixture(code,lambda r:(r.update(npcs=[]),r['players'][a.name].update(score=17072)))
 r=b.action(code,'leave');assert r['winner']==a.name and r['ending'] is False
 code=a.create();b.action(code,'join');a.action(code,'start');fixture(code,lambda r:(r.update(npcs=[]),r['players'][a.name].update(score=17073)));r=b.action(code,'leave');assert r['winner']==a.name and r['ending'] is True
+# 最终存活不限定为玩家：最后一名天梯/试炼 AI 也必须正常结算为胜者。
+code=a.create();b.action(code,'join');a.action(code,'start')
+def only_ai_survives(r):
+    npc={**r['npcs'][0],'alive':True,'battle':None}
+    r['npcs']=[npc]
+    for p in r['players'].values():p.update(alive=False,hp=0,battle=None)
+fixture(code,only_ai_survives)
+r=a.get(code).get_json()['room'];assert r['status']=='finished' and r['winner'] is None and r['winner_name'].endswith('AI）')
 
 # AI 完全复用现有 @! 试炼，搜索和战斗可实际推进；环境伤害会解除被占用的战斗。
 a,b=User('npc-alpha'),User('npc-beta');code=a.create();b.action(code,'join');a.action(code,'start')

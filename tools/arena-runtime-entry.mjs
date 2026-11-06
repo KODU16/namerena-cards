@@ -32,7 +32,8 @@ function snapshot(entry,q){
     hand=[{id:'normal',lv:0,cost:0},...drawHand(skills,G.mulberry32((q.seed^(q.actions.length*2654435761))>>>0),3,excluded)]
       .map(c=>({...c,code:c.id==='normal'?NORMAL_ID:ACTIVE_ID[c.id],usable:canPlayHandCard(c,actor.magic_point)}));
   }
-  return {states,initial,actor:actor?.id??null,side,hand,done:session.is_done(),winner:session.result()?.winner_team_indices||[],rounds:session.rounds_advanced(),log:entry.log.slice(-32),root_hp:q.cards.map((_,i)=>Math.max(0,...states.filter(s=>s.input_team_index===i&&s.alive&&s.active).map(s=>s.hp)))};
+  // 结算后本体可能不再标记 active；只排除召唤物，保证胜者带出真实剩余 HP。
+  return {states,initial,actor:actor?.id??null,side,hand,done:session.is_done(),winner:session.result()?.winner_team_indices||[],rounds:session.rounds_advanced(),log:entry.log.slice(-32),root_hp:q.cards.map((_,i)=>Math.max(0,...states.filter(s=>s.input_team_index===i&&s.owner_id==null&&s.alive).map(s=>s.hp)))};
 }
 function advance(entry){
   for(let f;(f=entry.session.next_frame())!=null;){entry.log.push(...f.updates.map(u=>u.message_rendered).filter(Boolean));if(entry.log.length>80)entry.log.splice(0,entry.log.length-64);}
