@@ -40,8 +40,14 @@ export const HEROES = [{
 }, {
   id: 'pbb-564227710267221', year:2020, name:'564227710267221', clan:'pbb',
   portrait:'assets/heroes/pbb-564227710267221.webp',
-  description:'在重武器齐全，轻武器的彻底升级遥不可及的当下，枪械任何性能上的优化都是进步。',
+  description:'在重武器齐全，轻武器的彻底升级遥不可及的当下。',
   scores:{pp:6796,pd:8291,qp:5276,qd:6008,sum:26371},
+}, {
+  // 紧随轻武器卡，让两张 2020 pbb 卡在画廊中左右相邻。
+  id: 'pbb-138316797541934', year:2020, name:'138316797541934', clan:'pbb',
+  portrait:'assets/heroes/pbb-138316797541934.webp',
+  description:'枪械任何性能上的优化都是进步。',
+  scores:{pp:7911,pd:8911,qp:5628,qd:6565,sum:29015},
 }, {
   // 2020 年英雄按提供的名字生成属性，榜单评分独立保留。
   id: 'bingcha-xinshi',
