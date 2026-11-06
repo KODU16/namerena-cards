@@ -87,7 +87,7 @@ function shuffle(arr, rng) {
 }
 
 // 构造一层地图。makeFiller(teamSize) 返回若干张 @! 卡
-export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, makeElite, makeCpu }) {
+export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, makeElite, makeCpu, eliteCount = 2, bossRush = false }) {
   const ranks = layerRanks(layer);
   const byRank = new Map(entries.map((e) => [e.rank, e]));
   const ladderNodes = ranks.map((r) => byRank.get(r)).filter(Boolean);
@@ -115,7 +115,8 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
 
   const groups = Array.from({ length: DEPTHS + 2 }, () => []);
   const start = mk('start', null, null);
-  const end = mk('end', endLadder, endRank);
+  const runnerUp = bossRush ? ladderSorted.find((entry) => entry.rank === endRank + 1) : null;
+  const end = mk('end', bossRush && runnerUp ? { ...endLadder, cards: [...(runnerUp.cards || []), ...(endLadder.cards || [])], rank: endRank, score: endLadder.score, name: '天梯 #2/#1 连战' } : endLadder, endRank);
   groups[0] = [start];
   groups[DEPTHS + 1] = [end];
 
@@ -170,7 +171,7 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
   }
   // 精英试炼：更强、奖励更厚，每层 1 个
   {
-    for (let rep = 0; rep < 2 && makeElite; rep++) {
+    for (let rep = 0; rep < eliteCount && makeElite; rep++) {
       // 每次插入后重算容量，避免新增节点把同一行挤到五个。
       const d = pickSparseDepth();
       if (d === undefined) break;

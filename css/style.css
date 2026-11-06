@@ -1254,6 +1254,9 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .shop-item--gold { border-color: #d6a636; background: #fffaf0; }
 .shop-item { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .shop-item p { margin: 0; }
+.difficulty-chips { max-height: 132px; overflow: auto; padding: 2px; }
+.difficulty-effects { margin: 10px 0; padding: 10px; border: 1px solid #b9d5e8; border-radius: 10px; background: #f4faff; font-size: 12px; line-height: 1.55; }
+.difficulty-effects ol { margin: 6px 0 0; padding-left: 22px; }
 .sheet--merchant { width: min(900px, 100%); }
 /* 一个完整窗口包住左侧立绘和右侧交易区，标题位于立绘顶端。 */
 .shop-stage { width: min(980px, 100%); max-height: 90vh; padding: 24px; display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 560px); gap: 24px; align-items: center; background: rgba(251, 253, 255, .98); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 30px 60px -30px rgba(33, 64, 82, .6); }

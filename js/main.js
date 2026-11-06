@@ -329,7 +329,7 @@ function syncDraft() {
 }
 
 function newRunSetup() {
-  if (!draft) draft = { clan: '青', lane: '1A', names: [], rerolls: 3 };
+  if (!draft) draft = { clan: '青', lane: '1A', difficulty: 0, names: [], rerolls: 3 };
   syncDraft();
   nav('newrun', () => UI.renderNewRun(root, state, {
     draft,
@@ -338,6 +338,10 @@ function newRunSetup() {
     onChangeLane: (lane) => {
       draft.lane = lane;
       syncDraft();
+      newRunSetup();
+    },
+    onChangeDifficulty: (difficulty) => {
+      draft.difficulty = Math.max(0, Math.min(20, Number(difficulty) || 0));
       newRunSetup();
     },
     onChangeClan: (clan) => {
@@ -378,6 +382,7 @@ function newRunSetup() {
       await G.startRun(state, {
         seed: Date.now() >>> 0,
         lane: draft.lane || '1A',
+        difficulty: draft.difficulty || 0,
         clan: draft.clan || '无名',
         ladder: state.ladder,
         starters: draft.cards,
@@ -528,7 +533,8 @@ async function fight() {
     });
     duelView = new DuelView(root, duel, {
       seed: G.battleSeed(run),
-      startHpPct: run.restBuff ? 1.25 : 0,
+      // A14 覆盖常规开场满血；篝火休息在该难度下仅提高到 90%。
+      startHpPct: run.difficulty >= 14 ? (run.restBuff ? .9 : .75) : (run.restBuff ? 1.25 : 0),
       onFinish: ({ won, replay }) => finishDuel(won, replay),
     });
   });
@@ -629,7 +635,8 @@ function afterBattle(won) {
   }
   // 天梯节点的 Elo 分数已在 clearNode 后即时入账，三选一不再重复提供分数。
   const isLadderFight = node?.kind === 'ladder' || node?.kind === 'end';
-  const offers = G.rollRewards(state, (state.run.seed + state.run.index * 7919) >>> 0, node?.kind === 'elite', node?.kind === 'filler' || node?.kind === 'elite', false, false, !isLadderFight);
+  let offers = G.rollRewards(state, (state.run.seed + state.run.index * 7919) >>> 0, node?.kind === 'elite', node?.kind === 'filler' || node?.kind === 'elite', false, false, !isLadderFight);
+  if (state.run.difficulty >= 15) offers = offers.slice(0, 2);
   nav('reward', () => UI.renderReward(root, state, offers, {
     onPickOffer: (o) => { G.applyReward(state, o); mapScreen(); },
   }));

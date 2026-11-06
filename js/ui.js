@@ -1,5 +1,6 @@
 import { abilityDescription, abilityKey } from './abilities.js';
 import { relicById } from './relics.js';
+import { DIFFICULTIES, difficultyEffects, difficultyName } from './difficulties.js';
 import {isRareSkill,shownSkillLevel,playerSkillLevel,isTacticEnabled} from './rare-skills.js';
 import {hasHonor} from './run-honor.js';
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
@@ -129,6 +130,7 @@ export function topbar(state, { screen, onHome, onHelp, onLog, onCodex }) {
   const run = state.run;
   const meta = [];
   if (run && run.status === 'active') meta.push(`第 ${run.layer || 1} / 10 层`);
+  if (run && Number(run.difficulty) > 0) meta.push(`难度 ${difficultyName(run.difficulty)}`);
   if (run && run.cleared?.length) meta.push(`本层已过 ${run.cleared.length} 关`);
   if (run && run.wins) meta.push(`${run.wins} 胜`);
   return el('header', { class: 'topbar' },
@@ -214,6 +216,14 @@ export function renderNewRun(root, state, h) {
           el('div', { class: 'field' }, el('span', {}, '本次挑战的天梯组别')),
           el('div', { class: 'chips' }, ['1A', '1B', '2A', '2B', '3A'].map((lane) =>
             el('button', { class: `chip${d.lane === lane ? ' is-active' : ''}`, type: 'button', onclick: () => h.onChangeLane(lane) }, lane))),
+          el('div', { class: 'field' }, el('span', {}, '挑战难度（选择 A 阶会累计启用此前全部词条）')),
+          el('div', { class: 'chips difficulty-chips' }, [0, ...DIFFICULTIES.map((entry) => entry.level)].map((level) =>
+            el('button', { class: `chip${Number(d.difficulty || 0) === level ? ' is-active' : ''}`, type: 'button', onclick: () => h.onChangeDifficulty(level) }, difficultyName(level)))),
+          el('div', { class: 'difficulty-effects' },
+            el('b', {}, `${difficultyName(d.difficulty)} 生效词条（${difficultyEffects(d.difficulty).length} 条）`),
+            difficultyEffects(d.difficulty).length
+              ? el('ol', {}, difficultyEffects(d.difficulty).map((entry) => el('li', {}, `A${entry.level}：${entry.text}`)))
+              : el('p', { class: 'muted small' }, '标准难度：不附加 A 词条。')),
           el('div', { class: 'setup__names' },
             el('span', { class: 'muted' }, '本次随机名字（每行一个，对应一名出战角色）'),
             ...(d.names || []).map((name, i) => el('div', { class: 'setup__name-row' + (name ? '' : ' is-empty') },
@@ -844,6 +854,7 @@ export function renderEnd(root, state, h) {
       // 通关标题对应十层天梯，避免沿用旧版八战流程的文案。
       el('h1', {}, won ? '天梯登顶，游戏胜利' : `倒在第 ${run.index + 1} 战`),
       el('p', { class: 'muted' }, won ? '你的名字走到了天梯顶端。' : '名字的强度，有时只差一次重抽。'),
+      el('p', { class: 'muted' }, `本次挑战难度：${difficultyName(run.difficulty || 0)}`),
       el('div', { class: 'end__stats' },
         el('div', { class: 'fact' }, el('b', {}, `${run.wins}`), el('span', {}, '胜场')),
         el('div', { class: 'fact' }, el('b', {}, `${state.collection.length}`), el('span', {}, '卡组')),
@@ -1381,16 +1392,17 @@ export function fullCharRow(card) {
   const shield = Math.round(card.shield || 0);
   // 战术/武器带来的加成用更小一号的蓝字标出（由调用方传入 bonusMap）
   const bonusMap = arguments[1] || {};
+  const totalMult = (key) => Math.round(((card.bossMult || card.eliteMult || 1) * (card.difficultyMult?.[key] || 1)) * 100) / 100;
   const line = (label, key, v) => {
     const delta = key ? Math.round(bonusMap[key] || 0) : 0;
     return el('span', { class: 'fullrow__stat' }, label + ' ', el('b', { 'data-stat': key }, v),
-      (card.bossMult||card.eliteMult) > 1 ? el('i', { class: 'fullrow__plus' }, '*' + (card.bossMult||card.eliteMult)) : null,
+      totalMult(key) > 1 ? el('i', { class: 'fullrow__plus' }, '*' + totalMult(key)) : null,
       card.scanMult ? el('i', {class:'scan-mult'}, '×' + card.scanMult) : null,
       delta ? el('i', { class: 'fullrow__plus' + (delta < 0 ? ' is-neg' : '') }, (delta > 0 ? '+' : '') + delta) : null);
   };
   const bar = (cls, label, pct) => el('div', { class: 'fullrow__bar ' + cls, title: label },
     el('i', { style: 'width:' + Math.max(0, Math.min(100, pct)) + '%' }),
-    el('span', {}, cls === 'fullrow__bar--hp' ? ['血量 ', el('b', { 'data-stat': 'hp' }, hp)] : label, cls === 'fullrow__bar--hp' && card.scanMult ? el('i', {class:'scan-mult'}, '×' + card.scanMult) : null, cls === 'fullrow__bar--hp' && (card.bossMult||card.eliteMult) > 1 ? el('i', { class: 'elite-mult' }, '*' + (card.bossMult||card.eliteMult)) : null));
+    el('span', {}, cls === 'fullrow__bar--hp' ? ['血量 ', el('b', { 'data-stat': 'hp' }, hp)] : label, cls === 'fullrow__bar--hp' && card.scanMult ? el('i', {class:'scan-mult'}, '×' + card.scanMult) : null, cls === 'fullrow__bar--hp' && totalMult('hp') > 1 ? el('i', { class: 'elite-mult' }, '*' + totalMult('hp')) : null));
   return el('div', { class: 'fullrow', 'data-char-id': card.id },
     el('div', { class: 'fullrow__head' },
       card.icon ? el('img', { class: 'fullrow__icon', src: card.icon, alt: '' }) : null,

@@ -5,6 +5,7 @@ import { makeCard, hydrateCard, iconFor, statsWithWeapon, buildWithWeapon, apply
 import { buildLayerGraph, LAYER_COUNT } from './map.js';
 import {RARE_SKILLS,isRareSkill,hasRareSource,playerSkillLevel,isTacticEnabled} from './rare-skills.js';
 import {beginHonor,syncHonor,hasHonor} from './run-honor.js';
+import { difficultyLevel, enemyDifficultyMultipliers, hasDifficulty } from './difficulties.js';
 
 // 给一张卡套上开局保底倍率，并把倍率记在卡上供界面显示加成
 export function withRunBuff(card, nodeCount) {
@@ -313,7 +314,7 @@ export function randomName(rng) {
 }
 
 // 开局：选一条天梯线，队伍人数 = 线号（1A→1，3A→3）
-export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '青', ladder = null, starters = null } = {}) {
+export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '青', difficulty = 0, ladder = null, starters = null } = {}) {
   const r = mulberry32(seed);
   const teamSize = Number(lane[0]) || 1;
   // 开局读一次实时天梯，本次爬塔的顺序就按这一份来；拿不到就用上次缓存，再退到仓库里的快照
@@ -351,6 +352,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
   state.run = {
     seed,
     lane,
+    difficulty: Math.max(0, Math.min(20, Number(difficulty) || 0)),
     clan: clan || '青',
     teamSize,
     index: 0,
@@ -419,6 +421,8 @@ export function buildGraphForLayer(state) {
     makeFiller: (teamSize, rr) => makeFiller(teamSize, rr),
     makeElite: (teamSize, rr) => makeElite(teamSize, rr, run.layer),
     makeCpu: (rr) => makeCpu(rr),
+    eliteCount: hasDifficulty(run, 1) ? 3 : 2,
+    bossRush: hasDifficulty(run, 20) && run.layer === 10,
   });
   run.nodeId = run.graph.startId;
   run.selectedId = null;
@@ -435,8 +439,17 @@ export function enhanceLayerBoss(run) {
   const mult=Math.round((1+.05*(run.layer||1))*100)/100;
   node.payload={...node.payload,cards:node.payload.cards.map(card=>{
     const base=card.bossBaseStats||card.stats;
-    return {...card,bossBaseStats:{...base},bossMult:mult,stats:Object.fromEntries(Object.entries(base).map(([key,value])=>[key,Math.round(value*mult)]))};
+    return applyDifficultyEnemy({...card,bossBaseStats:{...base},bossMult:mult,stats:Object.fromEntries(Object.entries(base).map(([key,value])=>[key,Math.round(value*mult)]))},run,'boss');
   })};
+}
+
+// 难度只改敌方战斗副本，保留一份基线以便重开备战、读档都不重复叠乘。
+export function applyDifficultyEnemy(card, run, kind) {
+  const mult = enemyDifficultyMultipliers(run, kind);
+  const base = card.difficultyBaseStats || { ...card.stats };
+  const stats = { ...base };
+  for (const [key, factor] of Object.entries(mult)) if (factor !== 1) stats[key] = Math.round((base[key] || 0) * factor);
+  return { ...card, difficultyBaseStats: base, difficultyMult: mult, stats };
 }
 
 // 前两层只出现 1.2/1.5 倍数值精英，第三层起才开放双倍人数或双倍属性。
@@ -544,9 +557,13 @@ export function currentOpponent(state) {
       }
       payload.mult = mult;
     }
+    payload.cards = payload.cards.map((card) => applyDifficultyEnemy(card, run, 'elite'));
     return { rank: null, score: 0, name: '精英试炼', cards: payload.cards, teamSize: payload.cards.length, elite: true };
   }
-  if (node.kind === 'filler') return { rank: null, score: 0, name: node.payload[0]?.name || '试炼对手', cards: node.payload, teamSize: node.payload.length };
+  if (node.kind === 'filler') {
+    node.payload = node.payload.map((card) => applyDifficultyEnemy(card, run, 'normal'));
+    return { rank: null, score: 0, name: node.payload[0]?.name || '试炼对手', cards: node.payload, teamSize: node.payload.length };
+  }
   return null;
 }
 
@@ -915,7 +932,7 @@ export function addScore(state, oppScore) {
   const run = state.run;
   if (!run) return 0;
   run.score = Number.isFinite(run.score) ? run.score : 0;
-  const gain = eloGain(run.score, oppScore);
+  const gain = Math.round(eloGain(run.score, oppScore) * (hasDifficulty(run, 13) ? .75 : 1));
   run.score += gain;
   persist(state);
   return gain;
@@ -1146,7 +1163,7 @@ export function rollShop(state, seed, layer = 1) {
   const progress = Math.min(1, Math.max(0, ((layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
   const items = [];
   // 物价：约等于每层收入的三分之一到一半，买一两件不影响登顶
-  const priceOf = (base) => Math.round((base * (1 + progress * 0.5)) / 50) * 50;
+  const priceOf = (base) => Math.round((base * (1 + progress * 0.5) * (hasDifficulty(run, 16) ? 1.2 : 1)) / 50) * 50;
   // 技能卡
   const skills = SKILL_IDS.filter((id) => !isRareSkill(id));
   const sid = skills[Math.floor(r() * skills.length)];
@@ -1461,7 +1478,7 @@ export function battleSeed(run) {
 // 宝箱与试炼使用相同的分数奖励范围：每层递增，普通奖励约 300～1000 分。
 function rollRewardPoints(run, rng, elite = false) {
   const progress = Math.min(1, Math.max(0, ((run.layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
-  return Math.round((300 + progress * 500 + rng() * 200) * (elite ? 1.5 : 1));
+  return Math.round((300 + progress * 500 + rng() * 200) * (elite ? 1.5 : 1) * (hasDifficulty(run, 13) ? .75 : 1));
 }
 
 // 战斗奖励从完整奖池抽取三项供玩家选择；天梯胜利已按 Elo 立即结算，不再重复入池。
