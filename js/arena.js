@@ -4,9 +4,11 @@ import {iconFor} from './engine.js';
 import {duelIconForState,duelUnitRow} from './duel.js';
 import {skillMeta} from './skills.js';
 
+const ARENA_SAYS=['风会记住最后仍在移动的名字。','地图很大，但危险总会按时抵达。','别急着庆祝，下一格也许有人。','安全区从不承诺安全。','你的脚步声，可能已经被谁听见。','补给能救命，路线才决定结局。','最后留下的名字，才配被地图记住。'];
+
 export class ArenaView {
   constructor(root,{onHome}){
-    this.root=root;this.onHome=onHome;this.room=null;this.csrf='';this.user=null;this.busy=false;this.closed=false;this.message='';this.version=-1;this.epoch=0;this.tab='status';this.resultDismissed=null;this.battleMinimized=false;this.logCache=new Map();this.logIdentity='';this.zoom=false;this.battleHandKey='';
+    this.root=root;this.onHome=onHome;this.room=null;this.csrf='';this.user=null;this.busy=false;this.closed=false;this.message='';this.version=-1;this.epoch=0;this.tab='status';this.resultDismissed=null;this.battleMinimized=false;this.logCache=new Map();this.logIdentity='';this.zoom=false;this.battleHandKey='';this.mapSay=ARENA_SAYS[0];
     this.timer=setInterval(()=>this.updateTimers(),200);
   }
   dispose(){this.closed=true;this.epoch++;clearInterval(this.timer);clearTimeout(this.pollTimer);}
@@ -66,7 +68,7 @@ export class ArenaView {
   accept(room){
     if(this.closed||(this.room?.id===room.id&&room.version<this.version))return;
     if(this.room?.battle?.id!==room.battle?.id){this.battleMinimized=false;this.battleHandKey='';}
-    const identity=room.id+':'+room.round;if(identity!==this.logIdentity){this.logIdentity=identity;this.logCache=new Map();}
+    const identity=room.id+':'+room.round;if(identity!==this.logIdentity){this.logIdentity=identity;this.logCache=new Map();this.mapSay=ARENA_SAYS[Math.floor(Math.random()*ARENA_SAYS.length)];}
     for(const entry of room.log||[])this.logCache.set(entry.seq,entry);
     if(room.log)room.log=[...this.logCache.values()].sort((a,b)=>a.seq-b.seq);
     this.room=room;this.version=room.version;this.received=performance.now();
@@ -123,7 +125,9 @@ export class ArenaView {
     else if(this.tab==='inventory'){
       panel=el('div',{class:'arena-inventory'},el('h3',{},'药水'),this.mapAction('生命药水 ×'+me.potions+' · 恢复 35%',()=>this.action('heal'),!me.potions||me.hp>=me.card.stats.hp),this.mapAction('大瓶生命药水 ×'+me.large_potions+' · 恢复 60%',()=>this.action('heal',{large:true}),!me.large_potions||me.hp>=me.card.stats.hp),el('h3',{},'武器'),me.card.weapon?this.mapAction('卸下当前武器',()=>this.action('equip',{item:null})):null,...me.weapons.map(w=>el('article',{class:'arena-inventory__weapon'},el('span',{},w.name),this.mapAction(me.card.weaponItem?.id===w.id?'已装备':'装备',()=>this.action('equip',{item:w.id}),me.card.weaponItem?.id===w.id))),!me.weapons.length?el('p',{class:'muted'},'搜索废铸工坊、落日矿场，或前往补给站购买武器。'):null,this.shopPanel(r.stock,me));
     }else if(this.tab==='players'){
-      panel=el('div',{class:'arena-mode__roster'},r.players.map(p=>el('article',{class:p.alive?'':'is-eliminated'},el('b',{},p.team),el('small',{},p.alive?'存活（位置不可见）':'已淘汰'),el('small',{},p.score+' 分 · 击败 '+p.kills+' 人'))));
+      // 己方固定置顶；AI 仅公开身份与战绩，不泄露其地图位置。
+      const contestants=[...(r.players||[]).map(p=>({...p,type:'player'})),...(r.ai||[]).map(ai=>({...ai,type:'ai',team:ai.kind==='ladder'?'天梯 AI':'试炼 AI'}))].sort((a,b)=>(b.key===me?.key)-(a.key===me?.key)||Number(b.alive)-Number(a.alive)||b.score-a.score);
+      panel=el('div',{class:'arena-mode__roster'},contestants.map(p=>el('article',{class:(p.alive?'':'is-eliminated')+(p.key===me?.key?' is-self':'')},el('img',{class:'arena-roster__icon',src:iconFor(p.name,p.clan),alt:''}),el('div',{class:'arena-roster__who'},el('b',{},p.name+'@'+p.clan),el('small',{},p.type==='ai'?(p.kind==='ladder'?'天梯 AI':'试炼 AI'):(p.alive?'存活':'已淘汰'))),el('span',{class:'arena-roster__score'},Math.round(p.score||0)+' 分'))));
     }else if(this.tab==='rules'){
       panel=el('div',{class:'small'},el('p',{},'点击任一安全格移动；行动栏点击搜索才会遇敌或获得物品。每 90 秒缩圈，危险格每 10 秒扣血；第九轮封锁最后一格并结算。'),el('p',{},'同一命名区域内可跨格相遇；野外玩家与 NPC 只能在同格相遇。两处补给站可买武器、技能与药水。'),el('p',{},'公房可中途加入，结束后冷却 60 秒自动开下一局。私房需密钥，至少两人由房主开局，时间独立。'),el('p',{},'每次出牌 10 秒，超时随机选择可用牌。普通攻击不受负 MP 限制；交战期间不能移动、换装或喝地图药水。'),el('p',{},'最终存活者获胜；分数严格超过 1A 天梯榜首时获得金色胜利。'));
     }else{
@@ -133,12 +137,14 @@ export class ArenaView {
         fullCharRow({...me.card,stats:{...me.card.stats,hp:me.hp},icon:iconFor(me.card.name,me.card.clan)}),el('small',{},'当前生命 '+me.hp+' / '+me.card.stats.hp),
         ...(r.corpses||[]).map(c=>this.mapAction('搜刮 '+c.name+' 的尸体',()=>this.action('loot',{corpse:c.id}))),el('small',{'data-arena-cooldown':''}),el('p',{class:'muted small'},'此区域偏向：'+({wild:'分数与普通补给',supplies:'生命药水',healing:'生命药水、大瓶药水',skill:'技能成长',weapon:'武器',mixed:'多种补给'}[cell.loot])),cell.shop?this.button('查看补给站',()=>this.chooseTab('inventory')):null);
     }
-    const broadcast=el('section',{class:'arena-broadcast','aria-label':'战斗结果与系统广播'},el('div',{class:'arena-log-heading'},el('b',{},'战斗结果 / 系统广播'),r.log.length<r.log_count?this.button('更早消息',()=>this.earlierLogs()):null),el('div',{'data-arena-log':''},r.log.map(e=>el('p',{},e.text))));
-    const workspace=el('div',{class:'arena-workspace'},el('section',{class:'arena-map-panel'},el('div',{class:'arena-map-tools'},el('span',{},'20×20 地图 · 仅显示本人位置'),this.button(this.zoom?'全图':'放大',()=>{this.zoom=!this.zoom;this.signature=null;this.renderRoom();})),el('div',{class:'arena-map-scroll'},map),el('div',{class:'arena-map-legend'},el('span',{},'● 当前位置　斜纹：下次封锁　红色：已封锁'),el('small',{},'林：药水　台/库：技能　坊/场：武器　集/驿：补给站'))),el('aside',{class:'arena-right'},tabs,el('section',{class:'arena-right-content'},panel),el('p',{class:'error',role:'alert','data-arena-message':'',hidden:!this.message},this.message),broadcast));
+    const actors=[...(r.players||[]),...(r.ai||[])];
+    const broadcastLine=e=>{const actor=actors.find(a=>e.text.includes(a.name+'@'+a.clan)||e.text.startsWith(a.team));return el('p',{class:'arena-broadcast__line'},actor?el('img',{class:'arena-log__icon',src:iconFor(actor.name,actor.clan),alt:''}):null,e.text);};
+    const broadcast=el('section',{class:'arena-broadcast','aria-label':'战斗结果与系统广播'},el('div',{class:'arena-log-heading'},el('b',{},'战斗结果 / 系统广播'),r.log.length<r.log_count?this.button('更早消息',()=>this.earlierLogs()):null),el('div',{'data-arena-log':''},r.log.map(broadcastLine)));
+    const workspace=el('div',{class:'arena-workspace'},el('section',{class:'arena-map-panel'},el('div',{class:'arena-map-tools'},el('span',{},this.mapSay),this.button(this.zoom?'全图':'放大',()=>{this.zoom=!this.zoom;this.signature=null;this.renderRoom();})),el('div',{class:'arena-map-scroll'},map),el('div',{class:'arena-map-legend'},el('span',{},'● 当前位置　斜纹：下次封锁　红色：已封锁'),el('small',{},'林：药水　台/库：技能　坊/场：武器　集/驿：补给站'))),el('aside',{class:'arena-right'},tabs,el('section',{class:'arena-right-content'},panel),el('p',{class:'error',role:'alert','data-arena-message':'',hidden:!this.message},this.message),broadcast));
     const section=el('section',{class:'arena-mode arena-game'},header,rotate,workspace);
     // 多人战斗复用尖塔的战斗骨架；收起仅查看地图，不暂停服务器倒计时。
     if(r.battle&&!this.battleMinimized){section.append(el('div',{class:'arena-battle-modal',role:'dialog','aria-modal':'true','aria-label':'手牌战斗'},el('section',{class:'arena-battle-sheet'},el('div',{class:'arena-mode__actions'},el('b',{},r.battle.pvp?'玩家交战':'试炼交战'),this.button('收起查看地图',()=>{this.battleMinimized=true;this.signature=null;this.renderRoom();})),this.battlePanel(r.battle))));}
-    else if(!r.battle&&me?.last_battle&&this.resultDismissed!==me.last_battle.id){const result=me.last_battle;section.append(el('div',{class:'arena-battle-modal',role:'dialog','aria-modal':'true','aria-label':'战斗结果'},el('section',{class:'arena-battle-sheet'},el('h2',{},result.won?'交战获胜':'交战失利'),el('div',{class:'arena-mode__battle-log'},result.log.map(t=>el('p',{},t))),this.button('返回地图',()=>{this.resultDismissed=result.id;this.signature=null;this.renderRoom();}))));}
+    else if(!r.battle&&me?.last_battle&&this.resultDismissed!==me.last_battle.id){const result=me.last_battle;const dismiss=()=>{this.resultDismissed=result.id;this.action('ack_battle',{battle:result.id});};section.append(el('div',{class:'arena-battle-modal',role:'dialog','aria-modal':'true','aria-label':'战斗结果'},el('section',{class:'arena-battle-sheet'},el('h2',{},result.won?'交战获胜':'交战失利'),el('div',{class:'arena-mode__battle-log'},result.log.map(t=>el('p',{},t))),this.button('返回地图',dismiss))));}
     this.root.replaceChildren(section);const logView=this.root.querySelector('[data-arena-log]');if(logView)logView.scrollTop=follow?logView.scrollHeight:logOffset;this.updateTimers();
   }
   shopPanel(stock,me){

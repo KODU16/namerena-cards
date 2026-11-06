@@ -16,6 +16,8 @@ except ImportError:
 MAP_SIZE=20
 CELL_COUNT=400
 REGIONS=[('霜叶林地',1,1,'supplies',False),('旧观测台',0,12,'skill',False),('废铸工坊',5,5,'weapon',False),('药草溪岸',7,15,'healing',False),('星环集市',9,9,'mixed',True),('青石驿站',14,1,'supplies',True),('静默书库',14,14,'skill',False),('落日矿场',17,8,'weapon',False)]
+REGION_PREFIXES=('霜叶','青石','静默','赤霞','星环','银月','旧日','远望','暮色','流云','苍苔','微光')
+REGION_SUFFIXES=('林地','观测台','工坊','溪岸','集市','驿站','书库','矿场','庭院','灯塔','哨所','渡口')
 CELLS=[]
 for cell in range(CELL_COUNT):
     row,col=divmod(cell,MAP_SIZE)
@@ -92,8 +94,13 @@ def install_arena(app, api, router=None):
             after={r*20+c for r in range(top,bottom+1) for c in range(left,right+1)}
             stages.append(sorted(before-after))
         public=code==PUBLIC_ID;spawned=runtime(op='spawn_npcs',seed=seed)
-        npcs=[{'id':'npc-'+str(i),'zone':rng.randrange(CELL_COUNT),'seed':rng.getrandbits(32),'alive':True,'battle':None,'card':item['card'],'kind':item['kind'],'hp':item['card']['stats']['hp'],'retire':False} for i,item in enumerate(spawned['npcs'])]
-        return {'protocol':3,'id':code,'host':host,'mode':'public' if public else 'private','key_hash':generate_password_hash(private_key) if private_key else None,'status':'active' if public else 'waiting','seed':seed,'version':0,'round':round_no,'created':now,'started':now if public else None,'phase':0,'hazard_tick':0,'ai_tick':0,'close_stages':stages,'players':{},'battles':{},'shops':{},'log':[],'npcs':npcs,'corpses':[],'ladder_source':spawned['source']}
+        npcs=[{'id':'npc-'+str(i),'zone':rng.randrange(CELL_COUNT),'seed':rng.getrandbits(32),'alive':True,'battle':None,'card':item['card'],'kind':item['kind'],'score':item.get('score',0),'hp':item['card']['stats']['hp'],'retire':False} for i,item in enumerate(spawned['npcs'])]
+        # 名称仅影响本局地图显示，区域种类和掉落表仍由固定的安全规则决定。
+        labels=[]
+        while len(labels)<len(REGIONS):
+            label=rng.choice(REGION_PREFIXES)+rng.choice(REGION_SUFFIXES)
+            if label not in labels:labels.append(label)
+        return {'protocol':3,'id':code,'host':host,'mode':'public' if public else 'private','key_hash':generate_password_hash(private_key) if private_key else None,'status':'active' if public else 'waiting','seed':seed,'version':0,'round':round_no,'created':now,'started':now if public else None,'phase':0,'hazard_tick':0,'ai_tick':0,'close_stages':stages,'players':{},'battles':{},'shops':{},'log':[],'npcs':npcs,'corpses':[],'region_names':labels,'ladder_source':spawned['source']}
 
     def insert(room):
         db().execute('INSERT INTO cards_arena_room VALUES (?,?,?,?)',(room['id'],room['status'],json.dumps(room,ensure_ascii=False),clock()))
@@ -236,7 +243,8 @@ def install_arena(app, api, router=None):
             return
         b['done'] = True
         living = [i for i, hp in enumerate(result['root_hp']) if hp > 0]
-        winner = next((i for i in range(2) if any(s['input_team_index'] == i and s['owner_id'] is None and s['team_index'] in result['winner'] for s in result['initial'])), None)
+        # 本体只剩一方时以真实 HP 为准，避免引擎内部队伍编号映射造成胜负反转。
+        winner = living[0] if len(living)==1 else next((i for i in range(2) if any(s['input_team_index'] == i and s['owner_id'] is None and s['team_index'] in result['winner'] for s in result['initial'])), None)
         if winner is None and living:
             winner = max(living, key=lambda i: result['root_hp'][i] / b['cards'][i]['stats']['hp'])
         npc=next((n for n in room['npcs'] if n['id']==b.get('npc_id')),None)
@@ -249,7 +257,6 @@ def install_arena(app, api, router=None):
                 continue
             p = room['players'][key]
             p['battle'] = None
-            p['last_battle']={'id':b['id'],'won':side==winner,'log':result['log'][-20:]}
             if side != winner:
                 eliminate(room,p,'被 '+actor_name(room['players'][b['keys'][1-side]] if b['pvp'] else npc)+'击杀。')
             else:
@@ -263,6 +270,8 @@ def install_arena(app, api, router=None):
                 points = (1000 if b['pvp'] else 850) + (min(1000, room['players'][b['keys'][1-side]]['score'] // 2) if b['pvp'] else 0)
                 p['score'] += points
                 log(room, p['team'] + ' 赢得' + ('玩家交战' if b['pvp'] else '试炼') + '，获得 ' + str(points) + ' 天梯分数。')
+            # 结果在生命与禁区伤害都结算后写入，弹窗不会把获胜者显示为死亡。
+            p['last_battle']={'id':b['id'],'won':bool(p['alive'] and side==winner),'log':result['log'][-20:]}
         end_if_needed(room,finished_at)
         try:
             call_runtime({'op':'release','id':b['id']},api['CARDS_SECRET'])
@@ -383,7 +392,9 @@ def install_arena(app, api, router=None):
         for other in room['players'].values():
             if other.get('left'):
                 continue
-            visible.append({**{k: other[k] for k in ('key', 'team', 'alive','score','kills','death')},'busy':bool(other.get('battle'))})
+            visible.append({**{k: other[k] for k in ('key', 'team', 'alive','score','kills','death')},'name':other['card']['name'],'clan':other['card']['clan'],'busy':bool(other.get('battle'))})
+        # 只公开 AI 身份、存活和分数；位置仍完全处于地图迷雾中。
+        ai_visible=[{'id':n['id'],'name':n['card']['name'],'clan':n['card']['clan'],'kind':n.get('kind','trial'),'alive':n['alive'],'score':n.get('score',0),'kills':n.get('kills',0),'busy':bool(n.get('battle'))} for n in room['npcs'] if not n.get('retired')]
         stock = []
         if p and p['alive'] and p['zone'] in SHOPS and room['status'] == 'active':
             stock_key = str(room['phase']) + ':' + str(CELLS[p['zone']]['region'])
@@ -392,7 +403,9 @@ def install_arena(app, api, router=None):
                 room['shops'][stock_key] = runtime(op='shop', seed=seed, clan='补给站', layer=min(10,room['phase']+1))['stock']
             stock = [{**i, 'sold': i['id'] in p['purchased']} for i in room['shops'][stock_key]]
         mine = None if not p else {k: p[k] for k in ('key', 'team', 'alive', 'zone', 'hp', 'score', 'kills', 'death', 'card', 'potions', 'ready_at', 'left','weapons','large_potions','last_battle','found_corpse')}
-        return {'protocol':3,'id':room['id'],'mode':room['mode'],'locked':False,'round':room['round'],'status':room['status'],'host':room['host'],'winner':room.get('winner'),'winner_name':room.get('winner_name'),'players':visible,'me':mine,'battle':battle,'stock':stock,'phase':room['phase'],'closed':closed_cells(room),'next_close':room['close_stages'][room['phase']] if room['phase']<9 else [],'next_close_at':room['started']+(room['phase']+1)*90 if room.get('started') and room['phase']<9 else None,'next_start':room.get('next_start'),'zones':CELLS,'log':room['log'][-100:],'log_count':len(room['log']),'ai_alive':sum(n['alive'] for n in room['npcs']),'corpses':[{'id':c['id'],'name':c['name']} for c in room['corpses'] if p and c['id']==p.get('found_corpse') and not c['looted'] and same_area(c['zone'],p['zone'])],'server_now':now,'version':room['version'],'started':bool(room.get('started')),'ending':room.get('ending',False),'ladder':room.get('ladder') if room['status'] in ('finished','cooldown') else None,'finish_reason':room.get('finish_reason','')}
+        region_names=room.get('region_names') or [entry[0] for entry in REGIONS]
+        zones=[{**cell,'name':region_names[cell['region']] if cell['region'] is not None else '野外'} for cell in CELLS]
+        return {'protocol':3,'id':room['id'],'mode':room['mode'],'locked':False,'round':room['round'],'status':room['status'],'host':room['host'],'winner':room.get('winner'),'winner_name':room.get('winner_name'),'players':visible,'ai':ai_visible,'me':mine,'battle':battle,'stock':stock,'phase':room['phase'],'closed':closed_cells(room),'next_close':room['close_stages'][room['phase']] if room['phase']<9 else [],'next_close_at':room['started']+(room['phase']+1)*90 if room.get('started') and room['phase']<9 else None,'next_start':room.get('next_start'),'zones':zones,'log':room['log'][-100:],'log_count':len(room['log']),'ai_alive':sum(n['alive'] for n in room['npcs']),'corpses':[{'id':c['id'],'name':c['name']} for c in room['corpses'] if p and c['id']==p.get('found_corpse') and not c['looted'] and same_area(c['zone'],p['zone'])],'server_now':now,'version':room['version'],'started':bool(room.get('started')),'ending':room.get('ending',False),'ladder':room.get('ladder') if room['status'] in ('finished','cooldown') else None,'finish_reason':room.get('finish_reason','')}
 
 
     def new_player(user,body=None):
@@ -553,6 +566,10 @@ def install_arena(app, api, router=None):
                 out=view(room,p['key']);save(room);conn.commit();return api['ok']({'room':out})
             if kind=='join':
                 pass
+            elif kind=='ack_battle':
+                # 结算已读写回房间，重新进入多人模式不会重复弹出旧战斗结果。
+                if p.get('last_battle') and body.get('battle')==p['last_battle'].get('id'):
+                    p['last_battle']=None
             elif kind=='leave':
                 if room['status']=='active':
                     eliminate(room,p,'退出对局');end_if_needed(room)

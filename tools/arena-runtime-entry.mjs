@@ -71,8 +71,8 @@ export async function execute(q){
     let entries=q.ladder_entries,source=q.ladder_entries?'fixture':'live';
     if(!entries){try{entries=await G.fetchLaneEntries('1A',{signal:AbortSignal.timeout(4000)});if(!entries.length)throw Error('empty');}catch{entries=ladderSnapshot.lanes['1A'].queue;source='snapshot';}}
     entries=[...entries];for(let i=entries.length-1;i>0;i--){const j=Math.floor(rng()*(i+1));[entries[i],entries[j]]=[entries[j],entries[i]];}
-    const cards=Array.from({length:20},(_,i)=>({kind:'ladder',card:G.opponentFromEntry(entries[i%entries.length],1).cards[0]}));
-    cards.push(...Array.from({length:20},()=>({kind:'trial',card:G.makeFiller(1,rng)[0]})));return clean({npcs:cards,source});
+    const cards=Array.from({length:20},(_,i)=>{const entry=entries[i%entries.length];return {kind:'ladder',score:Number(entry.score)||0,card:G.opponentFromEntry(entry,1).cards[0]};});
+    cards.push(...Array.from({length:20},()=>({kind:'trial',score:0,card:G.makeFiller(1,rng)[0]})));return clean({npcs:cards,source});
   }
   if(q.op==='ai_battle'){
     // AI 对战不启用手牌控制，随机 seed 完全交给 tswn，结束后释放独立会话。
