@@ -209,7 +209,7 @@ export function renderRunStats(root, state, h) {
     el('b',{},`第 ${row.layer} 层`), el('div',{class:'run-route__nodes'}, row.nodes.length ? row.nodes.map(nodeEl) : el('span',{class:'muted'},'—')))));
   const relics = (run.relics || []).length ? (run.relics || []).map(id => relicPreview(id)) : el('p',{class:'muted'},'未获得遗物');
   root.replaceChildren(el('section', {class:'stats-page'},
-    el('div', {class:'stats-page__head'}, el('div',{class:'home__kicker'}, h.mode === 'current' ? 'CURRENT RUN' : 'LAST RUN'), el('h1',{},h.mode === 'current' ? '当局统计' : '上一局统计'), el('div',{class:'stats-tabs'}, el('button',{class:'ghost' + (h.mode === 'current' ? ' is-active' : ''),type:'button',disabled:!h.current,onclick:h.onCurrent},'当局'), el('button',{class:'ghost' + (h.mode === 'last' ? ' is-active' : ''),type:'button',disabled:!state.lastRun,onclick:h.onLast},'上一局')), el('p',{class:'muted'}, `${h.mode === 'current' ? '进行中' : run.won ? '胜利' : run.abandoned ? '主动重开' : '失败'} · 难度 ${difficultyName(run.difficulty)} · 当前连胜 ${run.streak || 0}`)),
+    el('div', {class:'stats-page__head'}, el('div',{class:'home__kicker'}, h.mode === 'current' ? 'CURRENT RUN' : 'LAST RUN'), el('h1',{},h.mode === 'current' ? '当局统计' : '上一局统计'), el('div',{class:'stats-tabs'}, el('button',{class:'ghost' + (h.mode === 'current' ? ' is-active' : ''),type:'button',disabled:!h.current,onclick:h.onCurrent},'当局'), el('button',{class:'ghost' + (h.mode === 'last' ? ' is-active' : ''),type:'button',disabled:!state.lastRun,onclick:h.onLast},'上一局')), el('p',{class:'muted'}, `${h.mode === 'current' ? '进行中' : run.won ? '胜利' : run.abandoned ? '主动重开' : '失败'} · 难度 ${difficultyName(run.difficulty)} · 每层 ${run.nodeCount || 40} 节点 · 当前连胜 ${run.streak || 0}`)),
     el('section',{class:'panel'}, el('h2',{},'路线'), route),
     el('section',{class:'panel'}, el('h2',{},'本局遗物'), el('div',{class:'stats-relics'}, relics)),
     el('section',{class:'panel'}, el('h2',{},'最终角色库'), el('div',{class:'inv__chars'}, (run.collection || []).map(card => fullCharRow(card)))),
@@ -246,6 +246,9 @@ export function renderNewRun(root, state, h) {
             difficultyEffects(d.difficulty).length
               ? el('ol', {}, difficultyEffects(d.difficulty).map((entry) => el('li', {}, `A${entry.level}：${entry.text}`)))
               : el('p', { class: 'muted small' }, '标准难度：不附加 A 词条。')),
+          el('div', { class: 'field' }, el('span', {}, '每层节点数（天梯 10 名固定，其余按比例补齐）')),
+          el('div', { class: 'chips' }, [20, 30, 40, 50, 60, 70, 80].map((count) =>
+            el('button', { class: `chip${Number(d.nodeCount || 40) === count ? ' is-active' : ''}`, type: 'button', onclick: () => h.onChangeNodeCount(count) }, String(count)))),
           el('div', { class: 'setup__names' },
             el('span', { class: 'muted' }, '本次随机名字（每行一个，对应一名出战角色）'),
             ...(d.names || []).map((name, i) => el('div', { class: 'setup__name-row' + (name ? '' : ' is-empty') },
@@ -876,7 +879,7 @@ export function renderEnd(root, state, h) {
       // 通关标题对应十层天梯，避免沿用旧版八战流程的文案。
       el('h1', {}, won ? '天梯登顶，游戏胜利' : `倒在第 ${run.index + 1} 战`),
       el('p', { class: 'muted' }, won ? '你的名字走到了天梯顶端。' : '名字的强度，有时只差一次重抽。'),
-      el('p', { class: 'muted' }, `本次挑战难度：${difficultyName(run.difficulty || 0)}`),
+      el('p', { class: 'muted' }, `本次挑战难度：${difficultyName(run.difficulty || 0)} · 每层节点数：${run.nodeCount || 40}`),
       el('div', { class: 'end__stats' },
         el('div', { class: 'fact' }, el('b', {}, `${run.wins}`), el('span', {}, '胜场')),
         el('div', { class: 'fact' }, el('b', {}, `${state.collection.length}`), el('span', {}, '卡组')),
@@ -1242,7 +1245,7 @@ export function renderMap(root, state, h) {
       el('div', { class: 'map__head' },
         el('div', {},
           el('div', { class: 'home__kicker' }, `LAYER ${run.layer || 1} / 10`),
-          el('h2', {}, `第 ${run.layer || 1} 层 · 天梯 ${run.lane}`),
+          el('h2', {}, `第 ${run.layer || 1} 层 · 天梯 ${run.lane} · ${run.nodeCount || 40} 节点`),
           el('div', { class: 'muted map__say', id: 'map-say' }, h.say || '从下往上走：天梯名次一路变好，最后汇聚到本层名次最高的选手'),
           (state.relics || []).length ? el('div', { class: 'map__relics', 'aria-label': '持有遗物' }, state.relics.map((id) => {
             const relic = relicById(id);

@@ -330,7 +330,7 @@ function syncDraft() {
 }
 
 function newRunSetup() {
-  if (!draft) draft = { clan: '青', lane: '1A', difficulty: 0, names: [], rerolls: 3 };
+  if (!draft) draft = { clan: '青', lane: '1A', difficulty: 0, nodeCount: 40, names: [], rerolls: 3 };
   syncDraft();
   nav('newrun', () => UI.renderNewRun(root, state, {
     draft,
@@ -343,6 +343,10 @@ function newRunSetup() {
     },
     onChangeDifficulty: (difficulty) => {
       draft.difficulty = Math.max(0, Math.min(20, Number(difficulty) || 0));
+      newRunSetup();
+    },
+    onChangeNodeCount: (nodeCount) => {
+      draft.nodeCount = Math.max(20, Math.min(80, Math.round((Number(nodeCount) || 40) / 10) * 10));
       newRunSetup();
     },
     onChangeClan: (clan) => {
@@ -384,6 +388,7 @@ function newRunSetup() {
         seed: Date.now() >>> 0,
         lane: draft.lane || '1A',
         difficulty: draft.difficulty || 0,
+        nodeCount: draft.nodeCount || 40,
         clan: draft.clan || '无名',
         ladder: state.ladder,
         starters: draft.cards,
@@ -398,7 +403,7 @@ function newRunSetup() {
 
 // 上一局快照只读展示，不依赖仍可能被新局改写的 run/collection。
 function statsScreen(mode = state.run?.status === 'active' ? 'current' : 'last') {
-  const current = state.run?.status === 'active' ? { active:true, won:false, difficulty:state.run.difficulty || 0, wins:state.run.wins || 0, journey:state.run.journey || [], relics:state.relics || [], collection:state.collection || [], streak:state.winStreak || 0 } : null;
+  const current = state.run?.status === 'active' ? { active:true, won:false, difficulty:state.run.difficulty || 0, nodeCount:state.run.nodeCount || 40, wins:state.run.wins || 0, journey:state.run.journey || [], relics:state.relics || [], collection:state.collection || [], streak:state.winStreak || 0 } : null;
   nav('stats', () => UI.renderRunStats(root, state, { mode, current, onHome:home, onCurrent:() => statsScreen('current'), onLast:() => statsScreen('last') }));
 }
 // ————————————————————— 备战

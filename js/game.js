@@ -2,7 +2,7 @@ import { acquireAbility, normalizeAbilities, rollAbility, abilityDescription, ab
 import { RELIC_RARITIES, relicById, normalizeRelics, rollRelic } from './relics.js';
 // 局内状态、爬塔流程与存档。
 import { makeCard, hydrateCard, iconFor, statsWithWeapon, buildWithWeapon, applyRunBuff, runMultiplier, displayEightSum } from './engine.js';
-import { buildLayerGraph, LAYER_COUNT } from './map.js';
+import { buildLayerGraph, LAYER_COUNT, normalizeNodeCount } from './map.js';
 import {RARE_SKILLS,isRareSkill,hasRareSource,playerSkillLevel,isTacticEnabled} from './rare-skills.js';
 import {beginHonor,syncHonor,hasHonor} from './run-honor.js';
 import { difficultyLevel, enemyDifficultyMultipliers, hasDifficulty } from './difficulties.js';
@@ -322,7 +322,7 @@ export function randomName(rng) {
 }
 
 // 开局：选一条天梯线，队伍人数 = 线号（1A→1，3A→3）
-export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '青', difficulty = 0, ladder = null, starters = null } = {}) {
+export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '青', difficulty = 0, nodeCount = 40, ladder = null, starters = null } = {}) {
   // 主动重开也结算为失败，保证连胜不会因直接开新局而保留。
   if (state.run?.status === 'active') recordRun(state, state.run, false, true);
   const r = mulberry32(seed);
@@ -363,6 +363,8 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     seed,
     lane,
     difficulty: Math.max(0, Math.min(20, Number(difficulty) || 0)),
+    // 每层节点数属于本局规则，存档和结算均使用同一份归一化值。
+    nodeCount: normalizeNodeCount(nodeCount),
     clan: clan || '青',
     teamSize,
     index: 0,
@@ -435,6 +437,7 @@ export function buildGraphForLayer(state) {
     makeCpu: (rr) => makeCpu(rr),
     eliteCount: hasDifficulty(run, 1) ? 3 : 2,
     bossRush: hasDifficulty(run, 20) && run.layer === 10,
+    nodeCount: normalizeNodeCount(run.nodeCount),
   });
   run.nodeId = run.graph.startId;
   run.selectedId = null;
@@ -1663,6 +1666,7 @@ function recordRun(state, run, won, abandoned = false) {
   state.records = state.records || [];
   state.records.unshift({
     lane: run.lane || '1A',
+    nodeCount: normalizeNodeCount(run.nodeCount),
     wins: run.wins,
     total: LAYER_COUNT * 7,
     won,
@@ -1673,7 +1677,7 @@ function recordRun(state, run, won, abandoned = false) {
   state.winStreak = won ? (state.winStreak || 0) + 1 : 0;
   // 最后一局独立保存为展示快照，之后开始新局、清空局内物品也不会改变它。
   state.lastRun = {
-    won: !!won, abandoned: !!abandoned, difficulty: run.difficulty || 0, wins: run.wins || 0,
+    won: !!won, abandoned: !!abandoned, difficulty: run.difficulty || 0, nodeCount: normalizeNodeCount(run.nodeCount), wins: run.wins || 0,
     journey: structuredClone(run.journey || []), relics: [...(state.relics || [])],
     collection: structuredClone(state.collection || []), streak: state.winStreak,
   };
