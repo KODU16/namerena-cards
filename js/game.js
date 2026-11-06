@@ -1072,7 +1072,8 @@ export function constructQuote(card, amount) {
 export function constructCharacter(state, charId, amount) {
   const run = state.run, node = currentNode(state);
   const card = state.collection.find(c => c.id === charId);
-  if (!run || run.status !== 'active' || node?.kind !== 'constructMerchant' || node.id !== run.nodeId || !run.teamIds?.includes(charId) || run.downed?.includes(charId)) return { ok:false, reason:'请选择当前可出战的角色' };
+  // 商人允许强化任一存活收藏角色；倒下角色仍不可被选择。
+  if (!run || run.status !== 'active' || node?.kind !== 'constructMerchant' || node.id !== run.nodeId || run.downed?.includes(charId)) return { ok:false, reason:'请选择存活的角色' };
   const quote = constructQuote(card, amount);
   if (!quote) return { ok:false, reason:'请重新输入至少 250 的整数天梯分数' };
   if (!Number.isFinite(run.score) || quote.spend > run.score) return { ok:false, reason:'天梯分数不足，请重新输入可负担的金额' };

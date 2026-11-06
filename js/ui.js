@@ -686,7 +686,8 @@ export function curseCostEl(cost) {
 
 // 输入预览与付款结果在同一面板更新，余额不足时保留输入并引导重填。
 export function constructMerchantSheet(state, h) {
-  const cards = state.collection.filter(c => state.run.teamIds.includes(c.id) && !state.run.downed?.includes(c.id));
+  // 构造商人可服务角色库中的任一存活角色，不受当前出战编队限制。
+  const cards = state.collection.filter(c => !state.run.downed?.includes(c.id));
   const select = el('select', {}, cards.map(c => el('option', {value:c.id}, c.name + '@' + c.clan)));
   const input = el('input', {type:'text', inputmode:'numeric', placeholder:'输入消耗的天梯分数', 'aria-label':'消耗的天梯分数', value:'1000'});
   const balance = el('p', {class:'merchant-heading'});

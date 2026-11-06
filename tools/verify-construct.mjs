@@ -7,7 +7,7 @@ const E=await import('../js/engine.js');await E.loadEngine();const G=await impor
 const fixture=seed=>{const s=G.createState(),a=E.makeCard('构造检验','青'),b=E.makeCard('旁观角色','青');s.collection=[a,b];const n={id:'construct-1',kind:'constructMerchant',next:[]};s.run={seed,status:'active',index:0,layer:1,score:100000,clan:'青',teamIds:[a.id],forged:[],nodeId:n.id,graph:{nodes:[n],byId:new Map([[n.id,n]])}};G.refreshRunBuff(s);return s};
 const s=fixture(31),a=s.collection[0];
 for(const value of ['',0,-1,249,'1.5','1e3','Infinity','0x1000',100001,Number.MAX_SAFE_INTEGER]){const before=JSON.stringify(G.snapshot(s));assert.equal(G.constructCharacter(s,a.id,value).ok,false);assert.equal(JSON.stringify(G.snapshot(s)),before)}
-assert.equal(G.constructCharacter(s,s.collection[1].id,1000).ok,false);
+assert.equal(G.constructCharacter(s,s.collection[1].id,1000).ok,true);
 const keys=new Set(),counts=new Set();
 for(let seed=0;seed<200;seed++){const t=fixture(seed),c=t.collection[0],before={...c.stats},q=G.constructQuote(c,5000);const r=G.constructCharacter(t,c.id,5000);assert.ok(r.ok);assert.equal(t.run.score,95000);assert.equal(r.gains.reduce((n,g)=>n+g.units,0),q.units);counts.add(r.gains.length);for(const g of r.gains){keys.add(g.key);assert.equal(g.amount,g.units*(g.key==='hp'?3:1));assert.equal(c.stats[g.key]-before[g.key],g.amount)}const stats={...c.stats};G.refreshRunBuff(t);assert.deepEqual(c.stats,stats);const snap=G.snapshot(t);assert.equal(snap.collection[0].constructSpent,5000);const restored=G.createState();assert.ok(G.restoreSnapshot(restored,snap));assert.deepEqual(restored.collection[0].stats,stats);assert.equal(restored.collection[0].constructSpent,5000)}
 assert.equal(keys.size,8);assert.equal(counts.size,8);
