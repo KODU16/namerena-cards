@@ -1257,6 +1257,16 @@ body:has(#overlay:not(.hidden)) #potion-dock { display: none; }
 .difficulty-chips { max-height: 132px; overflow: auto; padding: 2px; }
 .difficulty-effects { margin: 10px 0; padding: 10px; border: 1px solid #b9d5e8; border-radius: 10px; background: #f4faff; font-size: 12px; line-height: 1.55; }
 .difficulty-effects ol { margin: 6px 0 0; padding-left: 22px; }
+.stats-page { width:min(1120px,100%); margin:0 auto; display:grid; gap:14px; }
+.stats-page__head { padding:10px 4px; }
+.stats-tabs { display:flex; gap:8px; margin:8px 0; }
+.stats-tabs .is-active { background:#dff1ff; border-color:#70b5df; color:#174b6a; }
+.stats-page h1, .stats-page h2 { margin:0 0 8px; }
+.run-route { display:grid; gap:7px; }
+.run-route__row { display:grid; grid-template-columns:70px 1fr; align-items:center; gap:10px; min-height:38px; }
+.run-route__nodes, .stats-relics { display:flex; flex-wrap:wrap; gap:7px; align-items:center; }
+.run-node { display:grid; place-items:center; width:32px; height:32px; border:1px solid var(--line); border-radius:7px; background:#f4faff; cursor:help; }
+.stats-relics .relic-preview { width:32px; height:32px; border:1px solid var(--line); border-radius:7px; padding:3px; background:#f4faff; }
 .sheet--merchant { width: min(900px, 100%); }
 /* 一个完整窗口包住左侧立绘和右侧交易区，标题位于立绘顶端。 */
 .shop-stage { width: min(980px, 100%); max-height: 90vh; padding: 24px; display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 560px); gap: 24px; align-items: center; background: rgba(251, 253, 255, .98); border: 1px solid var(--line); border-radius: 18px; box-shadow: 0 30px 60px -30px rgba(33, 64, 82, .6); }

@@ -149,6 +149,8 @@ export function loadSave(state) {
     state.abilities = normalizeAbilities(s.abilities);
     state.relics = normalizeRelics(s.relics);
     state.weapons = Array.isArray(s.weapons) ? s.weapons : [];
+    state.lastRun = s.lastRun || null;
+    state.winStreak = Math.max(0, Number(s.winStreak) || 0);
     state.customCards = (s.customCards || []).map((c) => hydrateSaved(c)).filter(Boolean);
     if (s.run && s.run.status === 'active') {
       if (!s.run.graph) s.run.status = 'lost'; // 旧存档没有地图，直接结束这一局
@@ -201,6 +203,8 @@ export function snapshot(state) {
     v: 1,
     best: state.best,
     records: state.records || [],
+    lastRun: state.lastRun || null,
+    winStreak: state.winStreak || 0,
     collection: (state.collection || []).map(slim),
     ownedTactics: state.ownedTactics,
     tacticPower: state.tacticPower || {},
@@ -225,6 +229,8 @@ export function restoreSnapshot(state, data) {
   state.relics = normalizeRelics(data.relics);
   state.customCards = (data.customCards || []).map((c) => hydrateSaved(c)).filter(Boolean);
   state.weapons = Array.isArray(data.weapons) ? data.weapons : [];
+  state.lastRun = data.lastRun || null;
+  state.winStreak = Math.max(0, Number(data.winStreak) || 0);
   const run = data.run || null;
   if (run && run.graph && !(run.graph.byId instanceof Map)) {
     run.graph.byId = new Map((run.graph.nodes || []).map((n) => [n.id, n]));
@@ -249,6 +255,8 @@ export function persist(state) {
       v: 1,
       best: state.best,
       records: state.records || [],
+    lastRun: state.lastRun || null,
+    winStreak: state.winStreak || 0,
       collection: state.collection.map(slim),
       ownedTactics: state.ownedTactics,
       tacticPower: state.tacticPower || {},
@@ -315,6 +323,8 @@ export function randomName(rng) {
 
 // 开局：选一条天梯线，队伍人数 = 线号（1A→1，3A→3）
 export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '青', difficulty = 0, ladder = null, starters = null } = {}) {
+  // 主动重开也结算为失败，保证连胜不会因直接开新局而保留。
+  if (state.run?.status === 'active') recordRun(state, state.run, false, true);
   const r = mulberry32(seed);
   const teamSize = Number(lane[0]) || 1;
   // 开局读一次实时天梯，本次爬塔的顺序就按这一份来；拿不到就用上次缓存，再退到仓库里的快照
@@ -371,6 +381,8 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     nodeId: null,
     selectedId: null,
     cleared: [],
+    journey: [],
+    battleResult: null,
     entries: [],
     ladderSource: liveEntries && liveEntries.length ? source : (ladder?.source || 'snapshot'),
   };
@@ -587,6 +599,11 @@ export function clearNode(state) {
   // 奖励在经过节点时结算，刚在该节点获得的战力币从下一节点开始计息。
   if ((state.relics || []).includes('battle-coin')) changeScore(state, 50);
   run.nodeId = run.selectedId;
+  // 路线按实际进入顺序记录，统计页无需重新推演随机地图。
+  run.journey ||= [];
+  run.journey.push({ layer: run.layer, kind: node.kind, rank: node.rank, id: node.id,
+    opponent: node.payload?.name || node.payload?.[0]?.name || '', boss: node.kind === 'end', rounds: run.battleResult?.rounds || 0, won: run.battleResult?.won });
+  run.battleResult = null;
   run.cleared.push(run.selectedId);
   run.selectedId = null;
   run.index += 1;
@@ -1621,6 +1638,13 @@ export function advanceRun(state, won) {
   const run = state.run;
   if (!run) return;
   if (!won) {
+    const node = run.graph?.byId?.get(run.selectedId);
+    // 战败不会走 clearNode，仍要把最后进入的战斗留在上一局路线中。
+    if (node && !run.journey?.some((entry) => entry.id === node.id)) {
+      run.journey ||= [];
+      run.journey.push({ layer: run.layer, kind: node.kind, rank: node.rank, id: node.id,
+        opponent: node.payload?.name || node.payload?.[0]?.name || '', boss: node.kind === 'end', rounds: run.battleResult?.rounds || 0, won: false });
+    }
     run.status = 'lost';
     recordRun(state, run, false);
     persist(state);
@@ -1631,7 +1655,11 @@ export function advanceRun(state, won) {
   persist(state);
 }
 
-function recordRun(state, run, won) {
+export function recordBattleResult(state, won, rounds) {
+  if (state.run) state.run.battleResult = { won: !!won, rounds: Math.max(0, Math.round(rounds || 0)) };
+}
+
+function recordRun(state, run, won, abandoned = false) {
   state.records = state.records || [];
   state.records.unshift({
     lane: run.lane || '1A',
@@ -1642,6 +1670,13 @@ function recordRun(state, run, won) {
     at: Date.now(),
   });
   state.records = state.records.slice(0, 20);
+  state.winStreak = won ? (state.winStreak || 0) + 1 : 0;
+  // 最后一局独立保存为展示快照，之后开始新局、清空局内物品也不会改变它。
+  state.lastRun = {
+    won: !!won, abandoned: !!abandoned, difficulty: run.difficulty || 0, wins: run.wins || 0,
+    journey: structuredClone(run.journey || []), relics: [...(state.relics || [])],
+    collection: structuredClone(state.collection || []), streak: state.winStreak,
+  };
 }
 export function addCustomCard(state, card) {
   if (state.collection.some((c) => c.id === card.id)) return false;

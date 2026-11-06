@@ -299,6 +299,7 @@ function home() {
   nav('home', () => UI.renderHome(root, state, {
     versions: { wasm: state.wasm || '0.5.6', core: state.core || '0.7.0' },
     onArena: arenaScreen,
+    onStats: statsScreen,
     onNewRun: newRunSetup,
     onSaves: openSaves,
     onContinue: () => (state.run?.selectedId ? prep() : mapScreen()),
@@ -393,6 +394,12 @@ function newRunSetup() {
       Tracking.startRun(state);
     },
   }));
+}
+
+// 上一局快照只读展示，不依赖仍可能被新局改写的 run/collection。
+function statsScreen(mode = state.run?.status === 'active' ? 'current' : 'last') {
+  const current = state.run?.status === 'active' ? { active:true, won:false, difficulty:state.run.difficulty || 0, wins:state.run.wins || 0, journey:state.run.journey || [], relics:state.relics || [], collection:state.collection || [], streak:state.winStreak || 0 } : null;
+  nav('stats', () => UI.renderRunStats(root, state, { mode, current, onHome:home, onCurrent:() => statsScreen('current'), onLast:() => statsScreen('last') }));
 }
 // ————————————————————— 备战
 
@@ -577,6 +584,7 @@ function showSettleBar(won) {
 }
 
 async function finishDuel(won, replay) {
+  G.recordBattleResult(state, won, replay.rounds_advanced);
   const me = replay.final_states.find((s) => s.team_index === duelView.duel.playerTeam);
   const foe = replay.final_states.find((s) => s.team_index !== duelView.duel.playerTeam);
   await sleep(500);

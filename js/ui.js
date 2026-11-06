@@ -169,6 +169,7 @@ export function renderHome(root, state, h) {
           el('button', { class: 'secondary big', type: 'button', onclick: h.onSaves }, hasRun ? `存档 · 第 ${state.run.index + 1} 战进行中` : '选择存档'),
           el('button', { class: 'ghost big', type: 'button', onclick: h.onForge }, '名字工坊'),
           el('button', { class: 'ghost big', type: 'button', onclick: h.onHeroes }, '英雄角色'),
+          el('button', { class: 'ghost big', type: 'button', disabled: !state.lastRun, onclick: h.onStats }, '统计'),
           // 多人模式有独立房间和存活进度，不覆盖单人存档。
           el('button', { class: 'secondary big', type: 'button', onclick: h.onArena }, '多人 · 大逃杀'),
         ),
@@ -192,6 +193,27 @@ export function renderHome(root, state, h) {
     ),
   );
   root.append(below);
+}
+
+// 上一局结算快照：按层列路线，遗物直接复用统一图标与悬停说明。
+export function renderRunStats(root, state, h) {
+  const run = h.mode === 'current' ? h.current : state.lastRun;
+  if (!run) { root.replaceChildren(el('section', { class:'home' }, el('h1', {}, '统计'), el('p', {class:'muted'}, '没有可显示的当局或已结束对局。'), el('button', {class:'ghost', type:'button', onclick:h.onHome}, '返回首页'))); return; }
+  const icon = { ladder:'ladder', filler:'battle', elite:'boss', end:'boss', shop:'shop', camp:'camp', event:'event', chest:'chest', weaponMerchant:'weaponMerchant', curseMerchant:'sklcurse', constructMerchant:'forge', cpu:'cpu' };
+  const rows = Array.from({length:10}, (_, i) => ({layer:i + 1, nodes:(run.journey || []).filter(n => n.layer === i + 1)}));
+  const nodeEl = (node) => {
+    const detail = node.opponent ? `${node.boss ? 'Boss · ' : ''}${node.opponent} · ${node.rounds || 0} 回合` : node.kind;
+    return el('span', {class:'run-node', title:detail}, emojiImg(icon[node.kind] || 'battle','emoji emoji--lg'));
+  };
+  const route = el('div',{class:'run-route'}, rows.map(row => el('div',{class:'run-route__row'},
+    el('b',{},`第 ${row.layer} 层`), el('div',{class:'run-route__nodes'}, row.nodes.length ? row.nodes.map(nodeEl) : el('span',{class:'muted'},'—')))));
+  const relics = (run.relics || []).length ? (run.relics || []).map(id => relicPreview(id)) : el('p',{class:'muted'},'未获得遗物');
+  root.replaceChildren(el('section', {class:'stats-page'},
+    el('div', {class:'stats-page__head'}, el('div',{class:'home__kicker'}, h.mode === 'current' ? 'CURRENT RUN' : 'LAST RUN'), el('h1',{},h.mode === 'current' ? '当局统计' : '上一局统计'), el('div',{class:'stats-tabs'}, el('button',{class:'ghost' + (h.mode === 'current' ? ' is-active' : ''),type:'button',disabled:!h.current,onclick:h.onCurrent},'当局'), el('button',{class:'ghost' + (h.mode === 'last' ? ' is-active' : ''),type:'button',disabled:!state.lastRun,onclick:h.onLast},'上一局')), el('p',{class:'muted'}, `${h.mode === 'current' ? '进行中' : run.won ? '胜利' : run.abandoned ? '主动重开' : '失败'} · 难度 ${difficultyName(run.difficulty)} · 当前连胜 ${run.streak || 0}`)),
+    el('section',{class:'panel'}, el('h2',{},'路线'), route),
+    el('section',{class:'panel'}, el('h2',{},'本局遗物'), el('div',{class:'stats-relics'}, relics)),
+    el('section',{class:'panel'}, el('h2',{},'最终角色库'), el('div',{class:'inv__chars'}, (run.collection || []).map(card => fullCharRow(card)))),
+    el('button',{class:'ghost',type:'button',onclick:h.onHome},'返回首页')));
 }
 
 // ————————————————————— 开局：选战队名，随机名字
