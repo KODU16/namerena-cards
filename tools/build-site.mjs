@@ -37,8 +37,12 @@ await emit('vendor/tswn_wasm_duel/' + wasmName, wasm);
 // 直接加载标准 WASM，避免 .bin 请求被 IDM 接管为文件下载。
 const vendorSource = (await read('vendor/tswn_wasm_duel/tswn_wasm.js')).toString('utf8')
   .replace("module_or_path = new URL('tswn_wasm_bg.wasm', import.meta.url);",
-    'module_or_path = new URL(' + JSON.stringify(wasmName) + ', import.meta.url);');
+    'module_or_path = new URL(' + JSON.stringify(wasmName) + ', import.meta.url);')
+  // iOS WebViews may not satisfy wasm-bindgen's Response instanceof check; pass bytes explicitly.
+  .replace('const { instance, module } = await __wbg_load(await module_or_path, imports);',
+    'const source = await module_or_path;\n    const bytes = source && typeof source.arrayBuffer === \'function\' ? await source.arrayBuffer() : source;\n    const { instance, module } = await __wbg_load(bytes, imports);');
 if (!vendorSource.includes(wasmName)) throw new Error('WASM loader format changed; update asset rewrite');
+if (!vendorSource.includes('const bytes = source')) throw new Error('WASM byte-loader rewrite failed');
 const vendor = (await transform(vendorSource, { minify: true, format: 'esm', target: 'es2020', legalComments: 'none' })).code;
 const vendorName = 'tswn_wasm-' + hash(vendor) + '.js';
 await emit('vendor/tswn_wasm_duel/' + vendorName, vendor);

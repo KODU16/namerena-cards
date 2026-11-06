@@ -12,9 +12,9 @@ const fire=A.ABILITIES.find(a=>a.effect.skill==='sklfire'),cost={...fire,effect:
 const state=G.createState();state.run={seed:31,index:0,layer:1,clan:'red',score:100000,skillCards:[],forged:[]};
 state.collection=[E.makeCard('ability-test','red')];state.tacticsPool=JSON.parse(readFileSync('data/tactics.json')).tactics;
 const rawSkills=JSON.stringify(state.collection[0].skillList);
-for(const a of [fire,{...fire,value:1.06},{...fire,value:1.10},cost])G.applyReward(state,{kind:'ability',ability:a});
-assert.equal(state.abilities.length,2);assert.equal(state.abilities.find(a=>a.effect.kind==='power').value,1.10);
-assert.equal(A.normalizeAbilities([fire,{...fire,effect:{metric:fire.effect.metric,kind:'power',skill:'sklfire'},value:1.10}]).length,1);
+for(const a of [fire,{...fire,value:1.12},{...fire,value:1.18},cost])G.applyReward(state,{kind:'ability',ability:a});
+assert.equal(state.abilities.length,2);assert.equal(state.abilities.find(a=>a.effect.kind==='power').value,1.18);
+assert.equal(A.normalizeAbilities([fire,{...fire,effect:{metric:fire.effect.metric,kind:'power',skill:'sklfire'},value:1.18}]).length,1);
 assert.equal(A.abilityMpCost(state.abilities,'sklfire',8),6);assert.equal(JSON.stringify(state.collection[0].skillList),rawSkills);
 const restored=G.createState();G.restoreSnapshot(restored,G.snapshot(state));assert.deepEqual(restored.abilities,state.abilities);
 const loaded=G.createState();G.loadSave(loaded);assert.deepEqual(loaded.abilities,state.abilities);

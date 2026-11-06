@@ -1167,8 +1167,10 @@ export function rollShop(state, seed, layer = 1) {
   if (tactic) items.push({ kind: 'tactic', price: priceOf(1500), tactic, power: Math.round((1 + progress) * 10) / 10 });
   // 蓝色能力卡比普通技能/战术卡稍贵，仅在商店或补给生成。
   items.push({kind:'ability',price:priceOf(1750),ability:rollAbility(r)});
-  // 遗物不进入战后抽选，只在商店及地图自动领取来源出现。
-  for (const relic of Object.values(RELICS)) if (!(state.relics || []).includes(relic.id)) {
+  // 遗物与其它商店稀有物一样按概率抽一个候选，绝不把未持有遗物全部铺进库存。
+  const relicPool = Object.values(RELICS).filter((relic) => !(state.relics || []).includes(relic.id));
+  if (relicPool.length && r() < .24) {
+    const relic = relicPool[Math.floor(r() * relicPool.length)];
     items.push({ kind: 'relic', rarity: 'gold', price: priceOf(2300), relic: relic.id });
   }
   // 两种稀有技能均小概率出售；幻术价低于净化，单卡熟练度为 1～5。

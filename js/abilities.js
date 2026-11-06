@@ -3,7 +3,8 @@ import {SKILLS, SKILL_IDS, skillMeta} from './skills.js';
 export const ABILITY_SKILLS = [...SKILL_IDS];
 const COST_SKILLS = new Set(['sklhalf','sklexchange','sklcharm','sklhaste','sklslow','skliron','sklcharge','sklaccumulate','sklsummon','sklclone','sklshadow','skldefend','sklprotect','sklreflect','sklzombie','sklpossess']);
 const SPECIAL = {sklreraise:'复起体力',sklshield:'护盾增长',sklmerge:'继承资源',sklupgrade:'属性增量',sklhide:'隐匿增益'};
-export const ABILITIES = ABILITY_SKILLS.map((skill) => ({id:'ability-'+skill,rarity:'blue',name:skillMeta(skill).name+'·'+(COST_SKILLS.has(skill)?'节流':'增幅'),effect:{skill,kind:COST_SKILLS.has(skill)?'mp':'power',metric:COST_SKILLS.has(skill)?'mp':SPECIAL[skill]||'随机强度'},value:COST_SKILLS.has(skill)?2:1.08}));
+// 蓝色能力卡定位为中等幅度的永久强化，仍不触碰任何技能熟练度。
+export const ABILITIES = ABILITY_SKILLS.map((skill) => ({id:'ability-'+skill,rarity:'blue',name:skillMeta(skill).name+'·'+(COST_SKILLS.has(skill)?'节流':'增幅'),effect:{skill,kind:COST_SKILLS.has(skill)?'mp':'power',metric:COST_SKILLS.has(skill)?'mp':SPECIAL[skill]||'随机强度'},value:COST_SKILLS.has(skill)?3:1.15}));
 const canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value==='object' ? Object.fromEntries(Object.keys(value).sort().map(k=>[k,canonical(value[k])])) : value;
 export const abilityKey = (ability) => JSON.stringify(canonical(ability.effect));
 export function abilityDescription(a) {
@@ -21,7 +22,7 @@ export function normalizeAbilities(list) {
 }
 export function rollAbility(rng) {
  const base=ABILITIES[Math.floor(rng()*ABILITIES.length)];
- const value=base.effect.kind==='mp'?1+Math.floor(rng()*3):Math.round((1.06+Math.floor(rng()*3)*.02)*100)/100;
+ const value=base.effect.kind==='mp'?2+Math.floor(rng()*3):Math.round((1.12+Math.floor(rng()*3)*.03)*100)/100;
  return {...base,effect:{...base.effect},value};
 }
 export function acquireAbility(state, ability) {
