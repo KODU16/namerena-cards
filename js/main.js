@@ -613,13 +613,17 @@ function afterBattle(won) {
     const dropped = G.dropForged(state);
     const lostScore = G.loseScore(state);
     const run = state.run;
+    const weaponRng = G.mulberry32((run.seed ^ Math.imul(run.index || 0, 2654435761) ^ (run.downed || []).length) >>> 0);
+    const weaponResult = G.settleDefeatWeapons(state, run.teamIds || [], weaponRng);
     // 这一场出战的人全部倒下，本局不能再上
     run.downed = [...new Set([...(run.downed || []), ...(run.teamIds || [])])];
     run.teamIds = [];
     G.persist(state);
     const usable = state.collection.filter((c) => !run.downed.includes(c.id));
     if (usable.length >= (run.teamSize || 1)) {
-      toast((dropped ? '战败：掉落 ' + dropped + ' 项锻造，' : '战败：') + '扣 ' + lostScore + ' 分，换人重试', 2600);
+      const weaponNotice = weaponResult.recovered.length || weaponResult.lost.length
+        ? '武器回收 ' + weaponResult.recovered.length + ' 件、损失 ' + weaponResult.lost.length + ' 件，' : '';
+      toast((dropped ? '战败：掉落 ' + dropped + ' 项锻造，' : '战败：') + weaponNotice + '扣 ' + lostScore + ' 分，换人重试', 2600);
       return prep();
     }
     G.advanceRun(state, false);

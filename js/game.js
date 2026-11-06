@@ -881,6 +881,25 @@ export function equipWeapon(state, weaponId, charId) {
   return weapon;
 }
 
+// 战败角色不再保留不可操作的装备；每件独立掷一次，等概率回收或随角色损失。
+export function settleDefeatWeapons(state, charIds, rng = Math.random) {
+  const recovered = [], lost = [];
+  for (const charId of new Set(charIds || [])) {
+    const card = (state.collection || []).find((entry) => entry.id === charId);
+    if (!card?.weapon) continue;
+    const weapon = card.weapon;
+    unequipWeapon(state, charId);
+    if (rng() < 0.5) recovered.push(weapon);
+    else {
+      // unequipWeapon 刚把本件追加到末尾；立即移除即可避免死亡角色遗留装备。
+      state.weapons.pop();
+      lost.push(weapon);
+    }
+  }
+  persist(state);
+  return { recovered, lost };
+}
+
 // 备战和物品栏共用出战限制；单人直接切换，双人可指定替换位置。
 export function toggleTeamMember(state, charId, replaceId = null) {
   const run = state.run, card = state.collection.find((c) => c.id === charId);
