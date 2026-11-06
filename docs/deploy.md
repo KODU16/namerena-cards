@@ -1,32 +1,13 @@
-# 部署到主站 /cards/
+# cards 发布边界
 
-正式地址：[名竞尖塔](https://shenjack.top:10007/cards/)。服务器已配置自动拉取本仓库的 `main` 分支并构建发布；提交推送后检查主站是否加载对应的新资源指纹。
+本仓库只发布浏览器侧的静态内容：页面、数据、图标和客户端 WASM。向 `main` 推送后，平台的静态拉取流程会构建并发布这些内容。
 
-## 构建与发布
+本地提交前可运行：
 
 ```powershell
-npm ci
 npm run build:site
 ```
 
-构建使用 `tools/build-icons.mjs` 将 `assets/icons32/` 下的 74 张独立 32×32 图标合并为共享调色板图集，再将压缩运行资源输出到 `dist/`。开发源码、独立图标文件和高清原稿不作为运行资源发布。
+这里不保存服务器拓扑、端口、进程、数据库、密钥或部署命令。单人模式的静态改动可以直接随本仓库的 `main` 发布。
 
-服务器更新方式与管理员检查项见 [自动更新](../server/AUTO-UPDATE.md) 和 [部署检查](../server/DEPLOY-CHECK.md)。服务器定时拉取是当前正式发布方式；GitHub Actions 的 `deploy-cards.yml` 也能构建，并在配置部署密钥时通过 SSH 上传。
-
-未配置部署密钥时，该工作流成功仅表示构建完成，不能作为服务器已更新的依据。发布后需核对主站页面、JS/CSS 指纹及新图标资源。
-
-## 同源账号与存档
-
-`/cards/` 与 `/api/cards/` 必须保持相同协议、域名和端口，以便复用主站登录及账号存档。不要把正式发布切回 GitHub Pages。
-
-## 本地预览
-
-```powershell
-python -m http.server 8123 --directory dist
-```
-
-GitHub Pages 工作流仅保留手动触发，用于需要时发布独立演示；推送 `main` 不再自动部署旧站。
-
-## 多人后端
-
-生产自动拉取只发布静态 dist，不部署本仓库的 Python 后端。多人必须额外接入主站 Flask/PostgreSQL、安装匹配的 Node/WASM 并运行权威时钟，详见 [多人接入](arena-integration.md)。
+多人模式与其他需要服务端支持的功能，其接口、存储和发布由 `namerena-platform` 维护。需要修改这些部分时，应向该仓库的私有分支或 PR 提交可审查变更，并由平台维护者完成发布；不要把服务端实现或运维流程重新放回 cards。
