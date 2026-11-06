@@ -390,7 +390,8 @@ def install_arena(app, api, router=None):
         if own_battle and not own_battle.get('done'):
             result = engine_battle(own_battle)
             turn_key = own_battle['keys'][result['side']] if result['side'] is not None else None
-            battle = {k: result[k] for k in ('states', 'actor', 'side', 'done', 'log', 'rounds')}
+            # 结构化逐帧战报由 cards 前端按原对局的颜色与节奏播放。
+            battle = {k: result[k] for k in ('states', 'actor', 'side', 'done', 'log', 'frames', 'rounds')}
             # 前端以此定位尖塔界面左右两侧；战斗本身仍完全由服务端 tswn 会话裁决。
             battle.update({'id': own_battle['id'], 'turn': own_battle['turn'], 'deadline': own_battle['deadline'], 'your_turn': turn_key == key, 'your_side': own_battle['keys'].index(key), 'hand': result['hand'] if turn_key == key else [], 'pvp': own_battle['pvp']})
         visible = []

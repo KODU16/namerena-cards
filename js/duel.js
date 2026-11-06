@@ -102,6 +102,10 @@ export class Duel {
           // 两件状态/分身遗物由引擎在本场战斗内结算，销毁不会改写人物基础数据。
           debuff_relic_team: this.relics.includes('attribute-modifier') ? this.playerTeam : undefined,
           clone_relic_team: this.relics.includes('say-and-do') ? this.playerTeam : undefined,
+          // 新遗物同样只把持有者队伍传给运行时，避免影响敌方或存档中的基础角色。
+          positive_status_relic_team: this.relics.includes('red-underwear') ? this.playerTeam : undefined,
+          thanks_relic_team: this.relics.includes('thanks') ? this.playerTeam : undefined,
+          inequality_relic_team: this.relics.includes('inequality') ? this.playerTeam : undefined,
           relic_damage_floor: this.relics.includes('heavy-spite'),
           // 属性遗物由引擎区分原始角色与派生单位。
           stat_relic_team: this.relics.includes('help-test-post') ? this.playerTeam : undefined,

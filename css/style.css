@@ -1489,6 +1489,9 @@ button.ghost .muted, button.ghost small { color: #465d6c; }
 .relic-card__text p { font-size: inherit; line-height: inherit; margin: 0 0 10px; }
 .relic-card__text em { display: block; font-size: inherit; line-height: inherit; }
 .relic-card__actions { width: 100%; align-self: end; display: block; }
+/* 百科复用对局背包的遗物卡，固定卡高以免长描述挤压相邻卡片。 */
+.codex__relics { grid-auto-rows: 280px; }
+.codex__relics .relic-card { grid-template-rows: 32px 24px 24px minmax(0, 1fr); }
 .scan-mult { color: #298443; font-style: normal; font-weight: 700; margin-left: 5px; }
 
 /* 手机工具区按内容占位；不依赖顶栏、药水数量或浏览器地址栏的固定高度。 */

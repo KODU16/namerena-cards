@@ -74,6 +74,26 @@ def say_and_do():
     image.save(path)
 
 
+def extra_relics():
+    """Draw the four new opaque 32px relic sprites in the same dark-outline palette."""
+    image, draw, path = sprite('relic-red-underwear.png')
+    draw.rectangle((5, 10, 26, 25), fill=INK); draw.rectangle((7, 12, 24, 23), fill=(201, 43, 47, 255))
+    draw.rectangle((7, 10, 13, 13), fill=(255, 125, 110, 255)); draw.rectangle((18, 10, 24, 13), fill=(255, 125, 110, 255))
+    draw.rectangle((14, 18, 17, 23), fill=(250, 240, 225, 255)); image.save(path)
+    image, draw, path = sprite('relic-jade-hairpin.png')
+    draw.line((6, 26, 24, 5), fill=INK, width=5); draw.line((7, 25, 23, 7), fill=(238, 185, 51, 255), width=2)
+    draw.ellipse((16, 3, 28, 15), fill=INK); draw.ellipse((18, 5, 26, 13), fill=(76, 180, 126, 255)); image.save(path)
+    image, draw, path = sprite('relic-thanks.png')
+    draw.ellipse((10, 3, 22, 15), fill=INK); draw.ellipse((12, 5, 20, 13), fill=(255, 205, 64, 255))
+    draw.rectangle((10, 15, 22, 22), fill=INK); draw.rectangle((12, 16, 20, 21), fill=(255, 205, 64, 255))
+    draw.line((12, 18, 6, 24), fill=INK, width=4); draw.line((20, 18, 26, 24), fill=INK, width=4); image.save(path)
+    image, draw, path = sprite('relic-inequality.png')
+    draw.rectangle((3, 3, 24, 27), fill=INK); draw.rectangle((5, 5, 22, 25), fill=(241, 238, 232, 255))
+    draw.rectangle((8, 8, 19, 14), fill=(174, 68, 70, 255)); draw.rectangle((10, 15, 17, 21), fill=(51, 57, 68, 255))
+    draw.rectangle((20, 20, 30, 29), fill=INK); draw.rectangle((22, 22, 28, 27), fill=(117, 191, 151, 255)); image.save(path)
+
+
 accept()
 attribute_modifier()
 say_and_do()
+extra_relics()

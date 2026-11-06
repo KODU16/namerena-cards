@@ -1037,7 +1037,9 @@ export function scanCpuNode(state, nodeId, prefix, startAt) {
   node.cpuScanUsed = true;
   persist(state);
   try {
-    const result = cpuScan(prefix, startAt, node.payload, state.run.clan || '无名');
+    // 玉珠金簪只扩大候选窗口，排序与入库规则仍取其中八围最高的一个名字。
+    const cpu = (state.relics || []).includes('jade-hairpin') ? {...node.payload, speed: node.payload.speed * 6} : node.payload;
+    const result = cpuScan(prefix, startAt, cpu, state.run.clan || '无名');
     // 开箱器只增强选出的最强名字，不改变测号排序或技能熟练度。
     if (result && (state.relics || []).includes('box-opener')) {
       result.baseStats = {...result.card.stats};

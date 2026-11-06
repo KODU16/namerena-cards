@@ -1,5 +1,5 @@
 import { abilityDescription, abilityKey } from './abilities.js';
-import { relicById } from './relics.js';
+import { RELICS, relicById } from './relics.js';
 import { DIFFICULTIES, difficultyEffects, difficultyName } from './difficulties.js';
 import {isRareSkill,shownSkillLevel,playerSkillLevel,isTacticEnabled} from './rare-skills.js';
 import {hasHonor} from './run-honor.js';
@@ -1572,12 +1572,19 @@ export function codexSheet(state) {
     } else if (id === 'math') {
       body.replaceChildren(el('div', { class: 'codex__list' }, CODEX_MATH.map(([name, desc]) =>
         el('div', { class: 'codex__row' }, el('b', {}, name), el('p', {}, desc)))));
+    } else if (id === 'relics') {
+      // 百科展示定义表而非当前背包，保证开局前也能查阅全部遗物。
+      body.replaceChildren(el('div', { class: 'inv__grid codex__relics' }, Object.values(RELICS).map((relic) =>
+        el('article', { class: 'inv__item relic-card shop-item--' + relic.rarity, tabindex: '0' },
+          relicIcon(relic.id), qualityBadge(relic.rarity), el('b', {}, relic.name),
+          el('div', { class: 'relic-card__text' + (relic.description.length + relic.flavor.length > 90 ? ' is-long' : '') },
+            el('p', {}, relic.description), el('em', {}, relic.flavor)), relicTooltip(relic.id)))));
     } else {
       body.replaceChildren(el('div', { class: 'codex__list' }, CODEX_PLAYER.map(([name, desc]) =>
         el('div', { class: 'codex__row' }, el('b', {}, name), el('p', {}, desc)))));
     }
   };
-  for (const t of [{ id: 'stats', n: '属性' }, { id: 'skills', n: '技能' }, { id: 'math', n: '伤害与数值' }, { id: 'player', n: '玩家手操差异' }]) {
+  for (const t of [{ id: 'stats', n: '属性' }, { id: 'skills', n: '技能' }, { id: 'relics', n: '遗物' }, { id: 'math', n: '伤害与数值' }, { id: 'player', n: '玩家手操差异' }]) {
     tabBar.append(el('button', { class: 'ghost inv__tab', type: 'button', 'data-tab': t.id, onclick: () => paint(t.id) }, t.n));
   }
   const wrap = el('div', { class: 'inv' }, el('h2', {}, '百科'), tabBar, body);

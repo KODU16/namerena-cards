@@ -33,10 +33,15 @@ function snapshot(entry,q){
       .map(c=>({...c,code:c.id==='normal'?NORMAL_ID:ACTIVE_ID[c.id],usable:canPlayHandCard(c,actor.magic_point)}));
   }
   // 结算后本体可能不再标记 active；只排除召唤物，保证胜者带出真实剩余 HP。
-  return {states,initial,actor:actor?.id??null,side,hand,done:session.is_done(),winner:session.result()?.winner_team_indices||[],rounds:session.rounds_advanced(),log:entry.log.slice(-32),root_hp:q.cards.map((_,i)=>Math.max(0,...states.filter(s=>s.input_team_index===i&&s.owner_id==null&&s.alive).map(s=>s.hp)))};
+  return {states,initial,actor:actor?.id??null,side,hand,done:session.is_done(),winner:session.result()?.winner_team_indices||[],rounds:session.rounds_advanced(),log:entry.log.slice(-32),frames:entry.frames.slice(-24),root_hp:q.cards.map((_,i)=>Math.max(0,...states.filter(s=>s.input_team_index===i&&s.owner_id==null&&s.alive).map(s=>s.hp)))};
 }
 function advance(entry){
-  for(let f;(f=entry.session.next_frame())!=null;){entry.log.push(...f.updates.map(u=>u.message_rendered).filter(Boolean));if(entry.log.length>80)entry.log.splice(0,entry.log.length-64);}
+  for(let f;(f=entry.session.next_frame())!=null;){
+    entry.log.push(...f.updates.map(u=>u.message_rendered).filter(Boolean));if(entry.log.length>80)entry.log.splice(0,entry.log.length-64);
+    // 保留 cards 使用的结构化片段，让浏览器按同一节奏与颜色逐行播放战报。
+    entry.frames.push({id:entry.nextFrame++,round_index:f.round_index,rows:(f.rows||[]).map(row=>({indent:row.indent,clips:row.clips.map(({color,tone,parts})=>({color,tone,parts}))}))});
+    if(entry.frames.length>48)entry.frames.splice(0,entry.frames.length-32);
+  }
 }
 function battle(q){
   let entry=battles.get(q.id);
@@ -47,8 +52,8 @@ function battle(q){
     const session=new wasm.BattleSession(input,{include_icons:false,max_rounds:5000,controlled_team:q.pvp?4294967295:0});
     const initial=session.initial_states();
     // input_team_index 是原输入位置，不依赖引擎对队伍/名字的排序。
-    if(!q.pvp&&initial.find(s=>s.input_team_index===0).team_index!==0){session.free();const team=initial.find(s=>s.input_team_index===0).team_index;entry={session:new wasm.BattleSession(input,{include_icons:false,max_rounds:5000,controlled_team:team}),count:0,actions:[],log:[]};}
-    else entry={session,count:0,actions:[],log:[]};
+    if(!q.pvp&&initial.find(s=>s.input_team_index===0).team_index!==0){session.free();const team=initial.find(s=>s.input_team_index===0).team_index;entry={session:new wasm.BattleSession(input,{include_icons:false,max_rounds:5000,controlled_team:team}),count:0,actions:[],log:[],frames:[],nextFrame:0};}
+    else entry={session,count:0,actions:[],log:[],frames:[],nextFrame:0};
     entry.session.set_initial_hp(new Uint32Array(entry.session.initial_states().filter(s=>s.owner_id==null).flatMap(s=>[s.id,Math.max(1,Math.min(s.max_hp,q.hp[s.input_team_index]))])));
     advance(entry);battles.set(q.id,entry);
   }

@@ -25,6 +25,10 @@ export const RELICS = Object.freeze({
   'accept': Object.freeze({ id: 'accept', name: '接受', icon: 'assets/icons32/relic-accept.png', rarity: 'blue', description: '战斗结束后的三选一奖励中，天梯分数提高 20%。', flavor: '一段很棒的代码，似乎能通过此次测试' }),
   'attribute-modifier': Object.freeze({ id: 'attribute-modifier', name: '+属性修改器@!', icon: 'assets/icons32/relic-attribute-modifier.png', rarity: 'purple', description: '友方向敌人施加的负面状态持续时间延长 1 回合；净化不受影响。', flavor: '加属性修改器算什么...最草的是还加错了' }),
   'say-and-do': Object.freeze({ id: 'say-and-do', name: '说和做', icon: 'assets/icons32/relic-say-and-do.png', rarity: 'purple', description: '全部名字的分身熟练度 +10；分身造成的属性削弱降低 20%。加成不计入基础熟练度，销毁后立即失效。', flavor: '在远古时代流传的传说，靠一个普通名字单挑蚊的存在' }),
+  'red-underwear': Object.freeze({ id: 'red-underwear', name: '红内裤', icon: 'assets/icons32/relic-red-underwear.png', rarity: 'purple', description: '自身获得的任意正面状态持续时间 +1 回合。', flavor: '可能是因为我今天穿了红内裤' }),
+  'jade-hairpin': Object.freeze({ id: 'jade-hairpin', name: '玉珠金簪', icon: 'assets/icons32/relic-jade-hairpin.png', rarity: 'gold', description: '电脑测号的扫描数量额外增加 500%（例如 1000 个变为 6000 个），仍只入库最高值。', flavor: '玉珠金簪现象，是不是开启测号新时代？' }),
+  'thanks': Object.freeze({ id: 'thanks', name: '拜谢', icon: 'assets/icons32/relic-thanks.png', rarity: 'purple', description: '自身获得的负面状态持续时间 +1 回合；结束时，敌方强制获得 2 回合相同负面状态。', flavor: '别输在不会拜谢上' }),
+  'inequality': Object.freeze({ id: 'inequality', name: '不等式', icon: 'assets/icons32/relic-inequality.png', rarity: 'purple', description: '己方召唤物、分身或队友死亡时，随机其余非召唤物友方吞噬死亡角色，获得等价属性加成。', flavor: '传说在名竞最重要的武术大赛中，有一位传奇靠着献祭自己兄弟的力量夺冠' }),
 });
 
 export const relicById = (id) => RELICS[id] || null;

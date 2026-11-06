@@ -183,9 +183,31 @@ export class ArenaView {
     };
     mount(mine,'player');mount(enemy,'enemy');
     const log=shell.querySelector('#battle-log');
-    // 服务端战报也沿用尖塔中栏的语义色，不另起一套多人配色。
-    const tone=text=>/恢复|治疗|吸血|苏生/.test(text)?'tone-heal':/冰冻|中毒|诅咒|迟缓|魅惑|狂暴|护盾|铁壁/.test(text)?'tone-status':/召唤|分身|使魔/.test(text)?'tone-summon':/击败|胜利|淘汰/.test(text)?'tone-win':/伤害|攻击|反弹|死亡/.test(text)?'tone-damage':'tone-system';
-    log.replaceChildren(...b.log.map(text=>/^第\s*\d+\s*回合/.test(text)?el('div',{class:'log__round'},text):el('div',{class:'log__line '+tone(text)},text)));log.scrollTop=log.scrollHeight;
+    let lastRound=null,lineIndex=0;const lines=[];
+    // 直接消费 Runtime 的 parts/tone，中央战报和 cards 使用完全相同的字体、颜色与逐项延迟。
+    for(const frame of b.frames||[]){
+      if(frame.round_index!==lastRound){lastRound=frame.round_index;lines.push(el('div',{class:'log__round'},`— 第 ${frame.round_index+1} 回合 —`));}
+      for(const row of frame.rows||[]){
+        const line=el('div',{class:'log__line log__line--step'});line.style.animationDelay=(lineIndex++*135)+'ms';
+        for(const [clipIndex,clip] of (row.clips||[]).entries()){
+          if(clipIndex)line.append(document.createTextNode('，'));
+          for(const part of clip.parts||[]){
+            if(!part.text)continue;
+            if(part.kind==='player'){const name=el('b',{class:'log__player'},part.text);if(clip.color)name.style.color='#'+clip.color;line.append(name);}
+            else if(part.kind==='highlight'){const highlight=el('i',{class:'log__hl'},part.text);if(clip.color)highlight.style.color='#'+clip.color;line.append(highlight);}
+            else if(part.kind==='data')line.append(el('span',{class:'log__data'},part.text));
+            else line.append(document.createTextNode(part.text));
+          }
+          if(clip.tone==='damage')line.classList.add('tone-damage');
+          else if(clip.tone==='recover')line.classList.add('tone-recover');
+          else if(clip.tone==='knockout')line.classList.add('tone-knockout');
+          else if(clip.tone==='status_exit')line.classList.add('tone-status_exit');
+        }
+        lines.push(line);
+      }
+    }
+    // 兼容旧服务端：未返回结构化帧时仍可阅读纯文本战报。
+    log.replaceChildren(...(lines.length?lines:b.log.map(text=>el('div',{class:'log__line'},text))));log.scrollTop=log.scrollHeight;
     const hand=shell.querySelector('#battle-hand');
     const handKey=[b.id,b.turn,b.your_turn,b.hand.map(c=>[c.id,c.cost,c.usable]).join('|')].join(':');
     const stable=handKey===this.battleHandKey;this.battleHandKey=handKey;
