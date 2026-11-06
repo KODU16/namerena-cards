@@ -353,6 +353,8 @@ export class DuelView {
   patchUnit(state) {
     const node = this.ensureUnit(state);
     if (!node) return;
+    // 分身在生成后的 max_hp 与本体不同；每帧同步基准，后续总长度才会按分身血量缩短。
+    node.dataset.maxhp = String(state.max_hp || 1);
     const pct = Math.max(0, Math.min(100, (state.hp / state.max_hp) * 100));
     const hp = node.querySelector('.hp');
     if (hp) hp.style.width = `${pct}%`;

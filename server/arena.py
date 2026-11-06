@@ -482,7 +482,9 @@ def install_arena(app, api, router=None):
             room=json.loads(row['state_json'])
             if room.get('mode')!='public' or not room.get('finished_at'):
                 continue
-            matches.append({'victory':'最终存活','score':round(room.get('winner_score',0)),'name':room.get('winner_card_name') or room.get('winner_name') or '无人','clan':room.get('winner_clan') or '—','finished_at':room['finished_at']})
+            # 公房无人加入时，内部 AI 的收束不应被历史页误写成人类对局的最终存活。
+            participated=any(not p.get('left') for p in room.get('players',{}).values())
+            matches.append({'victory':'最终存活' if participated else '无人参加','score':round(room.get('winner_score',0)) if participated else 0,'name':(room.get('winner_card_name') or room.get('winner_name') or '无人') if participated else '—','clan':room.get('winner_clan') or '—' if participated else '—','finished_at':room['finished_at']})
             if len(matches)>=10:
                 break
         return api['ok']({'matches':matches})
