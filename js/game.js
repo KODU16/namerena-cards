@@ -1463,8 +1463,8 @@ function rollRewardPoints(run, rng, elite = false) {
   return Math.round((300 + progress * 500 + rng() * 200) * (elite ? 1.5 : 1));
 }
 
-// 战斗奖励从完整奖池抽取三项供玩家选择。
-export function rollRewards(state, seed, elite = false, guaranteeScore = false, allowAbility = false, allowRelic = false) {
+// 战斗奖励从完整奖池抽取三项供玩家选择；天梯胜利已按 Elo 立即结算，不再重复入池。
+export function rollRewards(state, seed, elite = false, guaranteeScore = false, allowAbility = false, allowRelic = false, includeScore = true) {
   const r = mulberry32(seed);
   const run = state.run;
   const progress = Math.min(1, Math.max(0, ((run.layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
@@ -1509,7 +1509,8 @@ export function rollRewards(state, seed, elite = false, guaranteeScore = false, 
   }
   const candidates = pool.filter((offer) => offer.kind !== 'card' || offer.card);
   const score = { kind: 'score', points: scorePoints };
-  if (guaranteeScore) return shuffle([score, ...shuffle(candidates, r).slice(0, 2)], r);
+  if (guaranteeScore && includeScore) return shuffle([score, ...shuffle(candidates, r).slice(0, 2)], r);
+  if (!includeScore) return shuffle(candidates, r).slice(0, 3);
   // 补给和非试炼奖励保留原随机奖池，宝箱仍独立结算额外分数。
   candidates.push(score);
   if (elite) candidates.push({ kind: 'score', points: Math.round(scorePoints * 0.6) });

@@ -627,7 +627,9 @@ function afterBattle(won) {
     toast(`第 ${state.run.layer - 1} 层通过，进入第 ${state.run.layer} 层`, 2600);
     return mapScreen();
   }
-  const offers = G.rollRewards(state, (state.run.seed + state.run.index * 7919) >>> 0, node?.kind === 'elite', node?.kind === 'filler' || node?.kind === 'elite');
+  // 天梯节点的 Elo 分数已在 clearNode 后即时入账，三选一不再重复提供分数。
+  const isLadderFight = node?.kind === 'ladder' || node?.kind === 'end';
+  const offers = G.rollRewards(state, (state.run.seed + state.run.index * 7919) >>> 0, node?.kind === 'elite', node?.kind === 'filler' || node?.kind === 'elite', false, false, !isLadderFight);
   nav('reward', () => UI.renderReward(root, state, offers, {
     onPickOffer: (o) => { G.applyReward(state, o); mapScreen(); },
   }));

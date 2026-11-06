@@ -12,6 +12,8 @@ assert.deepEqual(R.normalizeRelics([...ids,...ids,'unknown']),ids);const snap=G.
 const drops=new Set();for(let seed=0;seed<400;seed++){for(const o of G.rollRewards(fixture('event'),seed,false,false,true,true))if(o.kind==='relic')drops.add(o.relic);assert.ok(!G.rollRewards(s,seed,true,true).some(o=>o.kind==='relic'))}assert.equal(drops.size,12);
 // 接受只加成战后奖励分数；说和做只生成本场技能副本，不改角色基础熟练度。
 const plainReward=G.rollRewards(fixture('filler'),73,false,true).find(o=>o.kind==='score');const acceptedReward=fixture('filler');acceptedReward.relics=['accept'];assert.equal(G.rollRewards(acceptedReward,73,false,true).find(o=>o.kind==='score').points,Math.round(plainReward.points*1.2));
+// 天梯对手分数在胜利时按 Elo 自动结算，因此其三选一奖池必须完全排除分数项。
+assert.ok(!G.rollRewards(fixture('ladder'),73,false,false,false,false,false).some(o=>o.kind==='score'));
 const cloneCard=E.makeCard('说和做回归','测');cloneCard.skillList=[{id:'sklclone',lv:12}];const relicClone=G.applyRelicBattleBonuses(cloneCard,['say-and-do']);assert.equal(relicClone.skillList[0].lv,22);assert.equal(cloneCard.skillList[0].lv,12);
 // 同一篝火只触发一次；包含稀有技能，但不会恢复已经永久献祭的技能。
 const rare=new Set();for(let seed=0;seed<200;seed++){const t=fixture('camp');t.run.seed=seed;t.relics=['constructor-shard'];const c=t.collection[0];c.lostSkills={sklfire:true};const r=G.campRest(t);assert.ok(r.skillId);assert.notEqual(r.skillId,'sklfire');rare.add(r.skillId);const gain=c.skillTraining[r.skillId].gain;assert.equal(gain,10);assert.equal(G.campRest(t),false);G.refreshRunBuff(t);assert.equal(c.skillTraining[r.skillId].gain,10);assert.ok(c.skillList.some(k=>k.id===r.skillId));}assert.ok(rare.has('skldisperse')&&rare.has('sklshadow'));
