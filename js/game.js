@@ -600,7 +600,7 @@ export function clearNode(state) {
   const node = run.graph.byId.get(run.selectedId);
   if (!node || run.cleared.includes(node.id)) return null;
   // 奖励在经过节点时结算，刚在该节点获得的战力币从下一节点开始计息。
-  if ((state.relics || []).includes('battle-coin')) changeScore(state, 50);
+  if ((state.relics || []).includes('battle-coin')) changeScore(state, scaleScoreGain(run, 50));
   run.nodeId = run.selectedId;
   // 路线按实际进入顺序记录，统计页无需重新推演随机地图。
   run.journey ||= [];
@@ -937,6 +937,16 @@ export function destroyItem(state, kind, id) {
 // 站点一轮里每个号会打好几十场，我们一场战斗只算一次，所以乘一个局内倍率把量级拉齐
 export const LADDER_RULES = { k: 80, scale: 50600, mult: 60 };
 
+// 以默认 40 节点为基准：地图更长时每次正向得分相应下调，整局总分保持可比较。
+export function scoreGainMultiplier(run) {
+  return Math.round((40 / normalizeNodeCount(run?.nodeCount)) * 100) / 100;
+}
+
+function scaleScoreGain(run, points) {
+  const value = Math.round((Number(points) || 0) * scoreGainMultiplier(run));
+  return points > 0 ? Math.max(1, value) : value;
+}
+
 export function ladderExpected(me, opp) {
   return 1 / (1 + Math.pow(10, -(me - opp) / LADDER_RULES.scale));
 }
@@ -952,7 +962,7 @@ export function addScore(state, oppScore) {
   const run = state.run;
   if (!run) return 0;
   run.score = Number.isFinite(run.score) ? run.score : 0;
-  const gain = Math.round(eloGain(run.score, oppScore) * (hasDifficulty(run, 13) ? .75 : 1));
+  const gain = scaleScoreGain(run, eloGain(run.score, oppScore) * (hasDifficulty(run, 13) ? .75 : 1));
   run.score += gain;
   persist(state);
   return gain;
@@ -981,6 +991,7 @@ export function loseScore(state) {
 export function addScorePoints(state, points) {
   const run = state.run;
   if (!run) return 0;
+  // 奖励生成时已按节点数缩放，此处只结算卡面展示的实际分值。
   changeScore(state, Math.round(points));
   persist(state);
   return Math.round(points);
@@ -1171,9 +1182,10 @@ export function sellWeapon(state, weaponId) {
   const weapon = state.weapons[index], quote = weaponQuote(weapon);
   if (!quote) return null;
   state.weapons.splice(index, 1);
-  state.run.score = (Number.isFinite(state.run.score) ? state.run.score : 0) + quote.sell;
+  const points = scaleScoreGain(state.run, quote.sell);
+  state.run.score = (Number.isFinite(state.run.score) ? state.run.score : 0) + points;
   persist(state);
-  return { name: weapon.name, points: quote.sell };
+  return { name: weapon.name, points };
 }
 
 // 商店默认蓝色品质，8% 概率额外出售一张熟练度 1～2 的金色净化卡。
@@ -1498,7 +1510,7 @@ export function battleSeed(run) {
 // 宝箱与试炼使用相同的分数奖励范围：每层递增，普通奖励约 300～1000 分。
 function rollRewardPoints(run, rng, elite = false) {
   const progress = Math.min(1, Math.max(0, ((run.layer || 1) - 1) / Math.max(1, LAYER_COUNT - 1)));
-  return Math.round((300 + progress * 500 + rng() * 200) * (elite ? 1.5 : 1) * (hasDifficulty(run, 13) ? .75 : 1));
+  return scaleScoreGain(run, (300 + progress * 500 + rng() * 200) * (elite ? 1.5 : 1) * (hasDifficulty(run, 13) ? .75 : 1));
 }
 
 // 战斗奖励从完整奖池抽取三项供玩家选择；天梯胜利已按 Elo 立即结算，不再重复入池。

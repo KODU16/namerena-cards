@@ -246,7 +246,7 @@ export function renderNewRun(root, state, h) {
             difficultyEffects(d.difficulty).length
               ? el('ol', {}, difficultyEffects(d.difficulty).map((entry) => el('li', {}, `A${entry.level}：${entry.text}`)))
               : el('p', { class: 'muted small' }, '标准难度：不附加 A 词条。')),
-          el('div', { class: 'field' }, el('span', {}, '每层节点数（天梯 10 名固定，其余按比例补齐）')),
+          el('div', { class: 'field' }, el('span', {}, '每层节点数（天梯 10 名固定；分数获得按 40÷节点数平衡）')),
           el('div', { class: 'chips' }, [20, 30, 40, 50, 60, 70, 80].map((count) =>
             el('button', { class: `chip${Number(d.nodeCount || 40) === count ? ' is-active' : ''}`, type: 'button', onclick: () => h.onChangeNodeCount(count) }, String(count)))),
           el('div', { class: 'setup__names' },
