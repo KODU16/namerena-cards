@@ -1,31 +1,33 @@
 # 引擎产物来源
 
-本目录为卡牌网站实际加载的审查修复版引擎，使用标准 .wasm，不生成 .bin。
+源码仓库：https://github.com/KODU16/tswn-cards
 
-源码基线：https://github.com/shenjackyuanjie/tswn-core/commit/5237f2b30a46b6658c6aefd49b2c4e97a2b81080
+固定源码提交：929d0dbedd03ca55e4854227d2e27479f74758a2
 
-source.patch 包含基线之上的完整卡牌改动及审查修复；本次仅提交到 cards main，不更新引擎分支。复现时在基线 checkout 应用此补丁，再执行：
+本目录的 JS、标准 WASM 和类型声明由该提交构建，网站与多人运行时复用同一份 WASM。
+
+## 复现构建
+
+使用与 Cargo.lock 相匹配的 wasm-bindgen-cli（本版 0.2.129），并安装 wasm32-unknown-unknown target：
 
 ~~~powershell
-git apply source.patch
-cargo build -p tswn_wasm --target wasm32-unknown-unknown --profile release-wasm
-wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/release-wasm/tswn_wasm.wasm
-node tools/test-forced.mjs dist
+git checkout 929d0dbedd03ca55e4854227d2e27479f74758a2
+cargo build -p tswn_wasm --target wasm32-unknown-unknown --release
+wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/release/tswn_wasm.wasm
 ~~~
 
-游戏仓库内验证：node tools/verify-engine.mjs vendor/tswn_wasm_duel；node tools/verify-clone.mjs。
-负 MP 普攻验证：node tools/verify-negative-mp.mjs（需本地网站运行于 8127）。原生回归另验证真实负 MP 会话继续行动、零费用和不掷技能耗蓝骰。
+也可在基线 5237f2b30a46b6658c6aefd49b2c4e97a2b81080 上应用 source.patch；补丁包含构建所需的完整源码，含 runtime/forced_action.rs。
 
-稀有技能、Boss 与皇冠验证：node tools/verify-rare-boss-honor.mjs。原生概率回归另覆盖玩家吞噬后的高原始幻术按 5 计算、敌方及普通引擎对局保持原值。
+## 验证
 
-能力卡验证：node tools/verify-abilities.mjs，覆盖同效果高值替换、不同效果共存、存档和销毁、获取来源、真实减耗与伤害倍率、熟练度保持及 106 有效值。Rust 另验证独立随机乘区、嵌套作用域和敌方隔离、被动护盾熟练度不变。
+Rust：cargo test -p tswn_core -p tswn_wasm；cargo +nightly fmt --check。
 
-实战通过 BattleSession 持久保存当前状态，仅提交新动作并取新增帧；不从开局重算历史行动。分身、随机流、HP/MP 与状态持续保存在同一运行时中。
+Cards：node tools/verify-engine.mjs vendor/tswn_wasm_duel、node tools/verify-relics.mjs、node tools/verify-abilities.mjs、node tools/verify-clone.mjs、node tools/verify-progression.mjs、node tools/verify-rare-boss-honor.mjs、node tools/verify-new-run.mjs、node tools/verify-construct.mjs。
 
-药水使用后立刻更新面板，在本次技能或普攻执行前应用相同加成；属性药水持续至该角色下一次行动前。完整接口语义见 FORK.md。
+发布构建：npm run build:site。构建结果使用内容指纹引用 JS 和 WASM，遗物独立图标随构建发布。
 
-遗物验证：node tools/verify-relics.mjs。覆盖六件遗物的获取、去重、存读档、销毁，残片一次性休息与稀有技能，真实开场增益、持续回复与护盾、戾气低伤害拦截和 Duel 注入。原生测试另外在 80 个种子中比较分身后的原角色与子体，并覆盖召唤物继承防抗的排除规则。
+## 遗物与会话
 
-扩展遗物回归同时覆盖战力币的节点发分、各类扣款自动销毁，开箱器八项永久基础属性及熟练度不变，以及六种负面技能在真实 WASM 下的语言包附加狂暴。
+17 件遗物的前端获取、存读档、销毁和战斗选项已接通。运行时支持语言包、状态延长、分身衰减减免、拜谢返还、不等式阵亡吞噬与背刺两次受击和增伤。帮测贴的独立加成只保留于原角色。
 
-多人模式新增 controlled_team=4294967295，暂停双方原角色及分身，召唤物仍自动行动。BattleSession.set_initial_hp 在首次推进前原子设置各原角色的当前生命，保留最大生命；暂停后不可再调用。原生回归覆盖双方轮流出牌及生命边界。多人服务器与浏览器复用同一 WASM，Node 构建入口为 tools/build-arena.mjs。
+保留双方受控、开局逐角色当前生命、负 MP 普攻、持久战斗会话、独立能力乘区及交错会话隔离。具体接口见 FORK.md。

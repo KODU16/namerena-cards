@@ -6,7 +6,7 @@ import {hasHonor} from './run-honor.js';
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta, effectiveSkillLevel } from './skills.js';
 import { burstAt } from './fx.js';
-import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote, scaleTactic, constructQuote } from './game.js';
+import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote, scaleTactic, constructQuote, attributeForgeSummary } from './game.js';
 import { makeCard, cardDisplayStats, displayEightSum, iconFor } from './engine.js';
 import { emojiImg, mapIconSvg } from './emoji.js';
 // 生成和绘制共用尺寸，保持节点半径和几何约束一致。
@@ -332,7 +332,7 @@ export function renderPrep(root, state, h) {
       el('div', { class: 'prep__roster' },
         el('div', { class: 'roster-head' },
           el('h3', {}, `卡组 · ${state.collection.length}`),
-          el('div', { class: 'muted' }, `点角色卡加入/移出队伍（需要 ${run.teamSize} 人）；选技能卡后点角色是锻造`),
+        el('div', { class: 'muted' }, `点角色卡加入/移出队伍（需要 ${run.teamSize} 人）；选锻造卡后点角色使用`),
         ),
         el('div', { class: 'roster-grid' }, state.collection.map((c) => el('div', { class: 'roster-item' },
           (() => {
@@ -354,12 +354,12 @@ export function renderPrep(root, state, h) {
         el('h3', { class: 'mt' }, `战术 · ${state.ownedTactics.length}`),
         el('div', { class: 'tactics-grid' }, h.ownedTacticObjects(state).map((t) =>
           tacticEl(t, { active: run.tacticIds.includes(t.id), onClick: () => h.onToggleTactic(t.id) }))),
-        el('h3', { class: 'mt' }, `技能卡 · ${(run.skillCards || []).length}`),
-        el('div', { class: 'muted small' }, h.forgeSelected ? '已选中一张技能卡：点击上面任意角色完成锻造（会消耗这张卡）' : '点一张技能卡，再点角色，把它锻进角色技能组'),
+        el('h3', { class: 'mt' }, `锻造卡 · ${(run.skillCards || []).length}`),
+        el('div', { class: 'muted small' }, h.forgeSelected ? '已选中一张锻造卡：点击上面任意角色使用（会消耗这张卡）' : '使用该锻造卡增强对应角色的属性或是添加新技能'),
         el('div', { class: 'tactics-grid' }, (run.skillCards || []).map((s) =>
           el('button', { class: `tactic${h.forgeSelected === s.uid ? ' is-active' : ''}`, type: 'button', onclick: () => h.onPickSkillCard(s.uid) },
-            el('span', { class: 'tactic__glyph' }, emojiImg(s.id, 'emoji emoji--lg')),
-            el('span', { class: 'tactic__body' }, el('b', {}, skillMeta(s.id).name), el('small', {}, `熟练度 ${shownSkillLevel(s)}`)),
+            el('span', { class: 'tactic__glyph' }, s.kind === 'attribute' ? '✦' : emojiImg(s.id, 'emoji emoji--lg')),
+            el('span', { class: 'tactic__body' }, el('b', {}, s.kind === 'attribute' ? s.name : skillMeta(s.id).name), el('small', {}, s.kind === 'attribute' ? attributeForgeSummary(s) : `熟练度 ${shownSkillLevel(s)}`)),
           ))),
       ),
       el('div', { class: 'prep__foot' },
@@ -801,7 +801,8 @@ export function chestOpeningArt() {
 // 自动领取也展示完整奖励回执，避免只弹出笼统的“一件补给”。
 export function rewardReceipt(offer) {
   const summary = rewardSummary(offer);
-  const icon = offer.kind === 'relic' ? relicPreview(offer.relic)
+  const icon = offer.kind === 'skill' && offer.skill?.kind === 'attribute' ? '✦'
+    : offer.kind === 'relic' ? relicPreview(offer.relic)
     : offer.kind === 'potion' ? potionIcon(potionById(offer.potion.id), 40)
     : emojiImg(offer.ability?.effect.skill || offer.skill?.id || offer.tactic?.id || (offer.kind === 'score' ? 'coin' : offer.kind === 'weapon' ? 'normal' : 'star'), 'emoji emoji--xxl');
   return el('div', { class: 'reward-receipt' },
@@ -830,11 +831,11 @@ export function renderReward(root, state, offers, h) {
           )
         : o.kind === 'skill'
           ? el('div', { class: 'offer offer--tactic' },
-            el('div', { class: 'offer__tag' }, '技能卡 · 随机熟练度'),
-            el('div', { class: 'tactic__glyph big-glyph' }, emojiImg(o.skill.id, 'emoji emoji--xxl')),
-            el('b', {}, skillMeta(o.skill.id).name),
-            el('p', {}, `熟练度 ${effectiveSkillLevel(o.skill.lv)}`),
-            el('p', { class: 'muted small' }, '只能在锻造里加给角色，加完消耗'),
+            el('div', { class: 'offer__tag' }, o.skill.kind === 'attribute' ? '属性锻造卡 · 永久基础值' : '技能卡 · 随机熟练度'),
+            el('div', { class: 'tactic__glyph big-glyph' }, o.skill.kind === 'attribute' ? '✦' : emojiImg(o.skill.id, 'emoji emoji--xxl')),
+            el('b', {}, o.skill.kind === 'attribute' ? o.skill.name : skillMeta(o.skill.id).name),
+            el('p', {}, o.skill.kind === 'attribute' ? attributeForgeSummary(o.skill) : `熟练度 ${effectiveSkillLevel(o.skill.lv)}`),
+            el('p', { class: 'muted small' }, o.skill.kind === 'attribute' ? '使用必定成功，永久写入角色黑字基础属性' : '只能在锻造里加给角色，加完消耗'),
             el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
           )
           : o.kind === 'potion'
@@ -1653,9 +1654,12 @@ export function inventorySheet(state, h = {}) {
     } else if (id === 'forge') {
       const list = (run.skillCards || []);
       body.replaceChildren(list.length
-        ? el('div', { class: 'inv__grid' }, list.map((s) => el('div', { class: 'inv__item'+(isRareSkill(s.id)?' shop-item--gold':''), title: skillMeta(s.id).desc },
-          isRareSkill(s.id)?qualityBadge('gold'):null,
-          el('b', {}, skillMeta(s.id).name), el('small', {}, '熟练度 ' + playerSkillLevel(s)), del('forge', s.uid, skillMeta(s.id).name))))
+        ? el('div', { class: 'inv__grid' }, list.map((s) => s.kind === 'attribute'
+          ? el('div', { class: 'inv__item', title: '使用必定成功，永久增加角色黑字基础属性。' },
+            el('b', {}, s.name), el('small', {}, attributeForgeSummary(s)), del('forge', s.uid, s.name))
+          : el('div', { class: 'inv__item'+(isRareSkill(s.id)?' shop-item--gold':''), title: skillMeta(s.id).desc },
+            isRareSkill(s.id)?qualityBadge('gold'):null,
+            el('b', {}, skillMeta(s.id).name), el('small', {}, '熟练度 ' + playerSkillLevel(s)), del('forge', s.uid, skillMeta(s.id).name))))
         : el('p', { class: 'muted' }, '还没有锻造卡'));
     } else if (id === 'tactics') {
       const ids = (state.ownedTactics || []).filter(id=>id!=='t-shadow'&&isTacticEnabled(state.tacticsPool?.find(t=>t.id===id)));

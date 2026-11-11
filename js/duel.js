@@ -106,6 +106,8 @@ export class Duel {
           positive_status_relic_team: this.relics.includes('red-underwear') ? this.playerTeam : undefined,
           thanks_relic_team: this.relics.includes('thanks') ? this.playerTeam : undefined,
           inequality_relic_team: this.relics.includes('inequality') ? this.playerTeam : undefined,
+          // 背刺遗物由运行时保持潜行受击次数，并在背刺结算处提高伤害倍率。
+          assassinate_relic_team: this.relics.includes('zuxizu-zuzuo') ? this.playerTeam : undefined,
           relic_damage_floor: this.relics.includes('heavy-spite'),
           // 属性遗物由引擎区分原始角色与派生单位。
           stat_relic_team: this.relics.includes('help-test-post') ? this.playerTeam : undefined,

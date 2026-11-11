@@ -621,7 +621,9 @@ export function clearNode(state) {
 export function rewardSummary(offer) {
   if (offer.kind === 'relic') return { label: '遗物「' + relicById(offer.relic)?.name + '」', detail: relicById(offer.relic)?.description || '', destination: '获得即生效，销毁后失效。' };
   if (offer.kind === 'ability') return { label: '能力卡「' + offer.ability.name + '」', detail: abilityDescription(offer.ability), destination: '获得即永久生效；完全相同效果只保留高值，可在物品栏销毁。' };
-  if (offer.kind === 'skill') return { label: '技能卡「' + skillMeta(offer.skill.id).name + '」', detail: '熟练度 ' + effectiveSkillLevel(offer.skill.lv), destination: '已放入技能卡栏，可在锻造时使用。' };
+  if (offer.kind === 'skill') return offer.skill?.kind === 'attribute'
+    ? { label: '属性锻造卡「' + offer.skill.name + '」', detail: attributeForgeSummary(offer.skill), destination: '已放入锻造卡栏，使用必定增加黑字基础属性。' }
+    : { label: '技能卡「' + skillMeta(offer.skill.id).name + '」', detail: '熟练度 ' + effectiveSkillLevel(offer.skill.lv), destination: '已放入技能卡栏，可在锻造时使用。' };
   if (offer.kind === 'tactic') return { label: '战术卡「' + offer.tactic.name + '」', detail: scaleTactic(offer.tactic, offer.power || 1).desc, destination: '已加入战术卡栏，同名保留更强的一张。' };
   if (offer.kind === 'potion') return { label: (potionById(offer.potion.id)?.name || '药水') + ' ×' + (offer.potion.n || 1), detail: potionDescription(potionById(offer.potion.id)), destination: '已放入物品栏，可在战斗中使用。' };
   if (offer.kind === 'weapon') return { label: '武器「' + offer.weapon.name + '」', detail: '装备后重新计算角色属性和技能。', destination: '已放入物品栏。' };
@@ -824,6 +826,28 @@ export function applyForge(stats, forge) {
 
 // 装备武器：用引擎重算该角色的属性线
 const STAT_LABELS = [['hp', '体力'], ['atk', '攻'], ['def', '防'], ['spd', '速'], ['agi', '敏'], ['mag', '魔'], ['res', '抗'], ['wis', '智']];
+const ATTRIBUTE_FORGE_PREFIXES = ['顶级ID', '十大ID', '全能ID', '华丽ID', '神豹', '超大豹', '周豹', '加成神豹', '好赛运', '超高数值', '霸榜ID', '超标评分', '大猎豹', '不等式', '神秘组合', '传奇组合', '超强配件', '超级耐活王'];
+const ATTRIBUTE_FORGE_MIDDLES = ['测号指南，', '配队指南，', '开箱，', '补强计划，', '技能组，', '偷看器，', '重出江湖，', '之真传，', '手到擒来，', '准备出勤，', '之兆，', '挖掘指南'];
+
+// 属性锻造卡在获得时锁定名称、加成类型与数值，使用后只叠加永久黑字基础属性。
+export function rollAttributeForgeCard(rng, progress = 0, uid = 'attr-' + Math.floor(rng() * 1e9)) {
+  const value = Math.max(5, Math.min(20, Math.round(5 + Math.max(0, Math.min(1, progress)) * 10 + rng() * 5)));
+  const selected = shuffle(STAT_LABELS, rng).slice(0, 1 + Math.floor(rng() * STAT_LABELS.length));
+  const attrs = Object.fromEntries(selected.map(([key]) => [key, value * (key === 'hp' ? 3 : 1)]));
+  const pick = (list) => list[Math.floor(rng() * list.length)];
+  return {
+    kind: 'attribute',
+    uid,
+    name: pick(ATTRIBUTE_FORGE_PREFIXES) + pick(ATTRIBUTE_FORGE_MIDDLES) + '第' + (1 + Math.floor(rng() * 1000)) + '章',
+    value,
+    attrs,
+  };
+}
+
+export function attributeForgeSummary(card) {
+  if (!card || card.kind !== 'attribute') return '';
+  return Object.entries(card.attrs || {}).map(([key, gain]) => (STAT_LABELS.find(([id]) => id === key)?.[1] || key) + ' +' + gain).join(' · ');
+}
 
 // 装备武器：用引擎重算属性线，并记录这件武器加了哪些属性 / 新技能
 export function equipWeapon(state, weaponId, charId) {
@@ -1218,11 +1242,14 @@ export function rollShop(state, seed, layer = 1) {
   const items = [];
   // 物价：约等于每层收入的三分之一到一半，买一两件不影响登顶
   const priceOf = (base) => Math.round((base * (1 + progress * 0.5) * (hasDifficulty(run, 16) ? 1.2 : 1)) / 50) * 50;
-  // 技能卡
+  // 普通锻造卡两种类型等概率出现；金色稀有技能仍沿用原有专属产出规则。
   const skills = SKILL_IDS.filter((id) => !isRareSkill(id));
   const sid = skills[Math.floor(r() * skills.length)];
   // 106 为有效上限，常规商店的锻造增量随层数从 8 平缓增长至 20。
-  items.push({ kind: 'skill', price: priceOf(1100), skill: { id: sid, lv: Math.round(8 + progress * 12), uid: 'shop-' + seed + '-' + Math.floor(r() * 1e6) } });
+  const forgeUid = 'shop-' + seed + '-' + Math.floor(r() * 1e6);
+  items.push(r() < .5
+    ? { kind: 'skill', price: priceOf(1100), skill: { id: sid, lv: Math.round(8 + progress * 12), uid: forgeUid } }
+    : { kind: 'skill', price: priceOf(1100), skill: rollAttributeForgeCard(r, progress, forgeUid) });
   // 角色卡
   const card = makeCard(randomName(r), run.clan || '青');
   items.push({ kind: 'card', price: priceOf(1800), card });
@@ -1280,7 +1307,12 @@ function curseReward(item, units, rng) {
   const strength = Math.max(.1, Math.min(4, units / 20));
   const reward = structuredClone(item);
   delete reward.price;
-  if (reward.skill) reward.skill.lv = isRareSkill(reward.skill.id) ? Math.min(RARE_SKILLS[reward.skill.id].offerMax,Math.max(1,Math.round(strength*RARE_SKILLS[reward.skill.id].offerMax/2))) : Math.max(1, Math.round(reward.skill.lv * strength));
+  if (reward.skill?.kind === 'attribute') {
+    for (const key of Object.keys(reward.skill.attrs || {})) reward.skill.attrs[key] = Math.max(1, Math.round(reward.skill.attrs[key] * strength));
+    reward.skill.value = Math.max(1, Math.round((reward.skill.value || 1) * strength));
+  } else if (reward.skill) {
+    reward.skill.lv = isRareSkill(reward.skill.id) ? Math.min(RARE_SKILLS[reward.skill.id].offerMax,Math.max(1,Math.round(strength*RARE_SKILLS[reward.skill.id].offerMax/2))) : Math.max(1, Math.round(reward.skill.lv * strength));
+  }
   if (reward.potion) reward.potion.n = Math.max(1, Math.round(2 * strength));
   if (reward.tactic) reward.power = Math.round((1 + strength) * 10) / 10;
   // 诅咒商人的能力强度随代价变化，仍保持蓝色的轻度增强范围。
@@ -1565,8 +1597,9 @@ export function rollRewards(state, seed, elite = false, guaranteeScore = false, 
   const baseScorePoints = rollRewardPoints(run, r, elite);
   const scorePoints = (state.relics || []).includes('accept') ? Math.round(baseScorePoints * 1.2) : baseScorePoints;
   // 保留两个非分数随机奖励，分数固定占一项并随机排列位置。
+  const forgeUid = `sk-${seed}-${Math.floor(r() * 1e9)}`;
   const pool = [
-    { kind: 'skill', skill: { id: skillId, lv, uid: `sk-${seed}-${Math.floor(r() * 1e9)}` } },
+    { kind: 'skill', skill: r() < .5 ? { id: skillId, lv, uid: forgeUid } : rollAttributeForgeCard(r, progress, forgeUid) },
     { kind: 'card', card },
     { kind: 'potion', potion: { id: potionMeta.id, n: elite ? 3 : 1 } },
     { kind: 'weapon', weapon: { id: 'w-rw-' + Math.floor(r() * 1e9).toString(36), name: randomWeapon(r) } },
@@ -1627,6 +1660,7 @@ export function applyReward(state, offer) {
 export function forgeChance(state, characterId, skillCard) {
   const target = state.collection.find((c) => c.id === characterId);
   if (!target || !skillCard) return 0;
+  if (skillCard.kind === 'attribute') return Object.keys(skillCard.attrs || {}).length ? 1 : 0;
   // 已支付给诅咒商人的技能永久归零，不允许再次锻造恢复。
   if (target.lostSkills?.[skillCard.id]) return 0;
   const list = target.skillList || [];
@@ -1648,6 +1682,20 @@ export function forgeSkill(state, uid, characterId) {
   const idx = (run.skillCards || []).findIndex((s) => s.uid === uid);
   if (idx < 0) return { ok: false, chance: 0 };
   const card = run.skillCards[idx];
+  // 属性锻造卡没有失败率，所有随机性都已在获得时确定。
+  if (card.kind === 'attribute') {
+    const target = state.collection.find((c) => c.id === characterId);
+    if (!target || !card.attrs || !Object.keys(card.attrs).length) return { ok: false, chance: 0 };
+    target.forge = target.forge || {};
+    for (const [key, gain] of Object.entries(card.attrs)) {
+      if (!STAT_LABELS.some(([id]) => id === key) || !Number.isFinite(gain)) continue;
+      target.forge[key] = (target.forge[key] || 0) + Math.max(0, Math.round(gain));
+    }
+    run.skillCards.splice(idx, 1);
+    refreshRunBuff(state);
+    persist(state);
+    return { ok: true, chance: 1, attribute: true, name: card.name, attrs: { ...card.attrs } };
+  }
   const chance = forgeChance(state, characterId, card);
   if (chance <= 0) return { ok: false, chance: 0 };
   const target = state.collection.find((c) => c.id === characterId);

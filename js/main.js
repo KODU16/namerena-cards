@@ -443,6 +443,9 @@ function prep() {
     onForgeHover: (id, ev) => {
       if (!forgeSel) return;
       const card = (state.run.skillCards || []).find((s) => s.uid === forgeSel);
+      if (card?.kind === 'attribute') {
+        return UI.showCursorTip('属性锻造必定成功：' + G.attributeForgeSummary(card), ev.clientX, ev.clientY, 'green');
+      }
       const p = G.forgeChance(state, id, card);
       const tone = p <= 0 ? 'red' : p < 0.33 ? 'red' : p <= 0.66 ? 'yellow' : 'green';
       UI.showCursorTip(p > 0 ? '锻造成功率 ' + Math.round(p * 100) + '%' : '已到上限，不能再锻', ev.clientX, ev.clientY, tone);
@@ -456,7 +459,7 @@ function prep() {
         toast(res.chance <= 0
           ? '已达上限，不能再锻'
           : res.ok
-            ? `锻造成功（${Math.round(res.chance * 100)}%）`
+            ? res.attribute ? `属性锻造完成：${G.attributeForgeSummary({ kind: 'attribute', attrs: res.attrs })}` : `锻造成功（${Math.round(res.chance * 100)}%）`
             : `锻造失败（成功率 ${Math.round(res.chance * 100)}%）`);
         prep();
         return;
@@ -849,7 +852,7 @@ function mapScreen() {
             : el('div', { class: 'inv__item shop-item shop-item--' + it.rarity },
             UI.qualityBadge(it.rarity),
             it.kind === 'ability' ? UI.abilityIcon(it.ability) : it.kind === 'relic' ? UI.relicPreview(it.relic) : null,
-            el('b', {}, it.kind === 'skill' ? '技能卡 ' + skillMeta(it.skill.id).name
+            el('b', {}, it.kind === 'skill' ? (it.skill.kind === 'attribute' ? '属性锻造卡 ' + it.skill.name : '技能卡 ' + skillMeta(it.skill.id).name)
               : it.kind === 'card' ? '角色 ' + it.card.name + '@' + it.card.clan
                 : it.kind === 'ability' ? '能力卡 ' + it.ability.name
                 : it.kind === 'relic' ? G.rewardSummary(it).label

@@ -27,3 +27,11 @@ assert.ok(G.toggleTeamMember(state,third.id,state.collection[1].id).ok);assert.d
 const r=G.mulberry32(101),names=Array.from({length:1000},()=>G.randomWeapon(r));assert.ok(new Set(names).size>990);assert.ok(new Set(names.map(n=>n.length)).size>=8);
 for(const name of names.slice(0,30))assert.ok(E.buildWithWeapon(third.name,third.clan,name));
 console.log(JSON.stringify({eightSum:670.3,scoreOffers:600,scoreSlots:[...slots],randomTypes:[...kinds],uniqueWeapons:new Set(names).size,teamSwitch:'passed'}));
+
+const attrCard=G.rollAttributeForgeCard(G.mulberry32(217),.5,'forge-regression');
+assert.ok(Object.keys(attrCard.attrs).length>=1);const attrTarget=state.collection[0];
+state.run.skillCards=[attrCard];const forgeBefore={...(attrTarget.forge||{})};
+assert.equal(G.forgeChance(state,attrTarget.id,attrCard),1);assert.ok(G.forgeSkill(state,attrCard.uid,attrTarget.id).ok);
+for(const [key,value] of Object.entries(attrCard.attrs))assert.equal(attrTarget.forge[key],(forgeBefore[key]||0)+value);
+assert.equal(state.run.skillCards.length,0);const forgedStats={...attrTarget.stats};G.refreshRunBuff(state);assert.deepEqual(attrTarget.stats,forgedStats);
+console.log(JSON.stringify({attributeForge:'guaranteed and permanent',attributes:attrCard.attrs}));

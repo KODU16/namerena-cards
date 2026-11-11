@@ -40,18 +40,19 @@ export interface BattleOptions {
     healing_relic_team?: number;
     shielding_relic_team?: number;
     relic_damage_floor?: boolean;
-    /**
-     * 帮测贴开场属性增益所属队伍。
-     */
     stat_relic_team?: number;
+    assassinate_relic_team?: number;
     language_relic_team?: number;
     debuff_relic_team?: number;
     clone_relic_team?: number;
+    positive_status_relic_team?: number;
+    thanks_relic_team?: number;
+    inequality_relic_team?: number;
 }
 
 // 规范 core DTO 形状。没有单独的 Rust 绑定 schema。
 export type BattleStatus = "running" | "finished" | "truncated";
-export type BattleStopReason = "winner" | "max_rounds" | "no_progress" | "paused";
+export type BattleStopReason = "winner" | "max_rounds" | "no_progress";
 export type BattleMinionKind = "clone" | "summon" | "shadow" | "zombie";
 export type BattleUpdateType = "win" | "none" | "next_line";
 export type BattleTone = "normal" | "damage" | "recover" | "knockout" | "status_exit";
@@ -59,8 +60,6 @@ export type BattleReplayTextPartKind = "text" | "highlight" | "player" | "data";
 export type BattleReplayOptions = BattleOptions;
 
 export interface BattleReplay {
-    /** 等待指令的实体；暂停可继续，不是终局。 */
-    paused_actor: number | null;
     status: BattleStatus;
     stop_reason: BattleStopReason;
     rounds_advanced: number;
@@ -76,8 +75,6 @@ export interface BattleReplay {
 }
 
 export interface BattlePlayerState {
-    /** 技能导出名与当前熟练度。 */
-    skills: Array<[string, number]>;
     id: number;
     team_index: number;
     input_team_index: number | null;

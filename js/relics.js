@@ -29,6 +29,7 @@ export const RELICS = Object.freeze({
   'jade-hairpin': Object.freeze({ id: 'jade-hairpin', name: '玉珠金簪', icon: 'assets/icons32/relic-jade-hairpin.png', rarity: 'gold', description: '电脑测号的扫描数量额外增加 500%（例如 1000 个变为 6000 个），仍只入库最高值。', flavor: '玉珠金簪现象，是不是开启测号新时代？' }),
   'thanks': Object.freeze({ id: 'thanks', name: '拜谢', icon: 'assets/icons32/relic-thanks.png', rarity: 'purple', description: '自身获得的负面状态持续时间 +1 回合；结束时，敌方强制获得 2 回合相同负面状态。', flavor: '别输在不会拜谢上' }),
   'inequality': Object.freeze({ id: 'inequality', name: '不等式', icon: 'assets/icons32/relic-inequality.png', rarity: 'purple', description: '己方召唤物、分身或队友死亡时，随机其余非召唤物友方吞噬死亡角色，获得等价属性加成。', flavor: '传说在名竞最重要的武术大赛中，有一位传奇靠着献祭自己兄弟的力量夺冠' }),
+  'zuxizu-zuzuo': Object.freeze({ id: 'zuxizu-zuzuo', name: '跙坥咀诅阻珇伹伹怚', icon: 'assets/icons32/relic-zuxizu-zuzuo.png', rarity: 'gold', description: '潜行后需受击 2 次才会被识破；背刺伤害提高 50%。', flavor: '这位是背刺第一个全能（311），cqd52.462' }),
 });
 
 export const relicById = (id) => RELICS[id] || null;

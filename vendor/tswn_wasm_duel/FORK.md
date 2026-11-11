@@ -1,18 +1,18 @@
-# 卡牌引擎补丁说明
+# 卡牌引擎接口说明
 
-以 shenjackyuanjie/tswn-core 的 5237f2b30a46b6658c6aefd49b2c4e97a2b81080 为基线。卡牌改动与审查修复通过 cards 仓库中的 source.patch 归档；本次不再提交引擎分支。
+固定源码来自 KODU16/tswn-cards，提交 929d0dbedd03ca55e4854227d2e27479f74758a2；完整构建与补丁基线见 BUILD.md。
 
 ## 构建
 
 使用 GNU 工具链及 MinGW，安装 wasm32-unknown-unknown 和匹配的 wasm-bindgen-cli 后：
 
 ~~~powershell
-cargo build -p tswn_wasm --target wasm32-unknown-unknown --profile release-wasm
-wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/release-wasm/tswn_wasm.wasm
+cargo build -p tswn_wasm --target wasm32-unknown-unknown --release
+wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/release/tswn_wasm.wasm
 node tools/test-forced.mjs dist
 ~~~
 
-release-wasm 独立设置体积优化和符号裁剪，不影响 workspace 的普通 release。产物使用标准 .wasm 扩展名。
+release 使用工作区的体积优化和符号裁剪。产物使用标准 .wasm 扩展名。
 
 ## 行动与暂停
 
@@ -61,3 +61,7 @@ BattleOptions 可选择开场疾走/迟缓、每次实际行动后的全队 3% �
 ## 多人存活模式
 
 controlled_team=4294967295 表示控制双方原角色与分身，召唤单位仍自动行动。set_initial_hp 接收实体编号/当前生命的二元组数组，只允许首次推进前调用；整个封包先校验再应用，拒绝重复编号、零生命、超过原最大生命及非原始实体，原 max_hp 不变。会话开始或暂停后均不可修改开局生命。
+
+## 扩展遗物
+
+BattleOptions 的 debuff_relic_team、clone_relic_team、positive_status_relic_team、thanks_relic_team、inequality_relic_team、assassinate_relic_team 分别启用属性修改器、说和做、红内裤、拜谢、不等式与背刺遗物。各选项默认关闭，只对指定持有方生效。拜谢在状态解除后向敌方返还两回合同类状态，不经免疫与命中判定；不等式在真实死亡链中只处理一次。背刺遗物保留第一次有效受击后的潜行，第二次识破，背刺倍率由 4 提升至 6。

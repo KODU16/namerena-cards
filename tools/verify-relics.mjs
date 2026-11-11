@@ -5,12 +5,12 @@ const storage=new Map();globalThis.localStorage={setItem:(k,v)=>storage.set(k,v)
 globalThis.document={getElementById(){},addEventListener(){}};globalThis.window={};
 globalThis.fetch=async url=>new Response(readFileSync(new URL(url)),{headers:{'Content-Type':'application/wasm'}});
 const E=await import('../js/engine.js');await E.loadEngine();const G=await import('../js/game.js'),R=await import('../js/relics.js');const {Duel}=await import('../js/duel.js');
-const ids=Object.keys(R.RELICS).filter(id=>id!=='battle-coin').concat('battle-coin');assert.equal(ids.length,16);
+const ids=Object.keys(R.RELICS).filter(id=>id!=='battle-coin').concat('battle-coin');assert.equal(ids.length,17);
 const fixture=kind=>{const s=G.createState(),c=E.makeCard('遗物回归','青');s.collection=[c];s.tacticsPool=[];const n={id:'node-'+kind,kind,next:[]};s.run={seed:17,status:'active',clan:'青',teamIds:[c.id],teamSize:1,index:0,layer:1,score:100000,forged:[],tacticIds:[],nodeId:n.id,cleared:[],graph:{nodes:[n],byId:new Map([[n.id,n]])}};G.refreshRunBuff(s);return s};
 const s=fixture('shop'),shopRelics=new Set();for(let seed=0;seed<2000;seed++){const stock=G.rollShop(s,seed);const relics=stock.filter(o=>o.kind==='relic');assert.ok(relics.length<=1);for(const offer of relics)shopRelics.add(offer.relic)}assert.equal(shopRelics.size,ids.length);const stocked=G.shopStock(s).find(o=>o.kind==='relic');if(stocked){assert.ok(G.buyShopItem(s,stocked));const score=s.run.score;assert.equal(G.buyShopItem(s,stocked),false);assert.equal(s.run.score,score)}s.relics=ids;
 assert.deepEqual(R.normalizeRelics([...ids,...ids,'unknown']),ids);const snap=G.snapshot(s),restored=G.createState();assert.ok(G.restoreSnapshot(restored,snap));assert.deepEqual(restored.relics,ids);G.persist(s);const auto=G.createState();G.loadSave(auto);assert.deepEqual(auto.relics,ids);assert.ok(G.destroyItem(s,'relic','help-test-post'));assert.ok(!s.relics.includes('help-test-post'));
 // 稀有度抽取先保留 70/25/5 的档位权重，再验证每个遗物都有机会出现。
-let relicSeed=17;const relicRng=()=>((relicSeed=Math.imul(relicSeed,1664525)+1013904223>>>0)/2**32);const drops=new Set(),rarityCounts={blue:0,purple:0,gold:0};for(let i=0;i<50000;i++){const relic=R.rollRelic(relicRng);drops.add(relic.id);rarityCounts[relic.rarity]++}assert.equal(drops.size,16);assert.ok(rarityCounts.blue>rarityCounts.purple&&rarityCounts.purple>rarityCounts.gold);for(let seed=0;seed<400;seed++)assert.ok(!G.rollRewards(s,seed,true,true).some(o=>o.kind==='relic'));
+let relicSeed=17;const relicRng=()=>((relicSeed=Math.imul(relicSeed,1664525)+1013904223>>>0)/2**32);const drops=new Set(),rarityCounts={blue:0,purple:0,gold:0};for(let i=0;i<50000;i++){const relic=R.rollRelic(relicRng);drops.add(relic.id);rarityCounts[relic.rarity]++}assert.equal(drops.size,ids.length);assert.ok(rarityCounts.blue>rarityCounts.purple&&rarityCounts.purple>rarityCounts.gold);for(let seed=0;seed<400;seed++)assert.ok(!G.rollRewards(s,seed,true,true).some(o=>o.kind==='relic'));
 // 接受只加成战后奖励分数；说和做只生成本场技能副本，不改角色基础熟练度。
 const plainReward=G.rollRewards(fixture('filler'),73,false,true).find(o=>o.kind==='score');const acceptedReward=fixture('filler');acceptedReward.relics=['accept'];assert.equal(G.rollRewards(acceptedReward,73,false,true).find(o=>o.kind==='score').points,Math.round(plainReward.points*1.2));
 // 天梯对手分数在胜利时按 Elo 自动结算，因此其三选一奖池必须完全排除分数项。
@@ -29,7 +29,7 @@ const sp=new w.BattleSession(raw(),{controlled_team:0,relic_damage_floor:true});
 const opening=new w.BattleSession(raw(),{controlled_team:0,opening_relic_team:0});assert.ok(opening.initial_states().find(x=>x.team_index===0).status_labels.some(x=>x.includes('疾走')));assert.ok(opening.initial_states().find(x=>x.team_index===1).status_labels.some(x=>x.includes('迟缓')));pause(opening);for(let i=0;i<8;i++){opening.submit_action(opening.paused_actor(),255,0);pause(opening)}assert.ok(opening.current_states().every(x=>!x.status_labels.some(l=>l.includes('疾走')||l.includes('迟缓'))));opening.free();
 // 前端 Duel 必须实际传递遗物选项，不只验证单独的引擎接口。
 const c=s.collection[0];const duel=new Duel({wasm:w,iconFor:E.iconFor},{input:raw(),playerTeam:0,champion:c,team:[c],relics:['help-test-post','rat-tail']});const r=duel.simulate();const normalSession=new w.BattleSession(raw(),{}),normal=normalSession.initial_states().find(x=>x.team_index===0);normalSession.free();assert.equal(statFields.filter(k=>r.initial_states.find(x=>x.team_index===0)[k]!==normal[k]).length,2);duel.dispose();
-console.log(JSON.stringify({relics:16,shopsAndSaves:'passed',dropTypes:drops.size,acceptReward:'x1.2',cloneBattleSkill:'+10',campSeeds:200,openingSeeds:buffed,healing:300,shieldCap:30,damageFloor:'passed',duelIntegration:'passed'}));
+console.log(JSON.stringify({relics:17,shopsAndSaves:'passed',dropTypes:drops.size,acceptReward:'x1.2',cloneBattleSkill:'+10',campSeeds:200,openingSeeds:buffed,healing:300,shieldCap:30,damageFloor:'passed',duelIntegration:'passed'}));
 
 // 战力币逐节点发放，交易/战败立即销毁；失败付款与零扣分不影响。
 for(const [kind,pay] of [['shop',t=>G.buyShopItem(t,G.shopStock(t).find(o=>o.kind==='skill'))],['weaponMerchant',t=>G.buyMerchantWeapon(t,G.merchantStock(t)[0].weapon.id)],['constructMerchant',t=>G.constructCharacter(t,t.collection[0].id,1000)],['camp',t=>G.loseScore(t)]]){const t=fixture(kind);t.relics=['battle-coin'];pay(t);assert.ok(!t.relics.includes('battle-coin'),kind);}
@@ -45,3 +45,16 @@ const languageSuccess=[];
 for(const [name,id,label] of [['sklfire',0,'灼'],['sklice',1,'冰'],['sklpoison',5,'毒'],['sklslow',13,'迟缓'],['sklcurse',14,'诅咒'],['sklcharm',11,'魅惑']]){let success=false;for(let seed=1;seed<=40&&!success;seed++){const t=new w.BattleSession(raw({[name]:106},seed),{controlled_team:0,language_relic_team:0});pause(t);t.submit_action(t.paused_actor(),id,0);const frame=t.next_frame();const enemy=t.current_states().find(x=>x.input_team_index===1);if(name==='sklfire' ? enemy.hp<10000&&enemy.status_labels.some(x=>x.includes('狂暴')) : enemy.status_labels.some(x=>x.includes(label))){assert.ok(enemy.status_labels.some(x=>x.includes('狂暴')),name+JSON.stringify(enemy.status_labels));success=true;}t.free()}assert.ok(success,name);languageSuccess.push(name)}
 for(const [name,id] of [['skldisperse',17],['sklberserk',10]]){const t=new w.BattleSession(raw({[name]:106},4),{controlled_team:0,language_relic_team:0});pause(t);t.submit_action(t.paused_actor(),id,0);t.next_frame();const labels=t.current_states().find(x=>x.input_team_index===1).status_labels;if(id===17)assert.ok(!labels.some(x=>x.includes('狂暴')));else assert.ok(!labels.some(x=>x.includes('狂暴2')));t.free()}
 console.log(JSON.stringify({languageSuccess,cleanseExcluded:true,berserkNotStacked:true}));
+
+
+// 实际推进角色行动后观察状态解除，状态标签只显示强度而不显示持续回合。
+const allControlled=4294967295;
+const duration=(options,team,label)=>{const t=new w.BattleSession(raw(),{controlled_team:allControlled,opening_relic_team:0,...options});let actions=0;pause(t);for(let turn=0;turn<40;turn++){const states=t.current_states();if(!states.find(x=>x.team_index===team).status_labels.some(x=>x.includes(label)))break;const actor=t.paused_actor();if(states.find(x=>x.id===actor).team_index===team)actions++;t.submit_action(actor,255,1);pause(t);}t.free();return actions;};
+assert.equal(duration({},0,'疾走'),1);assert.equal(duration({positive_status_relic_team:0},0,'疾走'),2);
+assert.equal(duration({},1,'迟缓'),1);assert.equal(duration({debuff_relic_team:0},1,'迟缓'),2);assert.equal(duration({thanks_relic_team:1},1,'迟缓'),2);
+// 拜谢真实解除后返还迟缓，持续时间为两回合。
+const thanksSession=new w.BattleSession(raw(),{controlled_team:allControlled,opening_relic_team:1,thanks_relic_team:0});
+pause(thanksSession);let reflected=false;
+for(let turn=0;turn<20&&!reflected;turn++){thanksSession.submit_action(thanksSession.paused_actor(),255,1);pause(thanksSession);reflected=thanksSession.current_states().find(x=>x.team_index===1).status_labels.some(x=>x.includes('迟缓'));}
+assert.ok(reflected);thanksSession.free();
+console.log(JSON.stringify({redUnderwearDuration:'1 to 2 actions',attributeModifierDuration:'1 to 2 actions',thanksDurationAndReflection:'passed'}));
