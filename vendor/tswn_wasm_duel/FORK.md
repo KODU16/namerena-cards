@@ -1,6 +1,6 @@
 # 卡牌引擎接口说明
 
-固定源码来自 KODU16/tswn-cards，提交 929d0dbedd03ca55e4854227d2e27479f74758a2；完整构建与补丁基线见 BUILD.md。
+固定源码来自 KODU16/tswn-cards，提交 d74b5476bb5ddcc5f3611ba361fea342ceda16b6；完整构建与补丁基线见 BUILD.md。
 
 ## 构建
 
@@ -65,3 +65,5 @@ controlled_team=4294967295 表示控制双方原角色与分身，召唤单位�
 ## 扩展遗物
 
 BattleOptions 的 debuff_relic_team、clone_relic_team、positive_status_relic_team、thanks_relic_team、inequality_relic_team、assassinate_relic_team 分别启用属性修改器、说和做、红内裤、拜谢、不等式与背刺遗物。各选项默认关闭，只对指定持有方生效。拜谢在状态解除后向敌方返还两回合同类状态，不经免疫与命中判定；不等式在真实死亡链中只处理一次。背刺遗物保留第一次有效受击后的潜行，第二次识破，背刺倍率由 4 提升至 6。
+
+合作模式使用 BattleSession.set_auto_actors(Uint32Array) 永久将指定根角色及其派生单位交回 tswn 原生选招。暂停时调用可继续推进；无效或敌方实体整包拒绝，不修改随机流或跨会话状态。

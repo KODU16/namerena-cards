@@ -52,7 +52,7 @@ export interface BattleOptions {
 
 // 规范 core DTO 形状。没有单独的 Rust 绑定 schema。
 export type BattleStatus = "running" | "finished" | "truncated";
-export type BattleStopReason = "winner" | "max_rounds" | "no_progress";
+export type BattleStopReason = "winner" | "max_rounds" | "no_progress" | "paused";
 export type BattleMinionKind = "clone" | "summon" | "shadow" | "zombie";
 export type BattleUpdateType = "win" | "none" | "next_line";
 export type BattleTone = "normal" | "damage" | "recover" | "knockout" | "status_exit";
@@ -60,6 +60,8 @@ export type BattleReplayTextPartKind = "text" | "highlight" | "player" | "data";
 export type BattleReplayOptions = BattleOptions;
 
 export interface BattleReplay {
+    /** 等待指令的实体；暂停可继续，不是终局。 */
+    paused_actor: number | null;
     status: BattleStatus;
     stop_reason: BattleStopReason;
     rounds_advanced: number;
@@ -75,6 +77,8 @@ export interface BattleReplay {
 }
 
 export interface BattlePlayerState {
+    /** 技能导出名与当前熟练度。 */
+    skills: Array<[string, number]>;
     id: number;
     team_index: number;
     input_team_index: number | null;
@@ -511,6 +515,10 @@ export class BattleSession {
      */
     set_abilities(packet: Uint32Array): void;
     /**
+     * 永久托管指定根角色及其分身，保留 tswn 原生选招与随机流。
+     */
+    set_auto_actors(roots: Uint32Array): void;
+    /**
      * 大逃杀在开局设置各角色当前 HP，最大 HP 保持原始构建值。
      */
     set_initial_hp(packet: Uint32Array): void;
@@ -711,6 +719,7 @@ export interface InitOutput {
     readonly battlesession_result: (a: number, b: number) => void;
     readonly battlesession_rounds_advanced: (a: number) => number;
     readonly battlesession_set_abilities: (a: number, b: number, c: number, d: number) => void;
+    readonly battlesession_set_auto_actors: (a: number, b: number, c: number, d: number) => void;
     readonly battlesession_set_initial_hp: (a: number, b: number, c: number, d: number) => void;
     readonly battlesession_status: (a: number, b: number) => void;
     readonly battlesession_stop_reason: (a: number, b: number) => void;

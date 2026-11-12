@@ -395,7 +395,7 @@ index 2ccdaefa..d6e0722d 100644
  mod tests {
      use super::*;
 diff --git a/crates/tswn_core/src/cli_api/battle/session.rs b/crates/tswn_core/src/cli_api/battle/session.rs
-index fefc009d..0a3ff57c 100644
+index fefc009d..c45faeb9 100644
 --- a/crates/tswn_core/src/cli_api/battle/session.rs
 +++ b/crates/tswn_core/src/cli_api/battle/session.rs
 @@ -34,6 +34,7 @@ pub struct BattleSession {
@@ -439,7 +439,7 @@ index fefc009d..0a3ff57c 100644
                  return Ok(None);
              };
              let round_index = step.round_index;
-@@ -125,12 +130,82 @@ impl BattleSession {
+@@ -125,12 +130,120 @@ impl BattleSession {
                  frame
              });
              self.current_states = states;
@@ -452,6 +452,44 @@ index fefc009d..0a3ff57c 100644
  
 +    /// 受控单位把战斗逼停时，返回等待玩家指令的实体 id。
 +    pub fn paused_actor(&self) -> Option<u32> { self.paused }
++
++    /// 永久将受控根角色及其派生单位交给原生引擎；整包校验后提交，不消耗随机数。
++    pub fn set_auto_actors(&mut self, roots: &[u32]) -> CliApiResult<()> {
++        use crate::runtime::EntityIdx;
++        if self.is_done() || self.driver.forced.controlled_team.is_none() {
++            return Err(crate::cli_api::CliApiError::InvalidArgument(
++                "automatic actors require a live controlled session".into(),
++            ));
++        }
++        for id in roots {
++            let valid = self.driver.runner.runtime().entities.get(EntityIdx(*id)).is_some_and(|entity| {
++                entity.runtime.root_owner == EntityIdx(*id)
++                    && self
++                        .driver
++                        .forced
++                        .controlled_team
++                        .is_some_and(|team| team == u32::MAX as usize || team == entity.template.team)
++            });
++            if !valid {
++                return Err(crate::cli_api::CliApiError::InvalidArgument(
++                    "invalid automatic root actor".into(),
++                ));
++            }
++        }
++        self.driver.forced.automatic_roots.extend(roots.iter().copied());
++        if self.paused.is_some_and(|id| {
++            self.driver
++                .runner
++                .runtime()
++                .entities
++                .get(EntityIdx(id))
++                .is_some_and(|entity| self.driver.forced.automatic_roots.contains(&entity.runtime.root_owner.0))
++        }) {
++            self.paused = None;
++            self.driver.forced.paused_actor = None;
++        }
++        Ok(())
++    }
 +
 +    /// 地图遭遇只继承当前 HP，最大 HP 不变；整批验证后才修改，且不能在行动后重设。
 +    pub fn set_initial_hp(&mut self, packet: &[u32]) -> CliApiResult<()> {
@@ -523,7 +561,7 @@ index fefc009d..0a3ff57c 100644
      /// 正常终止后返回拥有最终快照的结果；运行中或粘性失败时为 `None`。
      ///
      /// 重复查询不推进战斗，但每次都会复制最终快照及其字符串。需要多次使用结果时
-@@ -168,6 +243,27 @@ pub(super) fn states_from_runner(
+@@ -168,6 +281,27 @@ pub(super) fn states_from_runner(
          .into_iter()
          .map(|snapshot| {
              let mut state = state_from_snapshot(snapshot, false);
@@ -551,7 +589,7 @@ index fefc009d..0a3ff57c 100644
              if include_icons {
                  state.icon_png_base64 = Some(match icon_cache.get(&state.icon_key) {
                      Some(icon) => icon.clone(),
-@@ -187,6 +283,7 @@ fn state_from_snapshot(snapshot: RuntimePlayerSnapshot, include_icons: bool) ->
+@@ -187,6 +321,7 @@ fn state_from_snapshot(snapshot: RuntimePlayerSnapshot, include_icons: bool) ->
      let icon_key = snapshot.id_key_name.clone();
      let icon_png_base64 = include_icons.then(|| render_icon_b64_from_name(&icon_key));
      BattlePlayerState {
@@ -559,7 +597,7 @@ index fefc009d..0a3ff57c 100644
          id: snapshot.id,
          team_index: snapshot.team_index,
          input_team_index: snapshot.input_team_index,
-@@ -689,7 +786,11 @@ seed:7@!"#;
+@@ -689,7 +824,11 @@ seed:7@!"#;
              without_icon.icon_png_base64 = None;
              assert_eq!(&without_icon, plain);
          }
@@ -572,7 +610,7 @@ index fefc009d..0a3ff57c 100644
          let filled_cache = cache.clone();
          assert_eq!(states_from_runner(&runner, true, &mut cache), with_icons);
          assert_eq!(cache, filled_cache);
-@@ -817,3 +918,388 @@ seed:7@!"#;
+@@ -817,3 +956,435 @@ seed:7@!"#;
          }
      }
  }
@@ -959,6 +997,53 @@ index fefc009d..0a3ff57c 100644
 +            assert_eq!(buff.entities.get(spawned).unwrap().runtime.resistance, after[5]);
 +        }
 +        assert!(seen.iter().all(|n| *n));
++    }
++}
++
++#[cfg(test)]
++mod automatic_control_tests {
++    use super::*;
++    // 永久托管不注入任何强制指令，同随机种子的结果与未受控原生对局一致。
++    #[test]
++    fn automatic_root_matches_native_battle_and_is_session_local() {
++        let raw = "alpha@red
++
++beta@blue
++seed:automatic@!";
++        let mut native = BattleSession::new(raw, BattleOptions::default()).unwrap();
++        let team = native.initial_states()[0].team_index;
++        let mut controlled = BattleSession::new(
++            raw,
++            BattleOptions {
++                controlled_team: Some(team),
++                ..Default::default()
++            },
++        )
++        .unwrap();
++        let roots: Vec<_> = controlled
++            .initial_states()
++            .iter()
++            .filter(|s| s.team_index == team)
++            .map(|s| s.id as u32)
++            .collect();
++        assert!(controlled.set_auto_actors(&[u32::MAX]).is_err());
++        while controlled.next_frame().unwrap().is_some() {}
++        assert!(controlled.paused_actor().is_some());
++        controlled.set_auto_actors(&roots).unwrap();
++        assert!(controlled.paused_actor().is_none());
++        while native.next_frame().unwrap().is_some() {}
++        while controlled.next_frame().unwrap().is_some() {}
++        assert_eq!(native.current_states(), controlled.current_states());
++        let mut another = BattleSession::new(
++            raw,
++            BattleOptions {
++                controlled_team: Some(team),
++                ..Default::default()
++            },
++        )
++        .unwrap();
++        while another.next_frame().unwrap().is_some() {}
++        assert!(another.paused_actor().is_some());
 +    }
 +}
 diff --git a/crates/tswn_core/src/runtime/combat/abilities.rs b/crates/tswn_core/src/runtime/combat/abilities.rs
@@ -1823,7 +1908,7 @@ index 00000000..470b5882
 +    }
 +}
 diff --git a/crates/tswn_core/src/runtime/combat/round.rs b/crates/tswn_core/src/runtime/combat/round.rs
-index 05132896..a5afec90 100644
+index 05132896..f0d78f00 100644
 --- a/crates/tswn_core/src/runtime/combat/round.rs
 +++ b/crates/tswn_core/src/runtime/combat/round.rs
 @@ -37,6 +37,8 @@ impl CombatRuntime {
@@ -1914,7 +1999,7 @@ index 05132896..a5afec90 100644
          let frame = (CAPTURE_UPDATES && updates.had_updates()).then_some(RuntimeFrame { updates });
          self.round += 1;
          let winner_team = if CAPTURE_UPDATES {
-@@ -347,12 +400,115 @@ impl CombatRuntime {
+@@ -347,12 +400,119 @@ impl CombatRuntime {
              .unwrap_or(false)
      }
  
@@ -1925,6 +2010,10 @@ index 05132896..a5afec90 100644
 +            return false;
 +        };
 +        // 大逃杀使用 u32::MAX 表示双方本体和分身均由玩家控制。
++        // 永久旁观者的本体和派生角色均使用 tswn 原生行动选择。
++        if crate::runtime::forced_action::is_automatic(entity.runtime.root_owner.0) {
++            return false;
++        }
 +        if team != u32::MAX as usize && entity.template.team != team {
 +            return false;
 +        }
@@ -2030,7 +2119,7 @@ index 05132896..a5afec90 100644
          if let Some(forced_skill) = pre_action.forced_skill {
              return Some(PreparedPlainAction::BuiltinSkill(forced_skill));
          }
-@@ -392,7 +548,12 @@ impl CombatRuntime {
+@@ -392,7 +552,12 @@ impl CombatRuntime {
                  },
              )
          };
@@ -2044,7 +2133,7 @@ index 05132896..a5afec90 100644
          #[cfg(not(feature = "no_debug"))]
          let probe_action = self.probe_plain_action_matches(actor);
          #[cfg(not(feature = "no_debug"))]
-@@ -450,8 +611,16 @@ impl CombatRuntime {
+@@ -450,8 +615,16 @@ impl CombatRuntime {
              } else {
                  self.scan_plain_action_skill_probabilities(actor, smart)
              };
@@ -2063,7 +2152,7 @@ index 05132896..a5afec90 100644
          } else {
              None
          };
-@@ -511,6 +680,55 @@ impl CombatRuntime {
+@@ -511,6 +684,55 @@ impl CombatRuntime {
          }
      }
  
@@ -2119,7 +2208,7 @@ index 05132896..a5afec90 100644
      pub fn has_plain_berserk_state(&self, actor: EntityIdx) -> bool {
          self.entities.get(actor).is_some_and(|entity| {
              entity
-@@ -624,6 +842,92 @@ impl CombatRuntime {
+@@ -624,6 +846,92 @@ impl CombatRuntime {
          debug_assert!(removed, "runtime berserk state disappeared before state clear");
      }
  
@@ -2212,7 +2301,7 @@ index 05132896..a5afec90 100644
      pub fn scan_plain_action_skill_probabilities(&mut self, actor: EntityIdx, smart: bool) -> Option<PreparedBuiltinSkillAction> {
          let (scan_len, cached_scan) = {
              let skills = &self
-@@ -746,6 +1050,7 @@ impl CombatRuntime {
+@@ -746,6 +1054,7 @@ impl CombatRuntime {
          level: u32,
          smart: bool,
      ) -> bool {
@@ -2220,7 +2309,7 @@ index 05132896..a5afec90 100644
          #[cfg(not(feature = "no_debug"))]
          let probe_action = self.probe_plain_action_matches(actor);
          match builtin_skill {
-@@ -935,3 +1240,36 @@ impl CombatRuntime {
+@@ -935,3 +1244,36 @@ impl CombatRuntime {
          roll < level
      }
  }
@@ -2647,10 +2736,10 @@ index 72a22d28..44a58e6e 100644
                  .get(root_owner)
 diff --git a/crates/tswn_core/src/runtime/forced_action.rs b/crates/tswn_core/src/runtime/forced_action.rs
 new file mode 100644
-index 00000000..4e52ae58
+index 00000000..016021b8
 --- /dev/null
 +++ b/crates/tswn_core/src/runtime/forced_action.rs
-@@ -0,0 +1,245 @@
+@@ -0,0 +1,250 @@
 +//! 卡牌指令按会话保存；线程局部状态仅在一次推进期间借给 Runtime，退出即还原。
 +use std::cell::{Cell, RefCell};
 +use std::collections::BTreeMap;
@@ -2668,6 +2757,8 @@ index 00000000..4e52ae58
 +    pub queue: Vec<ForcedAction>,
 +    pub controlled_team: Option<usize>,
 +    pub paused_actor: Option<u32>,
++    /// 永久交回引擎操作的根角色，分身按 root_owner 继承。
++    pub automatic_roots: std::collections::BTreeSet<u32>,
 +    /// 能力卡为独立乘区及减耗，不参与技能熟练度读写。
 +    pub abilities: BTreeMap<String, (u32, u32)>,
 +    active_potions: BTreeMap<u32, (u8, i32)>,
@@ -2896,6 +2987,9 @@ index 00000000..4e52ae58
 +        if root == owner { cost as i32 } else { 0 }
 +    })
 +}
++
++/// 自动托管直接进入原生选招，不创建强制普攻或技能指令。
++pub fn is_automatic(root: u32) -> bool { ACTIVE.with(|state| state.borrow().automatic_roots.contains(&root)) }
 diff --git a/crates/tswn_core/src/runtime/mod.rs b/crates/tswn_core/src/runtime/mod.rs
 index 89ebce8a..b33dcdb7 100644
 --- a/crates/tswn_core/src/runtime/mod.rs
@@ -3098,16 +3192,20 @@ index eba270ed..db6337cd 100644
      team_index: int
      input_team_index: int | None
 diff --git a/crates/tswn_wasm/src/battle.rs b/crates/tswn_wasm/src/battle.rs
-index dac231be..ca5325f5 100644
+index dac231be..4b82700c 100644
 --- a/crates/tswn_wasm/src/battle.rs
 +++ b/crates/tswn_wasm/src/battle.rs
-@@ -52,6 +52,20 @@ impl BattleSession {
+@@ -52,6 +52,24 @@ impl BattleSession {
      /// 同步推进至下一可见帧；正常结束或截断后返回 JS null，可重复调用。
      /// Runtime 失败会保留 sticky error 并重复抛错，应停止推进并释放会话。
      pub fn next_frame(&mut self) -> WasmResult<JsValue> { dto_to_js(&self.inner.next_frame().map_err(cli_api_error)?) }
 +    /// 独立能力乘区与 MP 减耗；三元组为技能编号、减耗量、倍率万分数。
 +    pub fn set_abilities(&mut self, packet: Vec<u32>) -> WasmResult<()> {
 +        self.inner.set_abilities(&packet).map_err(cli_api_error)
++    }
++    /// 永久托管指定根角色及其分身，保留 tswn 原生选招与随机流。
++    pub fn set_auto_actors(&mut self, roots: Vec<u32>) -> WasmResult<()> {
++        self.inner.set_auto_actors(&roots).map_err(cli_api_error)
 +    }
 +    /// 大逃杀在开局设置各角色当前 HP，最大 HP 保持原始构建值。
 +    pub fn set_initial_hp(&mut self, packet: Vec<u32>) -> WasmResult<()> {

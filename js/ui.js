@@ -172,6 +172,7 @@ export function renderHome(root, state, h) {
           el('button', { class: 'ghost big', type: 'button', disabled: !state.lastRun, onclick: h.onStats }, '统计'),
           // 多人模式有独立房间和存活进度，不覆盖单人存档。
           el('button', { class: 'secondary big', type: 'button', onclick: h.onArena }, '多人 · 大逃杀'),
+          el('button', { class: 'secondary big', type: 'button', onclick: h.onCoop }, '联机 · 合作爬塔'),
         ),
         el('div', { class: 'home__facts' },
           el('div', { class: 'fact' }, el('b', {}, String(state.pool.length)), el('span', {}, '张名字卡')),
@@ -306,7 +307,9 @@ export function renderPrep(root, state, h) {
             ? team.map((c) => el('div', { class: 'team-slot' },
               charRowEl(c, { bonus: h.cardBonus ? h.cardBonus(c) : null }),
               (() => {
-                const weapons = state.weapons || [];
+                // 同一把已装备武器仍列出，但仅以灰色禁用选项提示装备者。
+                const occupied = state.collection.filter(owner=>owner.weapon).map(owner=>({id:owner.weaponItem?.id||'equipped-'+owner.id,name:owner.weapon,owner:owner.name}));
+                const weapons = [...(state.weapons || []),...occupied];
                 const sel = el('select', {
                   class: 'weapon-pick',
                   title: '给这名角色换武器',
@@ -318,8 +321,8 @@ export function renderPrep(root, state, h) {
                 },
                   el('option', { value: '' }, '无武器'),
                   // 已装备的武器不在仓库里，单独占一项，否则会显示成「无武器」且无法卸下
-                  c.weapon ? el('option', { value: '__equipped__' }, '⚔ ' + c.weapon + '（已装备）') : null,
-                  ...weapons.map((w) => el('option', { value: w.id }, '⚔ ' + w.name)),
+                  c.weapon ? el('option', { value: '__equipped__', disabled:true,style:{color:'#adb4bd'} }, '⚔ ' + c.weapon + '（正被'+c.name+'使用）') : null,
+                  ...weapons.filter(w=>!w.owner||w.id!==c.weaponItem?.id).map((w) => el('option', { value: w.id,disabled:!!w.owner,style:w.owner?{color:'#adb4bd'}:{} }, '⚔ ' + w.name+(w.owner?'（正被'+w.owner+'使用）':''))),
                 );
                 sel.value = c.weapon ? '__equipped__' : '';
                 return sel;
@@ -1342,6 +1345,8 @@ export function renderMap(root, state, h) {
     root.querySelectorAll('.map-node.is-avail').forEach((nodeEl) => {
       nodeEl.addEventListener('click', () => {
         if (moved > 6) return;
+        // 合作选路是可切换的投票，单人仍保留直接进入动画。
+        if (h.coop) { h.onPick(nodeEl.dataset.id); return; }
         if (nodeEl.classList.contains('is-choosing')) return;
         nodeEl.classList.add('is-choosing');
         // 粒子颜色：战队图标的主色；试炼 @! 固定紫色

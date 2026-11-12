@@ -22,7 +22,8 @@ export class ArenaView {
       throw Error('多人服务返回异常内容（HTTP '+response.status+'），请稍后重试。');
     }
     if(data.csrf_token)this.csrf=data.csrf_token;
-    if(response.status===400&&data.error?.code==='csrf_failed'&&retry){await this.call('/arena/session');return this.call(path,body,false);}
+    if(response.status===400&&data.error?.code==='csrf_failed'&&retry){// 派生的合作界面使用自己的同源会话入口恢复 CSRF。
+      await this.call(this.sessionPath||'/arena/session');return this.call(path,body,false);}
     if(!response.ok||!data.ok)throw Error(data.error?.message||'请求失败，请稍后重试');
     return data;
   }

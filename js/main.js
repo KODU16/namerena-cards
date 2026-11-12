@@ -10,6 +10,7 @@ import { skillMeta, effectiveSkillLevel } from './skills.js';
 import { workshopAccount, workshopNameValid } from './workshop.js';
 import { HEROES } from './heroes.js';
 import {ArenaView} from './arena.js';
+import {CoopView} from './coop.js';
 import { installFortune } from './fortune.js';
 import {isTacticEnabled,shownSkillLevel} from './rare-skills.js';
 
@@ -286,6 +287,12 @@ async function openSaves() {
   await paint();
 }
 // 大逃杀返回首页只停止轮询，服务器中的参赛状态保留，可从大厅重连。
+// 合作模式复用多人界面生命周期，不覆盖单人存档。
+function coopScreen() {
+  arenaView?.dispose();
+  nav('arena',()=>{arenaView=new CoopView(root,{onHome:home});arenaView.open();});
+}
+
 function arenaScreen() {
   arenaView?.dispose();
   nav('arena',()=>{arenaView=new ArenaView(root,{onHome:home});arenaView.open();});
@@ -299,6 +306,7 @@ function home() {
   nav('home', () => UI.renderHome(root, state, {
     versions: { wasm: state.wasm || '0.5.6', core: state.core || '0.7.0' },
     onArena: arenaScreen,
+    onCoop: coopScreen,
     onStats: statsScreen,
     onNewRun: newRunSetup,
     onSaves: openSaves,
@@ -1007,7 +1015,8 @@ async function boot() {
     state.ladder = null;
     state.ladderSource = 'live';
     home();
-    if(new URLSearchParams(location.hash.slice(1)).has('arena'))arenaScreen();
+    if(new URLSearchParams(location.hash.slice(1)).has('coop'))coopScreen();
+    else if(new URLSearchParams(location.hash.slice(1)).has('arena'))arenaScreen();
     loadSayTitle();
   } catch (e) {
     console.error(e);

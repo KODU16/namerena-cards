@@ -322,16 +322,17 @@ export function randomName(rng) {
 }
 
 // 开局：选一条天梯线，队伍人数 = 线号（1A→1，3A→3）
-export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '青', difficulty = 0, nodeCount = 40, ladder = null, starters = null } = {}) {
+export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '青', difficulty = 0, nodeCount = 40, ladder = null, starters = null, laneEntries = null } = {}) {
   // 主动重开也结算为失败，保证连胜不会因直接开新局而保留。
   if (state.run?.status === 'active') recordRun(state, state.run, false, true);
   const r = mulberry32(seed);
   const teamSize = Number(lane[0]) || 1;
   // 开局读一次实时天梯，本次爬塔的顺序就按这一份来；拿不到就用上次缓存，再退到仓库里的快照
-  let liveEntries = null;
+  // 合作房间由服务端固定同一份天梯，避免每位成员各自抓取产生不同地图。
+  let liveEntries = Array.isArray(laneEntries) ? laneEntries : null;
   let source = 'snapshot';
   try {
-    liveEntries = await fetchLaneEntries(lane);
+    if (!liveEntries) liveEntries = await fetchLaneEntries(lane);
     if (liveEntries && liveEntries.length) {
       cacheLaneEntries(lane, liveEntries);
       source = 'live';
@@ -1143,7 +1144,8 @@ export function constructCharacter(state, charId, amount) {
 
 // 稳定的节点种子让存档、重新打开面板和购买都不刷新库存。
 function nodeSeed(run, node, salt = 0) {
-  let seed = (run.seed ^ salt) >>> 0;
+  // 联机功能节点使用个人种子；单人维持原有确定性库存。
+  let seed = ((node.coopSeed ?? run.seed) ^ salt) >>> 0;
   for (const char of node.id) seed = Math.imul(seed ^ char.charCodeAt(0), 16777619) >>> 0;
   return seed;
 }
