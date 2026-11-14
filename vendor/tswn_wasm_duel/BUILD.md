@@ -2,7 +2,7 @@
 
 源码仓库：https://github.com/KODU16/tswn-cards
 
-固定源码提交：d74b5476bb5ddcc5f3611ba361fea342ceda16b6
+固定源码提交：cb2f17d1d88ec9152c61971e24e5c7865e8b3c18
 
 本目录的 JS、标准 WASM 和类型声明由该提交构建，网站与多人运行时复用同一份 WASM。
 
@@ -11,7 +11,7 @@
 使用与 Cargo.lock 相匹配的 wasm-bindgen-cli（本版 0.2.129），并安装 wasm32-unknown-unknown target：
 
 ~~~powershell
-git checkout d74b5476bb5ddcc5f3611ba361fea342ceda16b6
+git checkout cb2f17d1d88ec9152c61971e24e5c7865e8b3c18
 cargo build -p tswn_wasm --target wasm32-unknown-unknown --release
 wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/release/tswn_wasm.wasm
 ~~~
@@ -33,3 +33,5 @@ Cards：node tools/verify-engine.mjs vendor/tswn_wasm_duel、node tools/verify-r
 保留双方受控、开局逐角色当前生命、负 MP 普攻、持久战斗会话、独立能力乘区及交错会话隔离。具体接口见 FORK.md。
 
 合作模式使用 BattleSession.set_auto_actors(Uint32Array) 永久将指定根角色及其派生单位交回 tswn 原生选招。暂停时调用可继续推进；无效或敌方实体整包拒绝，不修改随机流或跨会话状态。
+
+混沌爬塔为单人专用：submit_chaos_action(actor, JSON程序, packed) 在校验完整操作列表与 MP 后提交一次行动。包含38项版本化操作，名称和简短描述从固定配方投影，不以文案决定执行。验证：node tools/verify-chaos.mjs。

@@ -1,3 +1,4 @@
+import {createChaosPool,ensureChaosSkills,chaosSkill,moveChaosSkill} from './chaos.js';
 import { acquireAbility, normalizeAbilities, rollAbility, abilityDescription, abilityKey } from './abilities.js';
 import { RELIC_RARITIES, relicById, normalizeRelics, rollRelic } from './relics.js';
 // 局内状态、爬塔流程与存档。
@@ -31,6 +32,7 @@ export function refreshRunBuff(state) {
     const skills=card.weapon?buildWithWeapon(card.name,card.clan,card.weapon)?.skills:makeCard(card.name,card.clan)?.skillList;
     if(skills)card.skillList=skillsForBuild(state,card,skills);
     card.playerControlled=true;
+    card.chaosMode=state.run.mode==='chaos';
   }
 }
 
@@ -161,6 +163,7 @@ export function loadSave(state) {
       }
       s.run.tacticIds = s.run.tacticIds || [];
       state.run = s.run;
+      if(state.run.mode==='chaos')state.run.chaosBattleActive=false;
       syncHonor(state.run);
       enhanceLayerBoss(state.run);
       refreshRunBuff(state);
@@ -195,7 +198,7 @@ export function snapshot(state) {
   const slim = (c) => ({
     id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
     cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
-    weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, weaponItem: c.weaponItem || null, forge: c.forge || null,
+    chaosBase:c.chaosBase||null, weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, weaponItem: c.weaponItem || null, forge: c.forge || null,
     skillTraining: c.skillTraining || null, curseStats: c.curseStats || null, lostSkills: c.lostSkills || null,starterReplacements:c.starterReplacements||null, constructSpent:c.constructSpent||0,
     runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
   });
@@ -236,6 +239,7 @@ export function restoreSnapshot(state, data) {
     run.graph.byId = new Map((run.graph.nodes || []).map((n) => [n.id, n]));
   }
   state.run = run;
+  if(run?.mode==='chaos')run.chaosBattleActive=false;
   syncHonor(run,{loaded:true});
   enhanceLayerBoss(run);
   refreshRunBuff(state);
@@ -249,7 +253,7 @@ export function persist(state) {
       id: c.id, name: c.name, clan: c.clan, stats: c.stats, skillList: c.skillList, icon: c.icon,
       cost: c.cost, tier: c.tier, winrate: c.winrate, flavor: c.flavor, custom: c.custom,
       // 装备与武器信息也要存，否则刷新后武器就「消失」了
-      weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, weaponItem: c.weaponItem || null, forge: c.forge || null, skillTraining: c.skillTraining || null, curseStats: c.curseStats || null, lostSkills: c.lostSkills || null,starterReplacements:c.starterReplacements||null, constructSpent:c.constructSpent||0, runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
+      chaosBase:c.chaosBase||null, weapon: c.weapon || '', weaponInfo: c.weaponInfo || null, weaponItem: c.weaponItem || null, forge: c.forge || null, skillTraining: c.skillTraining || null, curseStats: c.curseStats || null, lostSkills: c.lostSkills || null,starterReplacements:c.starterReplacements||null, constructSpent:c.constructSpent||0, runMult: c.runMult || 1, maxMp: c.maxMp, shield: c.shield,
     });
     localStorage.setItem(SAVE_KEY, JSON.stringify({
       v: 1,
@@ -322,7 +326,7 @@ export function randomName(rng) {
 }
 
 // 开局：选一条天梯线，队伍人数 = 线号（1A→1，3A→3）
-export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '青', difficulty = 0, nodeCount = 40, ladder = null, starters = null, laneEntries = null } = {}) {
+export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '青', difficulty = 0, nodeCount = 40, ladder = null, starters = null, laneEntries = null, mode = 'standard' } = {}) {
   // 主动重开也结算为失败，保证连胜不会因直接开新局而保留。
   if (state.run?.status === 'active') recordRun(state, state.run, false, true);
   const r = mulberry32(seed);
@@ -362,6 +366,8 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
   state.customCards=(state.customCards||[]).map(freshStarter);
   state.run = {
     seed,
+    mode:mode==='chaos'?'chaos':'standard',
+    chaosPool:mode==='chaos'?createChaosPool(seed):null,
     lane,
     difficulty: Math.max(0, Math.min(20, Number(difficulty) || 0)),
     // 每层节点数属于本局规则，存档和结算均使用同一份归一化值。
@@ -622,6 +628,7 @@ export function clearNode(state) {
 export function rewardSummary(offer) {
   if (offer.kind === 'relic') return { label: '遗物「' + relicById(offer.relic)?.name + '」', detail: relicById(offer.relic)?.description || '', destination: '获得即生效，销毁后失效。' };
   if (offer.kind === 'ability') return { label: '能力卡「' + offer.ability.name + '」', detail: abilityDescription(offer.ability), destination: '获得即永久生效；完全相同效果只保留高值，可在物品栏销毁。' };
+  if (offer.kind === 'skill'&&offer.skill?.chaos) return {label:'混沌锻造卡「'+offer.skill.chaos.name+'」',detail:offer.skill.description,destination:'沿用原有锻造概率与熟练度增量。'};
   if (offer.kind === 'skill') return offer.skill?.kind === 'attribute'
     ? { label: '属性锻造卡「' + offer.skill.name + '」', detail: attributeForgeSummary(offer.skill), destination: '已放入锻造卡栏，使用必定增加黑字基础属性。' }
     : { label: '技能卡「' + skillMeta(offer.skill.id).name + '」', detail: '熟练度 ' + effectiveSkillLevel(offer.skill.lv), destination: '已放入技能卡栏，可在锻造时使用。' };
@@ -721,6 +728,7 @@ export function cardBonus(state, card) {
 
 // 技能锻造独立于武器构建保存，换装仅替换天然技能，随后重叠永久增量。
 function rememberSkillTraining(state, card) {
+  if(state.run?.mode==='chaos'){card.skillTraining||={};return;}
   if (card.skillTraining) return;
   card.skillTraining = {};
   const oldBuild = card.weapon ? buildWithWeapon(card.name, card.clan, card.weapon)?.skills : starterNaturalSkills(card,makeCard(card.name, card.clan)?.skillList||[]);
@@ -733,6 +741,8 @@ function rememberSkillTraining(state, card) {
 }
 
 function skillsForBuild(state, card, natural) {
+  // 混沌使用持久技能归属，不从武器或天然技能补回已移出的卡。
+  if(state.run?.mode==='chaos')return ensureChaosSkills(state,card,natural);
   natural=starterNaturalSkills(card,natural||[]);
   // 诅咒只移除本体技能，武器重建仍保留超过本体天然熟练度的独立贡献。
   const native = card.weapon && Object.keys(card.lostSkills || {}).length ? makeCard(card.name, card.clan).skillList : [];
@@ -1275,6 +1285,7 @@ export function rollShop(state, seed, layer = 1) {
   // 两种稀有技能均小概率出售；幻术价低于净化，单卡熟练度为 1～5。
   for(const [id,rule] of Object.entries(RARE_SKILLS))if(r()<.08)items.push({kind:'skill',rarity:'gold',price:priceOf(rule.price),
     skill:{id,lv:1+Math.floor(r()*rule.offerMax),uid:'shop-'+id+'-'+seed,[rule.tag]:true}});
+  if(run.mode==='chaos')for(const item of items)if(item.skill&&item.skill.kind!=='attribute')item.skill=chaosSkill(run,item.skill);
   return items.map((item, i) => ({ ...item, id: 'shop-' + seed + '-' + i, rarity: item.rarity || 'blue' }));
 }
 
@@ -1486,7 +1497,7 @@ export function campForge(state, charId, skillId) {
   const card = (state.collection || []).find((c) => c.id === charId);
   const skill = card?.skillList?.find((s) => s.id === skillId);
   if (!skill) return null;
-  if(skillId==='sklshadow'&&(!hasRareSource(skill)||playerSkillLevel(skill)>=5))return null;
+  if(state.run?.mode!=='chaos'&&skillId==='sklshadow'&&(!hasRareSource(skill)||playerSkillLevel(skill)>=5))return null;
   // 武器仍可发动被献祭的同名技能，但不能借训练将本体部分恢复。
   if (card.lostSkills?.[skillId]) return null;
   rememberSkillTraining(state, card);
@@ -1614,6 +1625,7 @@ export function rollRewards(state, seed, elite = false, guaranteeScore = false, 
   // 补给与宝箱只放入一个按稀有度加权的遗物候选，避免稀有遗物被全池等概率稀释。
   const relic = allowRelic && r() < .24 ? rollRelic(r, state.relics) : null;
   if (relic) pool.push({ kind: 'relic', rarity: relic.rarity, relic: relic.id });
+  if(run.mode==='chaos')for(const offer of pool)if(offer.skill&&offer.skill.kind!=='attribute')offer.skill=chaosSkill(run,offer.skill);
   const candidates = pool.filter((offer) => offer.kind !== 'card' || offer.card);
   const score = { kind: 'score', points: scorePoints };
   if (guaranteeScore && includeScore) return shuffle([score, ...shuffle(candidates, r).slice(0, 2)], r);
@@ -1625,6 +1637,7 @@ export function rollRewards(state, seed, elite = false, guaranteeScore = false, 
 }
 export function applyReward(state, offer) {
   if (!state.run) return;
+  if(state.run.mode==='chaos'&&offer.skill&&offer.skill.kind!=='attribute')offer={...offer,skill:chaosSkill(state.run,offer.skill)};
   if (offer.kind === 'relic' && relicById(offer.relic)) {
     state.relics = normalizeRelics([...(state.relics || []), offer.relic]);
   } else if (offer.kind === 'ability') {
@@ -1668,7 +1681,7 @@ export function forgeChance(state, characterId, skillCard) {
   const list = target.skillList || [];
   const existing = list.find((s) => s.id === skillCard.id);
   // 不允许普通遗留幻术卡绕过商店来源，也不消耗已经达到 5 的幻术锻造卡。
-  if(skillCard.id==='sklshadow'&&(!skillCard.playerShadow||playerSkillLevel(existing||{id:'sklshadow',lv:0})>=5))return 0;
+  if(state.run.mode!=='chaos'&&skillCard.id==='sklshadow'&&(!skillCard.playerShadow||playerSkillLevel(existing||{id:'sklshadow',lv:0})>=5))return 0;
   const a = list.length;
   const b = existing ? (existing.forges || 1) : 0;
   if (!existing && a >= 10) return 0;
@@ -1703,7 +1716,7 @@ export function forgeSkill(state, uid, characterId) {
   const target = state.collection.find((c) => c.id === characterId);
   target.skillList = target.skillList || [];
   const existing = target.skillList.find((s) => s.id === card.id);
-  const gain = card.id==='sklshadow'?Math.min(playerSkillLevel(card),5-playerSkillLevel(existing||{id:card.id,lv:0})):effectiveSkillLevel(card.lv);
+  const gain = state.run.mode!=='chaos'&&card.id==='sklshadow'?Math.min(playerSkillLevel(card),5-playerSkillLevel(existing||{id:card.id,lv:0})):effectiveSkillLevel(card.lv);
   const success = Math.random() < chance;
   if (success) {
     if (existing) {
@@ -1718,6 +1731,7 @@ export function forgeSkill(state, uid, characterId) {
     run.forged.push({ charId: target.id, skillId: card.id, lv: gain, playerDisperse: !!card.playerDisperse,playerShadow:!!card.playerShadow });
   }
   run.skillCards.splice(idx, 1);
+  if(state.run.mode==='chaos')refreshRunBuff(state);
   persist(state);
   return { ok: success, chance };
 }
@@ -1940,3 +1954,6 @@ export function opponentFromEntry(entry, teamSize) {
     teamSize: cards.length,
   };
 }
+
+// 卡牌库拖动只改角色技能归属，写入持久定义并立即重算。
+export function transferChaosSkill(state,from,id,to=null){const ok=moveChaosSkill(state,from,id,to);if(ok){refreshRunBuff(state);persist(state);}return ok;}

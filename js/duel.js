@@ -1,3 +1,4 @@
+import {chaosSkill,chaosProgram,chaosBattleProgram,chaosOperationText} from './chaos.js';
 import { abilityFor, abilityMpCost, abilityPacket } from './abilities.js';
 import {playerSkillLevel} from './rare-skills.js';
 // 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
@@ -17,6 +18,7 @@ export const previewCost = (lv) => (lv >= 45 ? 3 : lv >= 15 ? 2 : 1);
 
 // 引擎 state 里的技能名是 `core.skill.fire` 这种导出名，转成 overlay 的 sklfire
 function skillsOf(unit, champion) {
+  if(champion?.chaosMode||champion?.skillList?.some(s=>s.chaos))return champion.skillList;
   const raw = unit?.skills;
   if (Array.isArray(raw) && raw.length) {
     const list = raw.map(([name, lv]) => {
@@ -48,7 +50,8 @@ function firstDiff(a, b) {
 }
 
 export class Duel {
-  constructor(engine, { input, playerTeam, champion, team, enemies = [], abilities = [], relics = [] }) {
+  constructor(engine, { input, playerTeam, champion, team, enemies = [], abilities = [], relics = [], chaosRun=null }) {
+    this.chaosRun=chaosRun;
     this.engine = engine;
     // 基线使用未套保底/武器/战术的显示属性，保留永久锻造。
     this.baseStats = new Map((team || []).map((c) => [c.name, c.battleBase || c.stats]));
@@ -193,12 +196,13 @@ export class Duel {
     return { replay, index: frames.length, unit: null };
   }
 
-  queue(unitId, skillId, mp = 0, potion = null) {
+  queue(unitId, skillId, mp = 0, potion = null, chaosCard=null) {
     if (!this.session && !this.disposed) this.simulate();
     if (this.disposed || !this.session) throw new Error('战斗会话已结束');
     const code = ((potion == null ? this.pendingPotion : potion) || 0) & 0xff;
     // 指令直接交给正等待出牌的当前实体，分身已经存在于这个运行时中。
-    this.session.submit_action(unitId, skillId, (mp & 0xff) | (code << 8));
+    if(chaosCard?.chaos)this.session.submit_chaos_action(unitId,JSON.stringify(chaosBattleProgram(chaosCard.chaos,chaosCard.lv,this.abilities)),(abilityMpCost(this.abilities,chaosCard.id,mp)&255)|(code<<8));
+    else this.session.submit_action(unitId, skillId, (mp & 0xff) | (code << 8));
     this.pendingPotion = 0;
     this.needsAdvance = true;
     if (window.__ncLog) window.__ncLog.push({ t: new Date().toISOString(), kind: 'duel.action', data: { actor: unitId, skill: skillId, mp, potion: code } });
@@ -719,12 +723,12 @@ export class DuelView {
     if (!canRevive) exclude.add('sklrevive');
     // MP 卡面显示最终费用，传给引擎的是原始费用，由结算边界减耗一次。
     const hand = drawHand(skillsOf(state, this.duel.cardFor?.(state, liveStates) || this.duel.champion), this.rng, 3, exclude.size ? exclude : null)
-      .map((card) => ({...card,baseCost:card.cost,cost:abilityMpCost(this.duel.abilities,card.id,card.cost),ability:abilityFor(this.duel.abilities,card.id).length>0}));
+      .map((card) => ({...card,...(card.chaos?{description:chaosBattleProgram(card.chaos,card.lv,this.duel.abilities).ops.map(chaosOperationText).join('。')+'。'}:{}),baseCost:card.cost,cost:abilityMpCost(this.duel.abilities,card.id,card.cost),ability:abilityFor(this.duel.abilities,card.id).length>0}));
     this.renderEnergy(mp);
     const cards = [
       handCardEl({ id: 'normal', lv: 0 }, { onPlay: (c) => this.choose(decision, c, mp) }),
       ...hand.map((c) => handCardEl(
-        { id: c.id, lv: c.lv, cost: c.cost, baseCost: c.baseCost, ability: c.ability },
+        {...c},
         { onPlay: (x) => this.choose(decision, x, mp), disabled: !canPlayHandCard(c,mp), locked: !canPlayHandCard(c,mp) },
       )),
     ];
@@ -751,7 +755,7 @@ export class DuelView {
     if (!this.interactive) return;
     // 使用喝药后的 MP，避免点击回调仍捕获喝药前的旧余额。
     mp = this.waitingState?.magic_point ?? mp;
-    const id = card.id === 'normal' ? NORMAL_ID : ACTIVE_ID[card.id];
+    const id = card.id === 'normal'||card.chaos ? NORMAL_ID : ACTIVE_ID[card.id];
     // 普攻不检查 MP 余额；技能仍按抽牌时掷出的费用检查。
     if (id == null || !canPlayHandCard(card,mp)) return;
     // 点击即扣除显示余额；真实引擎仍按同一费用结算一次，避免重复扣费。
@@ -770,14 +774,14 @@ export class DuelView {
       // 其余手牌向左收拢
       [...this.handEl.children].forEach((el2) => { if (el2 !== node) el2.classList.add('is-discarding'); });
       setTimeout(() => {
-        this.duel.queue(decision.unit.id, id, card.baseCost ?? card.cost ?? 0, this.pendingPotion || 0);
+        this.duel.queue(decision.unit.id, id, card.baseCost ?? card.cost ?? 0, this.pendingPotion || 0,card);
         this.pendingPotion = 0;
         if (this.battleContinues()) this.turnBanner('enemy', this.roundOf(decision));
         this.handEl.replaceChildren();
         this.step();
       }, 300);
     } else {
-      this.duel.queue(decision.unit.id, id, card.baseCost ?? card.cost ?? 0, this.pendingPotion || 0);
+      this.duel.queue(decision.unit.id, id, card.baseCost ?? card.cost ?? 0, this.pendingPotion || 0,card);
       this.pendingPotion = 0;
       if (this.battleContinues()) this.turnBanner('enemy', this.roundOf(decision));
       this.handEl.replaceChildren();

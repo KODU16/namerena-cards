@@ -395,7 +395,7 @@ index 2ccdaefa..d6e0722d 100644
  mod tests {
      use super::*;
 diff --git a/crates/tswn_core/src/cli_api/battle/session.rs b/crates/tswn_core/src/cli_api/battle/session.rs
-index fefc009d..c45faeb9 100644
+index fefc009d..a7835241 100644
 --- a/crates/tswn_core/src/cli_api/battle/session.rs
 +++ b/crates/tswn_core/src/cli_api/battle/session.rs
 @@ -34,6 +34,7 @@ pub struct BattleSession {
@@ -439,7 +439,7 @@ index fefc009d..c45faeb9 100644
                  return Ok(None);
              };
              let round_index = step.round_index;
-@@ -125,12 +130,120 @@ impl BattleSession {
+@@ -125,12 +130,137 @@ impl BattleSession {
                  frame
              });
              self.current_states = states;
@@ -488,6 +488,23 @@ index fefc009d..c45faeb9 100644
 +            self.paused = None;
 +            self.driver.forced.paused_actor = None;
 +        }
++        Ok(())
++    }
++
++    /// 单人混沌牌先完整验证程序和费用，再原子绑定到当前等待行动。
++    pub fn submit_chaos_action(&mut self, actor: u32, program: &str, packed: u32) -> CliApiResult<()> {
++        let card = crate::runtime::chaos::ChaosCard::parse(program).map_err(crate::cli_api::CliApiError::InvalidArgument)?;
++        let cost = (packed & 255) as i32;
++        if cost < 1
++            || !self
++                .current_states
++                .iter()
++                .any(|s| s.id == actor as usize && (s.magic_point + if packed >> 8 == 10 { 40 } else { 0 }).min(100) >= cost)
++        {
++            return Err(crate::cli_api::CliApiError::InvalidArgument("invalid chaos action cost".into()));
++        }
++        self.submit_action(actor, 255, packed)?;
++        self.driver.forced.chaos_pending = Some((actor, card, cost));
 +        Ok(())
 +    }
 +
@@ -561,7 +578,7 @@ index fefc009d..c45faeb9 100644
      /// 正常终止后返回拥有最终快照的结果；运行中或粘性失败时为 `None`。
      ///
      /// 重复查询不推进战斗，但每次都会复制最终快照及其字符串。需要多次使用结果时
-@@ -168,6 +281,27 @@ pub(super) fn states_from_runner(
+@@ -168,6 +298,27 @@ pub(super) fn states_from_runner(
          .into_iter()
          .map(|snapshot| {
              let mut state = state_from_snapshot(snapshot, false);
@@ -589,7 +606,7 @@ index fefc009d..c45faeb9 100644
              if include_icons {
                  state.icon_png_base64 = Some(match icon_cache.get(&state.icon_key) {
                      Some(icon) => icon.clone(),
-@@ -187,6 +321,7 @@ fn state_from_snapshot(snapshot: RuntimePlayerSnapshot, include_icons: bool) ->
+@@ -187,6 +338,7 @@ fn state_from_snapshot(snapshot: RuntimePlayerSnapshot, include_icons: bool) ->
      let icon_key = snapshot.id_key_name.clone();
      let icon_png_base64 = include_icons.then(|| render_icon_b64_from_name(&icon_key));
      BattlePlayerState {
@@ -597,7 +614,7 @@ index fefc009d..c45faeb9 100644
          id: snapshot.id,
          team_index: snapshot.team_index,
          input_team_index: snapshot.input_team_index,
-@@ -689,7 +824,11 @@ seed:7@!"#;
+@@ -689,7 +841,11 @@ seed:7@!"#;
              without_icon.icon_png_base64 = None;
              assert_eq!(&without_icon, plain);
          }
@@ -610,7 +627,7 @@ index fefc009d..c45faeb9 100644
          let filled_cache = cache.clone();
          assert_eq!(states_from_runner(&runner, true, &mut cache), with_icons);
          assert_eq!(cache, filled_cache);
-@@ -817,3 +956,435 @@ seed:7@!"#;
+@@ -817,3 +973,435 @@ seed:7@!"#;
          }
      }
  }
@@ -1044,6 +1061,385 @@ index fefc009d..c45faeb9 100644
 +        .unwrap();
 +        while another.next_frame().unwrap().is_some() {}
 +        assert!(another.paused_actor().is_some());
++    }
++}
+diff --git a/crates/tswn_core/src/runtime/chaos.rs b/crates/tswn_core/src/runtime/chaos.rs
+new file mode 100644
+index 00000000..27343c15
+--- /dev/null
++++ b/crates/tswn_core/src/runtime/chaos.rs
+@@ -0,0 +1,373 @@
++//! 混沌爬塔结构化操作：同一份参数决定执行与卡面，独立于原技能概率与被动钩子。
++use super::*;
++use serde::{Deserialize, Serialize};
++
++#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
++#[serde(deny_unknown_fields)]
++pub struct ChaosOperation {
++    pub op: String,
++    pub target: String,
++    pub value: i32,
++}
++#[derive(Debug, Clone, PartialEq, Eq, Deserialize, Serialize)]
++#[serde(deny_unknown_fields)]
++pub struct ChaosCard {
++    pub version: u32,
++    pub name: String,
++    pub ops: Vec<ChaosOperation>,
++}
++impl ChaosCard {
++    /// 校验完整程序后再排入会话，未知操作不允许静默退化。
++    pub fn parse(raw: &str) -> Result<Self, String> {
++        if raw.len() > 8192 {
++            return Err("chaos program too large".into());
++        }
++        let card: Self = serde_json::from_str(raw).map_err(|e| e.to_string())?;
++        if card.version != 1 || card.name.is_empty() || card.name.len() > 160 || card.ops.is_empty() || card.ops.len() > 4 {
++            return Err("invalid chaos card".into());
++        }
++        for op in &card.ops {
++            if !(1..=10000).contains(&op.value)
++                || !matches!(
++                    op.target.as_str(),
++                    "enemy" | "enemies" | "self" | "ally" | "allies" | "dead_ally"
++                )
++                || !matches!(
++                    op.op.as_str(),
++                    "physical"
++                        | "magic"
++                        | "pure"
++                        | "heal"
++                        | "shield"
++                        | "mp"
++                        | "drain_mp"
++                        | "haste"
++                        | "slow"
++                        | "ice"
++                        | "poison"
++                        | "burn"
++                        | "curse"
++                        | "berserk"
++                        | "charm"
++                        | "cleanse"
++                        | "dispel"
++                        | "revive"
++                        | "atk_up"
++                        | "def_up"
++                        | "mag_up"
++                        | "res_up"
++                        | "agi_up"
++                        | "wis_up"
++                        | "speed_up"
++                        | "iron"
++                        | "max_hp"
++                        | "sacrifice"
++                        | "execute"
++                        | "covid"
++                        | "lazy"
++                        | "pneumonia"
++                        | "saitama"
++                        | "summon"
++                        | "shadow"
++                        | "zombie"
++                        | "clone"
++                        | "merge"
++                )
++            {
++                return Err("unknown chaos operation/target/value".into());
++            }
++        }
++        Ok(card)
++    }
++}
++impl CombatRuntime {
++    fn chaos_targets(&mut self, actor: EntityIdx, selector: &str) -> Vec<EntityIdx> {
++        let team = self.plain_effective_team(actor);
++        if selector == "self" {
++            return vec![actor];
++        }
++        let mut candidates: Vec<_> = self
++            .entities
++            .iter()
++            .filter(|(id, e)| {
++                let ally = e.runtime.team == team;
++                match selector {
++                    "enemy" | "enemies" => !ally && e.runtime.alive && e.runtime.hp > 0,
++                    "ally" | "allies" => ally && e.runtime.alive && e.runtime.hp > 0,
++                    "dead_ally" => {
++                        ally && !e.runtime.alive && *id == e.runtime.root_owner && e.runtime.corpse != RuntimeCorpseKind::Merge
++                    }
++                    _ => false,
++                }
++            })
++            .map(|(id, _)| id)
++            .collect();
++        if matches!(selector, "enemy" | "ally" | "dead_ally") && !candidates.is_empty() {
++            let i = self.rng.next_i32(candidates.len() as i32) as usize;
++            return vec![candidates.swap_remove(i)];
++        }
++        candidates
++    }
++    /// 每项操作重新选取合法目标；死亡立即结算，后续操作不命中已移除角色。
++    pub fn drain_chaos_card_into(&mut self, actor: EntityIdx, card: ChaosCard, updates: &mut RunUpdates) {
++        updates.add(RuntimeFrame::replay_update(
++            actor.0 as usize,
++            actor.0 as usize,
++            format!("[0]使用[{}]", card.name),
++            0,
++        ));
++        for operation in card.ops {
++            if !self.entities.get(actor).is_some_and(|e| e.runtime.alive && e.runtime.hp > 0) {
++                break;
++            }
++            let targets = self.chaos_targets(actor, &operation.target);
++            for target in targets {
++                let v = operation.value;
++                match operation.op.as_str() {
++                    "summon" | "shadow" | "zombie" | "clone" => {
++                        // 复用原生召唤提交链；混沌子体不携带本体随机程序，避免无限递归。
++                        let owner = self.entities.get(actor).unwrap();
++                        let kind_export = match operation.op.as_str() {
++                            "shadow" => profile::DEFAULT_CORE_SHADOW_KIND_EXPORT,
++                            "zombie" => profile::DEFAULT_CORE_ZOMBIE_KIND_EXPORT,
++                            "clone" => profile::DEFAULT_CORE_CLONE_KIND_EXPORT,
++                            _ => profile::DEFAULT_CORE_SUMMON_KIND_EXPORT,
++                        };
++                        let kind = self
++                            .registry
++                            .player_kind_id_by_export_name(kind_export)
++                            .expect("native chaos minion kind exists");
++                        let hp = ((owner.template.max_hp as i64 * v as i64) / 100).clamp(1, i32::MAX as i64) as i32;
++                        let child = PlayerTemplate::with_kind(
++                            self.entities.len() + 1,
++                            format!("{}?chaos{}", owner.template.name, self.entities.len()),
++                            kind,
++                            owner.runtime.team,
++                            hp,
++                            (owner.runtime.attack * v / 100).max(0),
++                        )
++                        .with_display_name("混沌子体")
++                        .with_magic((owner.runtime.magic * v / 100).max(0))
++                        .with_wisdom((owner.runtime.wisdom * v / 100).max(0))
++                        .with_speed(owner.runtime.speed.max(1))
++                        .with_def_res(
++                            (owner.runtime.defense * v / 100).max(0),
++                            (owner.runtime.resistance * v / 100).max(0),
++                        )
++                        .with_agility((owner.runtime.agility * v / 100).max(0));
++                        let count = self
++                            .entities
++                            .iter()
++                            .filter(|(id, e)| {
++                                e.runtime.root_owner == owner.runtime.root_owner && *id != e.runtime.root_owner && e.runtime.alive
++                            })
++                            .count();
++                        if count < 8 {
++                            self.effects.push(QueuedEffect::SpawnWithMessage {
++                                caster: actor,
++                                template: child,
++                                message: "[0]创造了[混沌子体]".into(),
++                            });
++                            self.drain_effects_into(updates);
++                        }
++                    }
++                    "merge" => {
++                        if !self.entities.get(target).unwrap().runtime.alive {
++                            self.apply_plain_merge_into(actor, target, updates);
++                        }
++                    }
++                    "physical" | "magic" | "saitama" => {
++                        let magic = operation.op == "magic";
++                        let atp = self.entities.get(actor).unwrap().runtime.get_at(magic, &mut self.rng) * v as f64 / 100.0;
++                        self.drain_plain_attack_with_atp_into(actor, target, magic, atp, updates);
++                    }
++                    "pure" | "execute" | "sacrifice" => {
++                        let amount = if operation.op == "execute" {
++                            (self.entities.get(target).unwrap().runtime.hp as i64 * v as i64 / 100).min(i32::MAX as i64) as i32
++                        } else {
++                            v
++                        };
++                        if self.apply_damage_into(actor, target, amount, updates) {
++                            self.drain_lethal_damage_hooks_into(actor, target, updates);
++                        }
++                    }
++                    "heal" => {
++                        self.effects.push(QueuedEffect::Heal {
++                            caster: actor,
++                            target,
++                            amount: v,
++                        });
++                        self.drain_effects_into(updates);
++                    }
++                    "revive" => {
++                        if !self.entities.get(target).unwrap().runtime.alive {
++                            self.effects.push(QueuedEffect::Revive {
++                                caster: actor,
++                                target,
++                                hp: v,
++                            });
++                            self.drain_effects_into(updates);
++                        }
++                    }
++                    "shield" => {
++                        let e = self.entities.get_mut(target).unwrap();
++                        e.runtime.shield = e.runtime.shield.saturating_add(v);
++                    }
++                    "mp" | "drain_mp" => {
++                        let e = self.entities.get_mut(target).unwrap();
++                        e.runtime.magic_point = if operation.op == "mp" {
++                            (e.runtime.magic_point + v).min(100)
++                        } else {
++                            e.runtime.magic_point - v
++                        };
++                    }
++                    "ice" => {
++                        for _ in 0..v.min(4) {
++                            self.apply_ice_on_damage(actor, target, updates);
++                        }
++                    }
++                    "poison" => {
++                        self.apply_poison_on_damage(actor, target, v.max(5), updates);
++                    }
++                    "burn" => {
++                        for _ in 0..v.min(4) {
++                            self.apply_fire_on_damage(actor, target, profile::PLAIN_FIRE_STATE_KEY);
++                        }
++                    }
++                    "curse" => self.apply_curse_on_damage(actor, target, 1, updates),
++                    "berserk" => {
++                        self.apply_berserk_on_damage(actor, target, 1, updates);
++                    }
++                    "haste" | "slow" | "iron" => {
++                        let (export, key) = match operation.op.as_str() {
++                            "haste" => (profile::DEFAULT_CORE_HASTE_STATE_EXPORT, profile::PLAIN_HASTE_STATE_KEY),
++                            "slow" => (profile::DEFAULT_CORE_SLOW_STATE_EXPORT, 78),
++                            _ => (profile::DEFAULT_CORE_IRON_STATE_EXPORT, profile::PLAIN_IRON_STATE_KEY),
++                        };
++                        let state_id = self.registry.state_id_by_export_name(export).expect("core chaos state exists");
++                        let priority = self.registry.state(state_id).unwrap().priority;
++                        let turns = v.min(4);
++                        let entry = match operation.op.as_str() {
++                            "haste" => StateEntry::haste(key, state_id, 2, turns, priority),
++                            "slow" => StateEntry::slow(key, state_id, turns, priority),
++                            _ => StateEntry::iron(key, state_id, v, 2, priority),
++                        };
++                        let e = self.entities.get_mut(target).unwrap();
++                        if !e.states.set_payload(key, entry.payload.clone()) {
++                            e.states.add_entry(entry);
++                        }
++                        e.refresh_runtime_stats_from_template();
++                    }
++                    "charm" => {
++                        self.drain_plain_charm_skill_into(actor, target, updates);
++                    }
++                    "cleanse" => {
++                        let keys: Vec<_> = self
++                            .entities
++                            .get(target)
++                            .unwrap()
++                            .states
++                            .entries()
++                            .iter()
++                            .filter(|e| {
++                                matches!(
++                                    e.payload,
++                                    StatePayload::Ice { .. }
++                                        | StatePayload::Poison { .. }
++                                        | StatePayload::Curse { .. }
++                                        | StatePayload::Slow { .. }
++                                        | StatePayload::Berserk { .. }
++                                        | StatePayload::Charm { .. }
++                                        | StatePayload::FireMagHalfSteps(_)
++                                )
++                            })
++                            .map(|e| e.legacy_order_key)
++                            .collect();
++                        let e = self.entities.get_mut(target).unwrap();
++                        for key in keys {
++                            e.states.clear_legacy_key(key);
++                        }
++                        e.refresh_runtime_stats_from_template();
++                    }
++                    "dispel" => {
++                        self.apply_disperse_hit_into(actor, target, updates);
++                    }
++                    "covid" => {
++                        self.infect_with_covid_into(actor, target, v.min(15), updates);
++                    }
++                    "lazy" => {
++                        self.infect_with_lazy_into(actor, target, updates);
++                    }
++                    "pneumonia" => {
++                        self.drain_covid_pneumonia_into(target, actor, v.min(15), updates);
++                    }
++                    _ => {
++                        let e = self.entities.get_mut(target).unwrap();
++                        // 永久加成只在当前战斗保留，模板与热字段同步，防止状态刷新冲掉数值。
++                        match operation.op.as_str() {
++                            "atk_up" => {
++                                e.template.attack += v;
++                                e.runtime.attack += v;
++                            }
++                            "def_up" => {
++                                e.template.defense += v;
++                                e.runtime.defense += v;
++                            }
++                            "mag_up" => {
++                                e.template.magic += v;
++                                e.runtime.magic += v;
++                            }
++                            "res_up" => {
++                                e.template.resistance += v;
++                                e.runtime.resistance += v;
++                            }
++                            "agi_up" => {
++                                e.template.agility += v;
++                                e.runtime.agility += v;
++                            }
++                            "wis_up" => {
++                                e.template.wisdom += v;
++                                e.runtime.wisdom += v;
++                            }
++                            "speed_up" => {
++                                e.template.speed += v;
++                                e.runtime.speed += v;
++                            }
++                            "max_hp" => {
++                                e.template.max_hp += v;
++                                e.runtime.hp += v;
++                            }
++                            _ => unreachable!(),
++                        }
++                    }
++                }
++                updates.add(RuntimeFrame::replay_update(
++                    actor.0 as usize,
++                    target.0 as usize,
++                    format!("[{}]的效果作用于[1]", card.name),
++                    0,
++                ));
++            }
++        }
++    }
++}
++
++#[cfg(test)]
++mod tests {
++    use super::*;
++    #[test]
++    // 程序校验不执行部分效果，纯参数错误必须在排入行动之前拒绝。
++    fn invalid_operations_and_versions_are_rejected() {
++        assert!(ChaosCard::parse(r#"{"version":2,"name":"x","ops":[{"op":"shield","target":"self","value":5}]}"#).is_err());
++        assert!(ChaosCard::parse(r#"{"version":1,"name":"x","ops":[{"op":"unknown","target":"self","value":5}]}"#).is_err());
++        let valid =
++            ChaosCard::parse(r#"{"version":1,"name":"护盾","ops":[{"op":"shield","target":"self","value":47}]}"#).unwrap();
++        let mut runtime = CombatRuntime::from_template(PreparedCombatTemplate::new(vec![
++            PlayerTemplate::new(1, "player", 0, 100, 20),
++            PlayerTemplate::new(2, "enemy", 1, 100, 20),
++        ]));
++        runtime.drain_chaos_card_into(EntityIdx(0), valid, &mut RunUpdates::new());
++        assert_eq!(runtime.entities.get(EntityIdx(0)).unwrap().runtime.shield, 47);
++        assert_eq!(runtime.entities.get(EntityIdx(1)).unwrap().runtime.shield, 0);
 +    }
 +}
 diff --git a/crates/tswn_core/src/runtime/combat/abilities.rs b/crates/tswn_core/src/runtime/combat/abilities.rs
@@ -1548,7 +1944,7 @@ index 92e74615..aac8164b 100644
              static_handler
          } else {
 diff --git a/crates/tswn_core/src/runtime/combat/mod.rs b/crates/tswn_core/src/runtime/combat/mod.rs
-index 11a65d86..592d31c3 100644
+index 11a65d86..7f663efb 100644
 --- a/crates/tswn_core/src/runtime/combat/mod.rs
 +++ b/crates/tswn_core/src/runtime/combat/mod.rs
 @@ -7,12 +7,14 @@
@@ -1566,7 +1962,15 @@ index 11a65d86..592d31c3 100644
  mod round;
  mod skills_control;
  mod skills_debuff;
-@@ -91,4 +93,36 @@ pub struct CombatRuntime {
+@@ -56,6 +58,7 @@ pub enum PlainAttackOnDamage {
+ 
+ #[derive(Debug, Clone, PartialEq, Eq)]
+ pub enum PreparedPlainAction {
++    Chaos(crate::runtime::chaos::ChaosCard),
+     BasicAttack {
+         target: EntityIdx,
+         use_magic: bool,
+@@ -91,4 +94,36 @@ pub struct CombatRuntime {
      #[cfg(not(feature = "no_debug"))]
      pub trace: Option<RuntimeTrace>,
      pub round: u64,
@@ -1908,7 +2312,7 @@ index 00000000..470b5882
 +    }
 +}
 diff --git a/crates/tswn_core/src/runtime/combat/round.rs b/crates/tswn_core/src/runtime/combat/round.rs
-index 05132896..f0d78f00 100644
+index 05132896..c1c4fdfd 100644
 --- a/crates/tswn_core/src/runtime/combat/round.rs
 +++ b/crates/tswn_core/src/runtime/combat/round.rs
 @@ -37,6 +37,8 @@ impl CombatRuntime {
@@ -1940,7 +2344,7 @@ index 05132896..f0d78f00 100644
          let plain_skill_pre_action = legacy_plain_action
              .then(|| self.run_plain_skill_pre_action_accumulator(action.actor))
              .unwrap_or_default();
-@@ -105,7 +119,12 @@ impl CombatRuntime {
+@@ -105,10 +119,19 @@ impl CombatRuntime {
                  return None;
              }
              let forced_pre_action_skill = plain_skill_pre_action.forced_skill.is_some();
@@ -1954,7 +2358,34 @@ index 05132896..f0d78f00 100644
                  return Some(self.finish_round_with_capture::<CAPTURE_UPDATES>(None, updates));
              };
              match &prepared {
-@@ -309,9 +328,43 @@ impl CombatRuntime {
++                PreparedPlainAction::Chaos(_) => {
++                    action.target = action.actor;
++                    action.amount = 0;
++                }
+                 PreparedPlainAction::BasicAttack { target, amount, .. } => {
+                     action.target = *target;
+                     action.amount = *amount;
+@@ -150,6 +173,11 @@ impl CombatRuntime {
+         let terminal_plain_action = if state_intercepted_action {
+             // PRE_ACTION 状态钩子接管本次行动后，legacy 仍会继续执行恢复和完整的行动后链。
+             legacy_plain_action && !self.has_alive_enemy_or_pending_spawn(action.actor)
++        } else if matches!(prepared_plain_action, Some(PreparedPlainAction::Chaos(_))) {
++            if let Some(PreparedPlainAction::Chaos(card)) = prepared_plain_action.take() {
++                self.drain_chaos_card_into(action.actor, card, &mut updates);
++            }
++            legacy_plain_action && !self.has_alive_enemy_or_pending_spawn(action.actor)
+         } else if builtin_plain_action {
+             let Some(PreparedPlainAction::BuiltinSkill(prepared)) = prepared_plain_action.take() else {
+                 unreachable!("builtin action marker must retain the prepared action")
+@@ -173,6 +201,7 @@ impl CombatRuntime {
+                 Some(PreparedPlainAction::Saitama { target }) => {
+                     self.drain_plain_saitama_action_into(action.actor, target, &mut updates);
+                 }
++                Some(PreparedPlainAction::Chaos(_)) => unreachable!("chaos actions execute before plain attacks"),
+                 Some(PreparedPlainAction::BuiltinSkill(_)) => {
+                     unreachable!("builtin skill actions are handled before the default action branch")
+                 }
+@@ -309,9 +338,43 @@ impl CombatRuntime {
      fn finish_round_with_capture<const CAPTURE_UPDATES: bool>(
          &mut self,
          action: Option<ActionPlan>,
@@ -1999,7 +2430,7 @@ index 05132896..f0d78f00 100644
          let frame = (CAPTURE_UPDATES && updates.had_updates()).then_some(RuntimeFrame { updates });
          self.round += 1;
          let winner_team = if CAPTURE_UPDATES {
-@@ -347,12 +400,119 @@ impl CombatRuntime {
+@@ -347,12 +410,127 @@ impl CombatRuntime {
              .unwrap_or(false)
      }
  
@@ -2063,6 +2494,14 @@ index 05132896..f0d78f00 100644
 +                    // 狂暴：玩家这一手只用来推进节奏，真正动作由引擎接管
 +                    berserk_submitted = true;
 +                } else {
++                    // 混沌只占用一次行动与一次 MP 费用，程序内部操作不重复扣费。
++                    if let Some((card, cost)) = crate::runtime::forced_action::take_chaos(actor.0) {
++                        let entity = self.entities.get_mut(actor).unwrap();
++                        if entity.runtime.magic_point >= cost {
++                            entity.runtime.magic_point -= cost;
++                            return Some(PreparedPlainAction::Chaos(card));
++                        }
++                    }
 +                    if forced_skill == 255 {
 +                        return self.prepare_forced_normal_attack(actor, smart);
 +                    }
@@ -2119,7 +2558,7 @@ index 05132896..f0d78f00 100644
          if let Some(forced_skill) = pre_action.forced_skill {
              return Some(PreparedPlainAction::BuiltinSkill(forced_skill));
          }
-@@ -392,7 +552,12 @@ impl CombatRuntime {
+@@ -392,7 +570,12 @@ impl CombatRuntime {
                  },
              )
          };
@@ -2133,7 +2572,7 @@ index 05132896..f0d78f00 100644
          #[cfg(not(feature = "no_debug"))]
          let probe_action = self.probe_plain_action_matches(actor);
          #[cfg(not(feature = "no_debug"))]
-@@ -450,8 +615,16 @@ impl CombatRuntime {
+@@ -450,8 +633,16 @@ impl CombatRuntime {
              } else {
                  self.scan_plain_action_skill_probabilities(actor, smart)
              };
@@ -2152,7 +2591,7 @@ index 05132896..f0d78f00 100644
          } else {
              None
          };
-@@ -511,6 +684,55 @@ impl CombatRuntime {
+@@ -511,6 +702,55 @@ impl CombatRuntime {
          }
      }
  
@@ -2208,7 +2647,7 @@ index 05132896..f0d78f00 100644
      pub fn has_plain_berserk_state(&self, actor: EntityIdx) -> bool {
          self.entities.get(actor).is_some_and(|entity| {
              entity
-@@ -624,6 +846,92 @@ impl CombatRuntime {
+@@ -624,6 +864,92 @@ impl CombatRuntime {
          debug_assert!(removed, "runtime berserk state disappeared before state clear");
      }
  
@@ -2301,7 +2740,7 @@ index 05132896..f0d78f00 100644
      pub fn scan_plain_action_skill_probabilities(&mut self, actor: EntityIdx, smart: bool) -> Option<PreparedBuiltinSkillAction> {
          let (scan_len, cached_scan) = {
              let skills = &self
-@@ -746,6 +1054,7 @@ impl CombatRuntime {
+@@ -746,6 +1072,7 @@ impl CombatRuntime {
          level: u32,
          smart: bool,
      ) -> bool {
@@ -2309,7 +2748,7 @@ index 05132896..f0d78f00 100644
          #[cfg(not(feature = "no_debug"))]
          let probe_action = self.probe_plain_action_matches(actor);
          match builtin_skill {
-@@ -935,3 +1244,36 @@ impl CombatRuntime {
+@@ -935,3 +1262,36 @@ impl CombatRuntime {
          roll < level
      }
  }
@@ -2736,10 +3175,10 @@ index 72a22d28..44a58e6e 100644
                  .get(root_owner)
 diff --git a/crates/tswn_core/src/runtime/forced_action.rs b/crates/tswn_core/src/runtime/forced_action.rs
 new file mode 100644
-index 00000000..016021b8
+index 00000000..e028cf3f
 --- /dev/null
 +++ b/crates/tswn_core/src/runtime/forced_action.rs
-@@ -0,0 +1,250 @@
+@@ -0,0 +1,264 @@
 +//! 卡牌指令按会话保存；线程局部状态仅在一次推进期间借给 Runtime，退出即还原。
 +use std::cell::{Cell, RefCell};
 +use std::collections::BTreeMap;
@@ -2757,6 +3196,8 @@ index 00000000..016021b8
 +    pub queue: Vec<ForcedAction>,
 +    pub controlled_team: Option<usize>,
 +    pub paused_actor: Option<u32>,
++    /// 混沌程序只与下一次对应角色的普攻载体绑定，不污染其他会话。
++    pub chaos_pending: Option<(u32, super::chaos::ChaosCard, i32)>,
 +    /// 永久交回引擎操作的根角色，分身按 root_owner 继承。
 +    pub automatic_roots: std::collections::BTreeSet<u32>,
 +    /// 能力卡为独立乘区及减耗，不参与技能熟练度读写。
@@ -2990,17 +3431,29 @@ index 00000000..016021b8
 +
 +/// 自动托管直接进入原生选招，不创建强制普攻或技能指令。
 +pub fn is_automatic(root: u32) -> bool { ACTIVE.with(|state| state.borrow().automatic_roots.contains(&root)) }
++
++/// 取走该行动的混沌程序；普通对局始终为空。
++pub fn take_chaos(actor: u32) -> Option<(super::chaos::ChaosCard, i32)> {
++    ACTIVE.with(|s| {
++        let mut state = s.borrow_mut();
++        if state.chaos_pending.as_ref().is_some_and(|x| x.0 == actor) {
++            state.chaos_pending.take().map(|(_, card, cost)| (card, cost))
++        } else {
++            None
++        }
++    })
++}
 diff --git a/crates/tswn_core/src/runtime/mod.rs b/crates/tswn_core/src/runtime/mod.rs
-index 89ebce8a..b33dcdb7 100644
+index 89ebce8a..d2088e45 100644
 --- a/crates/tswn_core/src/runtime/mod.rs
 +++ b/crates/tswn_core/src/runtime/mod.rs
-@@ -1,4 +1,4 @@
--//! 战斗机制层：构建模板经过导入后，由这里的唯一执行链推进。
-+﻿//! 战斗机制层：构建模板经过导入后，由这里的唯一执行链推进。
- //!
- //! # 数据与执行
- //!
-@@ -38,6 +38,7 @@ mod cqp;
+@@ -33,11 +33,13 @@
+ //! `LegacyStep` 是当前 Runtime 内用于对齐游戏行动条的调度方式。
+ 
+ mod batch;
++pub mod chaos;
+ mod combat;
+ mod cqp;
  pub mod effect;
  pub mod entity;
  pub mod extension;
@@ -3008,7 +3461,7 @@ index 89ebce8a..b33dcdb7 100644
  mod handlers;
  pub mod lang;
  pub mod model_state;
-@@ -46,7 +47,7 @@ mod plain_assassinate;
+@@ -46,7 +48,7 @@ mod plain_assassinate;
  mod plain_summon;
  mod plain_zombie;
  mod prepared_init;
@@ -3192,10 +3645,10 @@ index eba270ed..db6337cd 100644
      team_index: int
      input_team_index: int | None
 diff --git a/crates/tswn_wasm/src/battle.rs b/crates/tswn_wasm/src/battle.rs
-index dac231be..4b82700c 100644
+index dac231be..c8b15511 100644
 --- a/crates/tswn_wasm/src/battle.rs
 +++ b/crates/tswn_wasm/src/battle.rs
-@@ -52,6 +52,24 @@ impl BattleSession {
+@@ -52,6 +52,28 @@ impl BattleSession {
      /// 同步推进至下一可见帧；正常结束或截断后返回 JS null，可重复调用。
      /// Runtime 失败会保留 sticky error 并重复抛错，应停止推进并释放会话。
      pub fn next_frame(&mut self) -> WasmResult<JsValue> { dto_to_js(&self.inner.next_frame().map_err(cli_api_error)?) }
@@ -3206,6 +3659,10 @@ index dac231be..4b82700c 100644
 +    /// 永久托管指定根角色及其分身，保留 tswn 原生选招与随机流。
 +    pub fn set_auto_actors(&mut self, roots: Vec<u32>) -> WasmResult<()> {
 +        self.inner.set_auto_actors(&roots).map_err(cli_api_error)
++    }
++    /// 单人混沌程序由运行时直接解释；不由浏览器修改战斗数值。
++    pub fn submit_chaos_action(&mut self, actor: u32, program: String, packed: u32) -> WasmResult<()> {
++        self.inner.submit_chaos_action(actor, &program, packed).map_err(cli_api_error)
 +    }
 +    /// 大逃杀在开局设置各角色当前 HP，最大 HP 保持原始构建值。
 +    pub fn set_initial_hp(&mut self, packet: Vec<u32>) -> WasmResult<()> {

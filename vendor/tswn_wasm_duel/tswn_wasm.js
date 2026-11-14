@@ -282,6 +282,27 @@ export class BattleSession {
             wasm.__wbindgen_add_to_stack_pointer(16);
         }
     }
+    /**
+     * 单人混沌程序由运行时直接解释；不由浏览器修改战斗数值。
+     * @param {number} actor
+     * @param {string} program
+     * @param {number} packed
+     */
+    submit_chaos_action(actor, program, packed) {
+        try {
+            const retptr = wasm.__wbindgen_add_to_stack_pointer(-16);
+            const ptr0 = passStringToWasm0(program, wasm.__wbindgen_export, wasm.__wbindgen_export2);
+            const len0 = WASM_VECTOR_LEN;
+            wasm.battlesession_submit_chaos_action(retptr, this.__wbg_ptr, actor, ptr0, len0, packed);
+            var r0 = getDataViewMemory0().getInt32(retptr + 4 * 0, true);
+            var r1 = getDataViewMemory0().getInt32(retptr + 4 * 1, true);
+            if (r1) {
+                throw takeObject(r0);
+            }
+        } finally {
+            wasm.__wbindgen_add_to_stack_pointer(16);
+        }
+    }
 }
 if (Symbol.dispose) BattleSession.prototype[Symbol.dispose] = BattleSession.prototype.free;
 

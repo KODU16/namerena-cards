@@ -307,8 +307,9 @@ function home() {
     versions: { wasm: state.wasm || '0.5.6', core: state.core || '0.7.0' },
     onArena: arenaScreen,
     onCoop: coopScreen,
+    onChaos:()=>{draft=null;newRunSetup('chaos');},
     onStats: statsScreen,
-    onNewRun: newRunSetup,
+    onNewRun:()=>{newRunMode='standard';draft=null;newRunSetup();},
     onSaves: openSaves,
     onContinue: () => (state.run?.selectedId ? prep() : mapScreen()),
     onForge: forgeScreen,
@@ -337,8 +338,10 @@ function syncDraft() {
   }).filter(Boolean);
 }
 
-function newRunSetup() {
-  if (!draft) draft = { clan: '青', lane: '1A', difficulty: 0, nodeCount: 40, names: [], rerolls: 3 };
+let newRunMode='standard';
+function newRunSetup(mode=null) {
+  if(typeof mode==='string')newRunMode=mode;
+  if (!draft) draft = { mode:newRunMode, clan: '青', lane: '1A', difficulty: 0, nodeCount: 40, names: [], rerolls: 3 };
   syncDraft();
   nav('newrun', () => UI.renderNewRun(root, state, {
     draft,
@@ -393,6 +396,7 @@ function newRunSetup() {
     onStart: async () => {
       if (!draft.cards || draft.cards.length < teamSizeOf(draft.lane)) return toast('还有空位，先填满名字');
       await G.startRun(state, {
+        mode:draft.mode||'standard',
         seed: Date.now() >>> 0,
         lane: draft.lane || '1A',
         difficulty: draft.difficulty || 0,
@@ -542,7 +546,8 @@ async function fight() {
   // 战斗蓝字以天然属性 + 永久锻造为基线，实际值已包含武器、保底与战术。
   const battleTeam = team.map((c) => ({ ...c, battleBase: G.curseBaseStats(c) }));
   // 遗物只在创建本场战斗时注入，引擎直接管理一回合状态及到期清除。
-  const duel = new Duel({ wasm, iconFor }, { input, playerTeam: me.team_index, champion: team[0], team: battleTeam, enemies: opp.cards, abilities: state.abilities, relics: state.relics || [] });
+  if(run.mode==='chaos'){run.chaosBattleActive=true;G.persist(state);}
+  const duel = new Duel({ wasm, iconFor }, { chaosRun:run.mode==='chaos'?run:null,input, playerTeam: me.team_index, champion: team[0], team: battleTeam, enemies: opp.cards, abilities: state.abilities, relics: state.relics || [] });
   nav('battle', () => {
     renderBattleShell(root, state, null, {
       onSpeed: (x) => {
@@ -619,6 +624,7 @@ async function finishDuel(won, replay) {
   );
 }
 function afterBattle(won) {
+  if(state.run?.mode==='chaos'){state.run.chaosBattleActive=false;G.persist(state);}
   duelView = null;
   if (!won) {
     const dropped = G.dropForged(state);
@@ -676,6 +682,7 @@ function openInventory() {
   // 角色页内完成切换及换装，由面板保留当前交互并播放属性浮字。
   sheet(UI.inventorySheet(state, {
     cardBonus: (card) => G.cardBonus(state, card),
+    onChaosTransfer:(from,id,to)=>G.transferChaosSkill(state,from,id,to),
     onDestroy: (kind, id, label) => {
       const ok = G.destroyItem(state, kind, id);
       toast(ok ? '已销毁 ' + (label || '') : '不能销毁（出战中的角色/无效对象）', 1800);
@@ -719,7 +726,7 @@ function forgeAtCamp() {
       el('div', { class: 'inv__grid' }, (card?.skillList || []).map((s) => el('button', {
         class: 'ghost inv__item',
         type: 'button',
-        disabled: !!card.lostSkills?.[s.id]||(s.id==='sklshadow'&&shownSkillLevel(s)>=5), title: card.lostSkills?.[s.id] ? '本体技能已交换；武器贡献仍可发动，不能训练恢复本体' : s.id==='sklshadow'&&shownSkillLevel(s)>=5?'幻术有效熟练度已达到 5':undefined,
+        disabled: !!card.lostSkills?.[s.id]||(!s.chaos&&s.id==='sklshadow'&&shownSkillLevel(s)>=5), title: card.lostSkills?.[s.id] ? '本体技能已交换；武器贡献仍可发动，不能训练恢复本体' : !s.chaos&&s.id==='sklshadow'&&shownSkillLevel(s)>=5?'幻术有效熟练度已达到 5':undefined,
         onclick: () => {
           const res = G.campForge(state, charId, s.id);
           closeSheet();
@@ -737,7 +744,7 @@ function forgeAtCamp() {
     }, el('b', {}, card.name + '@' + card.clan), el('small', {}, (card.skillList || []).length + ' 个技能'))))));
 }
 
-function skillMetaName(id) { return skillMeta(id).name; }
+function skillMetaName(id) { return state.run?.mode==='chaos'?(state.run.chaosPool?.[id]?.name||skillMeta(id).name):skillMeta(id).name; }
 
 function mapScreen() {
   G.refreshRunBuff(state);
@@ -860,7 +867,7 @@ function mapScreen() {
             : el('div', { class: 'inv__item shop-item shop-item--' + it.rarity },
             UI.qualityBadge(it.rarity),
             it.kind === 'ability' ? UI.abilityIcon(it.ability) : it.kind === 'relic' ? UI.relicPreview(it.relic) : null,
-            el('b', {}, it.kind === 'skill' ? (it.skill.kind === 'attribute' ? '属性锻造卡 ' + it.skill.name : '技能卡 ' + skillMeta(it.skill.id).name)
+            el('b', {}, it.kind === 'skill' ? (it.skill.kind === 'attribute' ? '属性锻造卡 ' + it.skill.name : '技能卡 ' + (it.skill.chaos?.name||skillMeta(it.skill.id).name))
               : it.kind === 'card' ? '角色 ' + it.card.name + '@' + it.card.clan
                 : it.kind === 'ability' ? '能力卡 ' + it.ability.name
                 : it.kind === 'relic' ? G.rewardSummary(it).label

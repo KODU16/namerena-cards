@@ -1,3 +1,4 @@
+import {chaosDescription} from './chaos.js';
 import { abilityDescription, abilityKey } from './abilities.js';
 import { RELICS, relicById } from './relics.js';
 import { DIFFICULTIES, difficultyEffects, difficultyName } from './difficulties.js';
@@ -71,7 +72,7 @@ export function skillTag(s, chance) {
 }
 
 export function cardTooltip(card) {
-  const skills = (card.skillList || []).slice(0, 6).map((s) => `${skillMeta(s.id).name} 熟练度${shownSkillLevel(s)}`).join('、') || '无技能';
+  const skills = (card.skillList || []).slice(0, 6).map((s) => `${(s.chaos?.name||skillMeta(s.id).name)} 熟练度${shownSkillLevel(s)}`).join('、') || '无技能';
   return `${card.name} @${card.clan}\n${statLine(card)}\n${skills}`;
 }
 
@@ -173,6 +174,7 @@ export function renderHome(root, state, h) {
           // 多人模式有独立房间和存活进度，不覆盖单人存档。
           el('button', { class: 'secondary big', type: 'button', onclick: h.onArena }, '多人 · 大逃杀'),
           el('button', { class: 'secondary big', type: 'button', onclick: h.onCoop }, '联机 · 合作爬塔'),
+          el('button', { class:'secondary big',type:'button',onclick:h.onChaos },'混沌爬塔'),
         ),
         el('div', { class: 'home__facts' },
           el('div', { class: 'fact' }, el('b', {}, String(state.pool.length)), el('span', {}, '张名字卡')),
@@ -226,7 +228,7 @@ export function renderNewRun(root, state, h) {
     el('section', { class: 'setup' },
       el('div', { class: 'setup__head' },
         el('div', { class: 'home__kicker' }, 'NEW RUN'),
-        el('h1', {}, '给战队起个名字'),
+        el('h1', {}, d.mode==='chaos'?'混沌爬塔':'给战队起个名字'),
       ),
       el('div', { class: 'setup__grid' },
         el('div', { class: 'setup__panel' },
@@ -361,8 +363,8 @@ export function renderPrep(root, state, h) {
         el('div', { class: 'muted small' }, h.forgeSelected ? '已选中一张锻造卡：点击上面任意角色使用（会消耗这张卡）' : '使用该锻造卡增强对应角色的属性或是添加新技能'),
         el('div', { class: 'tactics-grid' }, (run.skillCards || []).map((s) =>
           el('button', { class: `tactic${h.forgeSelected === s.uid ? ' is-active' : ''}`, type: 'button', onclick: () => h.onPickSkillCard(s.uid) },
-            el('span', { class: 'tactic__glyph' }, s.kind === 'attribute' ? '✦' : emojiImg(s.id, 'emoji emoji--lg')),
-            el('span', { class: 'tactic__body' }, el('b', {}, s.kind === 'attribute' ? s.name : skillMeta(s.id).name), el('small', {}, s.kind === 'attribute' ? attributeForgeSummary(s) : `熟练度 ${shownSkillLevel(s)}`)),
+            el('span', { class: 'tactic__glyph' }, s.kind === 'attribute' ? '✦' : emojiImg(s.chaos?.icon||s.id, 'emoji emoji--lg')),
+            el('span', { class: 'tactic__body' }, el('b', {}, s.kind === 'attribute' ? s.name : (s.chaos?.name||skillMeta(s.id).name)), el('small', {}, s.kind === 'attribute' ? attributeForgeSummary(s) : `熟练度 ${shownSkillLevel(s)}`)),
           ))),
       ),
       el('div', { class: 'prep__foot' },
@@ -461,17 +463,17 @@ export function handCardEl(card, { onPlay, disabled, locked = false }) {
       el('span', { class: 'hcard__cost is-free' }, '0'),
     );
   }
-  const meta = skillMeta(card.id);
+  const meta = card.chaos?{name:card.chaos.name,cat:skillMeta(card.chaos.icon).cat,desc:card.description||chaosDescription(card.chaos,card.lv)}:skillMeta(card.id);
   const passive = !!card.passive;
   return el('button', {
     // 净化的金色品质与来源无关，在手牌及 MP 不足时仍能辨认。
-    class: `hcard cat-${meta.cat}${isRareSkill(card.id) ? ' hcard--gold' : ''}${passive ? ' is-passive' : ''}${locked ? ' is-locked' : ''}`,
+    class: `hcard${card.chaos?' hcard--chaos':''} cat-${meta.cat}${isRareSkill(card.id) ? ' hcard--gold' : ''}${passive ? ' is-passive' : ''}${locked ? ' is-locked' : ''}`,
     type: 'button',
     disabled: disabled || passive || locked || undefined,
     onclick: () => onPlay(card),
     title: locked ? `魔力不足（这张牌要 ${card.cost} MP）` : passive ? `${meta.desc}（被动：满足条件时自动发动）` : meta.desc,
   },
-    el('div', { class: 'hcard__glyph' }, emojiImg(card.id, 'emoji emoji--xl')),
+    el('div', { class: 'hcard__glyph' }, emojiImg(card.chaos?.icon||card.id, 'emoji emoji--xl')),
     el('div', { class: 'hcard__body' },
       el('b', { class: card.ability ? 'hcard__ability-name' : '' }, meta.name + (card.ability ? '+' : '')),
       el('span', { class: 'hcard__lv' }, passive ? '被动 · 自动' : `熟练度 ${playerSkillLevel(card)} · 消耗 ${card.cost} MP`),
@@ -835,8 +837,8 @@ export function renderReward(root, state, offers, h) {
         : o.kind === 'skill'
           ? el('div', { class: 'offer offer--tactic' },
             el('div', { class: 'offer__tag' }, o.skill.kind === 'attribute' ? '属性锻造卡 · 永久基础值' : '技能卡 · 随机熟练度'),
-            el('div', { class: 'tactic__glyph big-glyph' }, o.skill.kind === 'attribute' ? '✦' : emojiImg(o.skill.id, 'emoji emoji--xxl')),
-            el('b', {}, o.skill.kind === 'attribute' ? o.skill.name : skillMeta(o.skill.id).name),
+            el('div', { class: 'tactic__glyph big-glyph' }, o.skill.kind === 'attribute' ? '✦' : emojiImg(o.skill.chaos?.icon||o.skill.id, 'emoji emoji--xxl')),
+            el('b', {}, o.skill.kind === 'attribute' ? o.skill.name : (o.skill.chaos?.name||skillMeta(o.skill.id).name)),
             el('p', {}, o.skill.kind === 'attribute' ? attributeForgeSummary(o.skill) : `熟练度 ${effectiveSkillLevel(o.skill.lv)}`),
             el('p', { class: 'muted small' }, o.skill.kind === 'attribute' ? '使用必定成功，永久写入角色黑字基础属性' : '只能在锻造里加给角色，加完消耗'),
             el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
@@ -954,7 +956,7 @@ export function renderHeroes(root, heroes, h) {
     }
   };
   const skillItems = (card) => card.skillList.length
-    ? card.skillList.map((skill) => el('span', { title: skillMeta(skill.id).desc }, emojiImg(skill.id, 'emoji emoji--xs'), skillMeta(skill.id).name, el('b', {}, shownSkillLevel(skill))))
+    ? card.skillList.map((skill) => el('span', { title: (skill.chaos?chaosDescription(skill.chaos,skill.lv):skillMeta(skill.id).desc) }, emojiImg(skill.id, 'emoji emoji--xs'), (skill.chaos?.name||skillMeta(skill.id).name), el('b', {}, shownSkillLevel(skill))))
     : [el('span', { class: 'muted' }, '无技能')];
   const heroCard = (hero) => {
     const cards = hero.cards || [hero.card];
@@ -1605,6 +1607,7 @@ export function inventorySheet(state, h = {}) {
   const run = state.run || {};
   const tabs = [
     { id: 'chars', name: '角色库' },
+    ...(run.mode==='chaos'?[{id:'chaos',name:'卡牌库'}]:[]),
     { id: 'forge', name: '锻造卡' },
     { id: 'tactics', name: '战术卡' },
     { id: 'abilities', name: '能力卡' },
@@ -1662,9 +1665,9 @@ export function inventorySheet(state, h = {}) {
         ? el('div', { class: 'inv__grid' }, list.map((s) => s.kind === 'attribute'
           ? el('div', { class: 'inv__item', title: '使用必定成功，永久增加角色黑字基础属性。' },
             el('b', {}, s.name), el('small', {}, attributeForgeSummary(s)), del('forge', s.uid, s.name))
-          : el('div', { class: 'inv__item'+(isRareSkill(s.id)?' shop-item--gold':''), title: skillMeta(s.id).desc },
+          : el('div', { class: 'inv__item'+(isRareSkill(s.id)?' shop-item--gold':''), title: (s.chaos?chaosDescription(s.chaos,s.lv):skillMeta(s.id).desc) },
             isRareSkill(s.id)?qualityBadge('gold'):null,
-            el('b', {}, skillMeta(s.id).name), el('small', {}, '熟练度 ' + playerSkillLevel(s)), del('forge', s.uid, skillMeta(s.id).name))))
+            el('b', {}, (s.chaos?.name||skillMeta(s.id).name)), el('small', {}, '熟练度 ' + playerSkillLevel(s)), del('forge', s.uid, (s.chaos?.name||skillMeta(s.id).name)))))
         : el('p', { class: 'muted' }, '还没有锻造卡'));
     } else if (id === 'tactics') {
       const ids = (state.ownedTactics || []).filter(id=>id!=='t-shadow'&&isTacticEnabled(state.tacticsPool?.find(t=>t.id===id)));
@@ -1676,6 +1679,12 @@ export function inventorySheet(state, h = {}) {
           return el('div', { class: 'inv__item' }, el('b', {}, t?.name || tid), el('small', {}, t ? scaleTactic(t, power).desc : ''), del('tactic', tid, t?.name || tid));
         }))
         : el('p', { class: 'muted' }, '还没有战术卡'));
+    } else if(id==='chaos'){
+      const locked=!!run.chaosBattleActive;
+      const drop=(event,to=null)=>{event.preventDefault();if(locked)return;try{const item=JSON.parse(event.dataTransfer.getData('application/x-namerena-chaos'));if(h.onChaosTransfer?.(item.character,item.skill,to))paint('chaos');}catch{}};
+      body.replaceChildren(el('p',{},locked?'战斗中不能调整卡牌库。':'拖动卡牌到其他角色以转移技能和熟练度；同名卡保留较高熟练度。拖到删除区可永久移除。'),
+        el('div',{class:'chaos-delete',ondragover:event=>{if(!locked)event.preventDefault();},ondrop:event=>drop(event)},'拖到此处销毁卡牌'),
+        ...state.collection.map(character=>el('section',{class:'chaos-library-character',ondragover:event=>{if(!locked)event.preventDefault();},ondrop:event=>drop(event,character.id)},el('h3',{},character.name+'@'+character.clan),el('div',{class:'chaos-library-grid'},character.skillList.map(skill=>el('article',{class:'chaos-library-card',draggable:!locked,ondragstart:event=>event.dataTransfer.setData('application/x-namerena-chaos',JSON.stringify({character:character.id,skill:skill.id}))},emojiImg(skill.chaos?.icon||skill.id,'emoji emoji--lg'),el('b',{},skill.chaos?.name||(skill.chaos?.name||skillMeta(skill.id).name)),el('small',{},'熟练度 '+effectiveSkillLevel(skill.lv)),el('p',{},skill.chaos?chaosDescription(skill.chaos,skill.lv):(skill.chaos?chaosDescription(skill.chaos,skill.lv):skillMeta(skill.id).desc))))))));
     } else if (id === 'abilities') {
       body.replaceChildren(el('p',{class:'muted small'},'获得即生效，拥有期间永久作用于出战角色；完全相同效果仅保留高值，销毁即失效。'),
         (state.abilities || []).length ? el('div',{class:'inv__grid'},state.abilities.map(a=>el('div',{class:'inv__item ability-card'},qualityBadge('blue'),abilityIcon(a),el('b',{},a.name),el('p',{},abilityDescription(a)),del('ability',abilityKey(a),a.name)))) : el('p',{class:'muted'},'还没有能力卡，可通过补给和商店获得。'));

@@ -528,6 +528,10 @@ export class BattleSession {
      * 为暂停实体提交与批量接口相同的指令，再调用 next_frame 继续。
      */
     submit_action(actor: number, skill: number, packed_mp: number): void;
+    /**
+     * 单人混沌程序由运行时直接解释；不由浏览器修改战斗数值。
+     */
+    submit_chaos_action(actor: number, program: string, packed: number): void;
 }
 
 /**
@@ -724,6 +728,7 @@ export interface InitOutput {
     readonly battlesession_status: (a: number, b: number) => void;
     readonly battlesession_stop_reason: (a: number, b: number) => void;
     readonly battlesession_submit_action: (a: number, b: number, c: number, d: number, e: number) => void;
+    readonly battlesession_submit_chaos_action: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly core_version: (a: number) => void;
     readonly default_custom_runtime_normalized_run: (a: number, b: number, c: number, d: number) => void;
     readonly default_eval_rq: () => number;

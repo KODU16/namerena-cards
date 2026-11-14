@@ -26,6 +26,7 @@ export const battlesession_set_initial_hp: (a: number, b: number, c: number, d: 
 export const battlesession_status: (a: number, b: number) => void;
 export const battlesession_stop_reason: (a: number, b: number) => void;
 export const battlesession_submit_action: (a: number, b: number, c: number, d: number, e: number) => void;
+export const battlesession_submit_chaos_action: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
 export const core_version: (a: number) => void;
 export const default_custom_runtime_normalized_run: (a: number, b: number, c: number, d: number) => void;
 export const default_eval_rq: () => number;

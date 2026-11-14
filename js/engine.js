@@ -140,7 +140,7 @@ export function buildLine(card) {
   ];
   // 失去的本体技能不能恢复，已重算出的武器贡献仍可正常进入战斗。
   // 仅序列化战斗输入时取有效值，不回写或裁剪卡牌与存档中的原始熟练度。
-  const skills = Object.fromEntries(card.skillList.filter((s) => (!card.lostSkills?.[s.id] || s.fromWeapon)&&(!card.playerControlled||s.id!=='sklshadow'||hasRareSource(s))).map((s) => [s.id, card.playerControlled?playerSkillLevel(s):effectiveSkillLevel(s.lv)]));
+  const skills = Object.fromEntries(card.skillList.filter((s) => !card.chaosMode&&!s.chaos).filter((s) => (!card.lostSkills?.[s.id] || s.fromWeapon)&&(!card.playerControlled||s.id!=='sklshadow'||hasRareSource(s))).map((s) => [s.id, card.playerControlled?playerSkillLevel(s):effectiveSkillLevel(s.lv)]));
   return `${card.name}@${card.clan}+ol:${JSON.stringify({ attrs, skills, name_factor_enabled: false })}`;
 }
 
