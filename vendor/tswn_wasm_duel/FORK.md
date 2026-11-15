@@ -1,6 +1,6 @@
 # 卡牌引擎接口说明
 
-固定源码来自 KODU16/tswn-cards，提交 ae7bebade8ec54d77942db27a4d6e5d4246e784d；完整构建与补丁基线见 BUILD.md。
+固定源码来自 KODU16/tswn-cards，提交 977be8fc687cff657d974fe5d0db9107878e7482；完整构建与补丁基线见 BUILD.md。
 
 ## 构建
 
@@ -71,3 +71,5 @@ BattleOptions 的 debuff_relic_team、clone_relic_team、positive_status_relic_t
 混沌爬塔为单人专用：submit_chaos_action(actor, JSON程序, packed) 在校验完整操作列表与 MP 后提交一次行动。包含38项版本化操作，名称和简短描述从固定配方投影，不以文案决定执行。验证：node tools/verify-chaos.mjs。
 
 混沌战报复用原生伤害/回复/状态/召唤文本，静默操作补入对应原技能词片段，不再输出通用效果提示。混沌新牌池排除 Boss 专用操作，旧存档按配方定向迁移；普通与混沌战斗均使用扩展卡面。
+
+混沌召唤按类别使用幻影、使魔、丧尸、分身名称，战报与快照一致。混沌商店不出售能力卡；角色技能标签和详情按实际混沌配方显示，并提供描述悬浮提示。

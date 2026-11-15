@@ -1,4 +1,4 @@
-import {chaosSkill,chaosProgram,chaosBattleProgram,chaosOperationText} from './chaos.js';
+import {chaosSkill,chaosProgram,chaosBattleProgram,chaosOperationText,chaosDescription} from './chaos.js';
 import { abilityFor, abilityMpCost, abilityPacket } from './abilities.js';
 import {playerSkillLevel} from './rare-skills.js';
 // 引擎驱动的对决层：行动顺序、伤害、状态、召唤全部由 tswn Runtime 执行，
@@ -512,6 +512,11 @@ export class DuelView {
       const own=state.input_team_index===0||source?.input_team_index===0||(state.input_team_index==null&&!source&&state.team_index===this.duel.playerTeam);
       return el('span', { class: 'skill-tag', title: skillMeta(id).desc }, skillMeta(id).name + ' 熟练度' + (own?playerSkillLevel({id,lv}):effectiveSkillLevel(lv)));
     });
+    // 混沌本体/分身的程序保存在角色卡，而非已清空原生技能的战斗快照中。
+    if(this.duel.chaosRun&&state.team_index===this.duel.playerTeam&&(state.owner_id==null||isCloneState(state))){
+      const card=this.duel.cardFor(state,this.current?.final_states||[]);
+      skills.splice(0,skills.length,...(card?.skillList||[]).map(skill=>el('span',{class:'skill-tag',title:chaosDescription(skill.chaos,skill.lv),'data-tip':skill.chaos.name,'data-tip-desc':chaosDescription(skill.chaos,skill.lv)},skill.chaos.name+' 熟练度'+effectiveSkillLevel(skill.lv))));
+    }
     overlay.replaceChildren(el('div', { class: 'sheet' },
       el('h2', {}, state.display_name),
       el('div', { class: 'detail-grid' }, stats, el('div', {}, el('b', {}, 'HP'), ' ' + state.max_hp, (this.duel.multFor?.(state) || 1) > 1 ? el('em', { class: 'unit-row__buff' }, '*' + this.duel.multFor(state)) : null)),

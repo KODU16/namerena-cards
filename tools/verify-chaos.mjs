@@ -39,3 +39,10 @@ console.log(JSON.stringify({bossFreePools:200,oldBossCardMigration:'only affecte
 const logs=new w.BattleSession(raw,options);drain(logs);const logActor=logs.paused_actor();logs.submit_chaos_action(logActor,JSON.stringify({version:1,name:'蓄加速',ops:[{op:'shield',target:'self',value:9},{op:'haste',target:'self',value:2}]}),1);
 const logFrame=logs.next_frame(),messages=logFrame.updates.map(x=>x.message_rendered||'');assert.ok(messages.some(x=>x.includes('护盾')&&x.includes('上升')));assert.ok(messages.some(x=>x.includes('疾走')));assert.ok(!messages.some(x=>x.includes('效果作用于')));assert.ok(messages.findIndex(x=>x.includes('护盾'))<messages.findIndex(x=>x.includes('疾走')));logs.free();
 console.log(JSON.stringify({chaosLogs:'ordered original skill fragments; no generic effect line'}));
+
+// 混沌普通/诅咒商店和旧库存都不再出售能力；普通模式仍保留能力槽位。
+for(let seed=0;seed<100;seed++){assert.ok(!G.rollShop(state,seed).some(i=>i.kind==='ability'));assert.ok(G.rollShop({...state,run:{...state.run,mode:'standard'}},seed).some(i=>i.kind==='ability'));}
+const shopNode={id:'chaos-old-shop',kind:'shop',next:[],shopItems:[{id:'legacy-ability',kind:'ability'}]};state.run.graph.nodes.push(shopNode);state.run.graph.byId.set(shopNode.id,shopNode);state.run.nodeId=shopNode.id;state.run.selectedId=null;assert.ok(!G.shopStock(state).some(i=>i.kind==='ability'));
+// 真实召唤快照及战报必须使用对应原生类别名字。
+for(const [op,label] of [['shadow','幻影'],['summon','使魔'],['zombie','丧尸'],['clone','分身']]){const summon=new w.BattleSession(raw,options);drain(summon);let actor=summon.paused_actor();summon.submit_chaos_action(actor,JSON.stringify({version:1,name:'召唤检验',ops:[{op,target:'self',value:20}]}),1);const frame=summon.next_frame(),child=summon.current_states().find(x=>x.owner_id===actor);assert.ok(child,op);assert.equal(child.display_name,label);assert.ok(!frame.updates.some(u=>u.message_rendered?.includes('混沌子体')));summon.free();}
+console.log(JSON.stringify({chaosShops:'no abilities; old stock cleaned',nativeSummonNames:true}));

@@ -1065,10 +1065,10 @@ index fefc009d..a7835241 100644
 +}
 diff --git a/crates/tswn_core/src/runtime/chaos.rs b/crates/tswn_core/src/runtime/chaos.rs
 new file mode 100644
-index 00000000..2e526c42
+index 00000000..5c7358a8
 --- /dev/null
 +++ b/crates/tswn_core/src/runtime/chaos.rs
-@@ -0,0 +1,404 @@
+@@ -0,0 +1,410 @@
 +//! 混沌爬塔结构化操作：同一份参数决定执行与卡面，独立于原技能概率与被动钩子。
 +use super::*;
 +use serde::{Deserialize, Serialize};
@@ -1217,7 +1217,13 @@ index 00000000..2e526c42
 +                            hp,
 +                            (owner.runtime.attack * v / 100).max(0),
 +                        )
-+                        .with_display_name("混沌子体")
++                        // 机制类别与外显名称一致，战报直接使用原生召唤物名。
++                        .with_display_name(match operation.op.as_str() {
++                            "shadow" => "幻影",
++                            "zombie" => "丧尸",
++                            "clone" => "分身",
++                            _ => "使魔",
++                        })
 +                        .with_magic((owner.runtime.magic * v / 100).max(0))
 +                        .with_wisdom((owner.runtime.wisdom * v / 100).max(0))
 +                        .with_speed(owner.runtime.speed.max(1))

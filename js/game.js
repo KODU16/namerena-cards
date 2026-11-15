@@ -1276,7 +1276,9 @@ export function rollShop(state, seed, layer = 1) {
   const tactic = pool.length ? pool[Math.floor(r() * pool.length)] : null;
   if (tactic) items.push({ kind: 'tactic', price: priceOf(1500), tactic, power: Math.round((1 + progress) * 10) / 10 });
   // 蓝色能力卡比普通技能/战术卡稍贵，仅在商店或补给生成。
-  items.push({kind:'ability',price:priceOf(1750),ability:rollAbility(r)});
+  // 保留随机流位置；混沌商店不展示能力槽，普通商店保持原有内容。
+  const ability=rollAbility(r);
+  if(run.mode!=='chaos')items.push({kind:'ability',price:priceOf(1750),ability});
   // 遗物与其它商店稀有物一样按概率抽一个候选，绝不把未持有遗物全部铺进库存。
   const relic = r() < .24 ? rollRelic(r, state.relics) : null;
   if (relic) {
@@ -1297,7 +1299,7 @@ export function shopStock(state) {
     persist(state);
   }
   // 旧库存中的幻术也迁移为金卡，保留已售标记和原库存位置。
-  node.shopItems=node.shopItems.filter(item=>item.kind!=='tactic'||isTacticEnabled(item.tactic));
+  node.shopItems=node.shopItems.filter(item=>(state.run.mode!=='chaos'||item.kind!=='ability')&&(item.kind!=='tactic'||isTacticEnabled(item.tactic)));
   for(const item of node.shopItems)if(item.skill?.id==='sklshadow'){
     item.rarity='gold';item.skill.playerShadow=true;item.skill.lv=Math.min(5,item.skill.lv);
     item.price=Math.round(3500*(1+Math.min(1,((state.run.layer||1)-1)/9)*.5)/50)*50;
@@ -1375,7 +1377,8 @@ export function curseStock(state, charId) {
     persist(state);
   }
   // 库存一经生成即锁定：买走或后来付不起的商品仍占原栏位，绝不重掷或补货。
-  return node.curseStocks[charId].filter(o => o.kind !== 'tactic' || isTacticEnabled(o.tactic));
+  // 兼容已经存入旧档的混沌商店报价，避免读档仍能买到能力。
+  return node.curseStocks[charId].filter(o => (state.run.mode!=='chaos'||o.kind!=='ability')&&(o.kind !== 'tactic' || isTacticEnabled(o.tactic)));
 }
 
 // 同时校验所有角色，绝不让部分角色先扣款；技能报价必须仍为该人物的最高技能。

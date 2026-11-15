@@ -58,15 +58,18 @@ export function statLine(card) {
   return `HP ${s.hp} · 攻 ${s.atk} · 防 ${s.def} · 速 ${spdShown} · 敏 ${s.agi} · 魔 ${s.mag} · 抗 ${s.res} · 智 ${s.wis}`;
 }
 
+// 角色标签、完整技能栏和悬浮说明共用实际卡牌配方。
+function cardSkillMeta(skill){const base=skillMeta(skill.id);return skill.chaos?{...base,name:skill.chaos.name,desc:chaosDescription(skill.chaos,skill.lv)}:base;}
+
 export function skillTag(s, chance) {
-  const meta = skillMeta(s.id);
+  const meta = cardSkillMeta(s);
   const pct = chance == null ? null : Math.round(chance * 100);
   return el('span', {
     class: `skill-tag cat-${meta.cat || 'atk'}`,
     'data-tip': `${meta.name} ${shownSkillLevel(s)}`,
     'data-tip-desc': meta.desc + (pct == null ? '' : `（单抽概率 ${pct}%）`),
   },
-    emojiImg(s.id, 'emoji emoji--xs'),
+    emojiImg(s.chaos?.icon||s.id, 'emoji emoji--xs'),
     ` ${meta.name} ${shownSkillLevel(s)}`,
     pct == null ? null : el('em', { class: 'skill-tag__pct' }, ` ${pct}%`));
 }
@@ -107,10 +110,10 @@ export function cardEl(card, { size = 'grid', selected = false, dim = false, onC
     el('div', { class: 'c-skills' },
       skills.length ? skills.map((sk) => el('span', {
         class: `c-skill cat-${CAT[sk.cat]?.key || 'atk'}`,
-        'data-tip': `${skillMeta(sk.id).name} ${shownSkillLevel(sk)}`,
-        'data-tip-desc': skillMeta(sk.id).desc,
+        'data-tip': `${cardSkillMeta(sk).name} ${shownSkillLevel(sk)}`,
+        'data-tip-desc': cardSkillMeta(sk).desc,
       },
-        emojiImg(sk.id, 'emoji emoji--xs'), el('b', {}, shownSkillLevel(sk)))) : el('span', { class: 'c-skill c-skill--none' }, '无技能'),
+        emojiImg(sk.chaos?.icon||sk.id, 'emoji emoji--xs'), el('b', {}, shownSkillLevel(sk)))) : el('span', { class: 'c-skill c-skill--none' }, '无技能'),
     ),
     badge ? el('div', { class: 'c-badge' }, badge) : null,
     extra || null,
@@ -1450,7 +1453,7 @@ export function fullCharRow(card) {
       line('攻', 'atk', disp.atk), line('防', 'def', disp.def), line('速', 'spd', disp.spd), line('敏', 'agi', disp.agi),
       line('魔', 'mag', disp.mag), line('抗', 'res', disp.res), line('智', 'wis', disp.wis)),
     el('div', { class: 'fullrow__skills' }, (card.skillList || []).length
-      ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: skillMeta(sk.id).desc }, skillMeta(sk.id).name + ' ', el('b', { 'data-skill': sk.id }, shownSkillLevel(sk))))
+      ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: cardSkillMeta(sk).desc,'data-tip':cardSkillMeta(sk).name,'data-tip-desc':cardSkillMeta(sk).desc }, cardSkillMeta(sk).name + ' ', el('b', { 'data-skill': sk.id }, shownSkillLevel(sk))))
       : el('span', { class: 'muted small' }, '无技能')),
     el('div', { class: 'fullrow__sum', title: '外显七围 + 体力 / 3' }, '八围 ', el('b', {}, eightSumOf(card))));
 }
