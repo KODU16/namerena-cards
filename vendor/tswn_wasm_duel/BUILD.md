@@ -2,7 +2,7 @@
 
 源码仓库：https://github.com/KODU16/tswn-cards
 
-固定源码提交：cb2f17d1d88ec9152c61971e24e5c7865e8b3c18
+固定源码提交：ae7bebade8ec54d77942db27a4d6e5d4246e784d
 
 本目录的 JS、标准 WASM 和类型声明由该提交构建，网站与多人运行时复用同一份 WASM。
 
@@ -11,7 +11,7 @@
 使用与 Cargo.lock 相匹配的 wasm-bindgen-cli（本版 0.2.129），并安装 wasm32-unknown-unknown target：
 
 ~~~powershell
-git checkout cb2f17d1d88ec9152c61971e24e5c7865e8b3c18
+git checkout ae7bebade8ec54d77942db27a4d6e5d4246e784d
 cargo build -p tswn_wasm --target wasm32-unknown-unknown --release
 wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/release/tswn_wasm.wasm
 ~~~
@@ -35,3 +35,5 @@ Cards：node tools/verify-engine.mjs vendor/tswn_wasm_duel、node tools/verify-r
 合作模式使用 BattleSession.set_auto_actors(Uint32Array) 永久将指定根角色及其派生单位交回 tswn 原生选招。暂停时调用可继续推进；无效或敌方实体整包拒绝，不修改随机流或跨会话状态。
 
 混沌爬塔为单人专用：submit_chaos_action(actor, JSON程序, packed) 在校验完整操作列表与 MP 后提交一次行动。包含38项版本化操作，名称和简短描述从固定配方投影，不以文案决定执行。验证：node tools/verify-chaos.mjs。
+
+混沌战报复用原生伤害/回复/状态/召唤文本，静默操作补入对应原技能词片段，不再输出通用效果提示。混沌新牌池排除 Boss 专用操作，旧存档按配方定向迁移；普通与混沌战斗均使用扩展卡面。

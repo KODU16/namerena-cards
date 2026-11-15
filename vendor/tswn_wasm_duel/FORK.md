@@ -1,6 +1,6 @@
 # 卡牌引擎接口说明
 
-固定源码来自 KODU16/tswn-cards，提交 cb2f17d1d88ec9152c61971e24e5c7865e8b3c18；完整构建与补丁基线见 BUILD.md。
+固定源码来自 KODU16/tswn-cards，提交 ae7bebade8ec54d77942db27a4d6e5d4246e784d；完整构建与补丁基线见 BUILD.md。
 
 ## 构建
 
@@ -69,3 +69,5 @@ BattleOptions 的 debuff_relic_team、clone_relic_team、positive_status_relic_t
 合作模式使用 BattleSession.set_auto_actors(Uint32Array) 永久将指定根角色及其派生单位交回 tswn 原生选招。暂停时调用可继续推进；无效或敌方实体整包拒绝，不修改随机流或跨会话状态。
 
 混沌爬塔为单人专用：submit_chaos_action(actor, JSON程序, packed) 在校验完整操作列表与 MP 后提交一次行动。包含38项版本化操作，名称和简短描述从固定配方投影，不以文案决定执行。验证：node tools/verify-chaos.mjs。
+
+混沌战报复用原生伤害/回复/状态/召唤文本，静默操作补入对应原技能词片段，不再输出通用效果提示。混沌新牌池排除 Boss 专用操作，旧存档按配方定向迁移；普通与混沌战斗均使用扩展卡面。

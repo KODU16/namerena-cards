@@ -2,6 +2,8 @@ import {abilityFor} from './abilities.js';
 // 混沌牌的操作定义、数值解析与中文描述同源；每局固定牌池，升级只提高原槽位熟练度。
 import {SKILL_IDS,SKILLS,effectiveSkillLevel} from './skills.js';
 export const CHAOS_VERSION=1;
+// Boss 专用操作保留旧程序解释兼容，但不再允许生成或留在混沌牌池。
+const BOSS_OPERATIONS=new Set(['covid','lazy','pneumonia','saitama']);
 const targetNames={enemy:'随机一名存活敌人',enemies:'所有存活敌人',self:'自身',ally:'随机一名存活友方（含自身）',allies:'所有存活友方',dead_ally:'随机一名可复活的阵亡本体友方'};
 const atom=(id,name,targets,base,step,text,source)=>({id,name,targets,base,step,text,source});
 export const CHAOS_OPERATIONS=Object.freeze([
@@ -52,7 +54,7 @@ export function assembleChaosName(ops,rng=Math.random){
 }
 export function createChaosPool(seed){
  const rng=rngFor(seed^0xc4a05),pick=list=>list[Math.floor(rng()*list.length)];
- const occurrences=Object.entries(CHAOS_SOURCES).flatMap(([source,ids])=>ids.filter(id=>catalogue.has(id)).map(id=>({source,atom:catalogue.get(id)})));
+ const occurrences=Object.entries(CHAOS_SOURCES).filter(([source])=>!source.startsWith('boss_')).flatMap(([source,ids])=>ids.filter(id=>catalogue.has(id)).map(id=>({source,atom:catalogue.get(id)})));
  return Object.fromEntries(SKILL_IDS.map(id=>{
   const ops=Array.from({length:2+Math.floor(rng()*2)},()=>{const entry=pick(occurrences),a=entry.atom;return {op:a.id,target:pick(a.targets),base:a.base,step:a.step,source:entry.source};});
   // 首项不只有代价或无目标苏生；改用实际火球来源以保证名字也跟随真实配方。
@@ -60,7 +62,15 @@ export function createChaosPool(seed){
   return [id,{version:CHAOS_VERSION,id,name:assembleChaosName(ops,rng),nameSources:ops.map(x=>x.source),icon:pick(SKILL_IDS),ops}];
  }));
 }
-export function chaosDefinition(run,id){return run?.mode==='chaos'?run.chaosPool?.[id]:null;}
+// 仅迁移旧存档中的 Boss 组合；无关卡牌、归属、熟练度和锻造记录保持原值。
+export function removeBossChaosCards(run){
+ if(run?.mode!=='chaos'||!run.chaosPool)return;
+ const affected=Object.entries(run.chaosPool).filter(([,def])=>def.ops?.some(op=>BOSS_OPERATIONS.has(op.op)||op.source?.startsWith('boss_')));
+ if(!affected.length)return;
+ const replacement=createChaosPool(run.seed);
+ for(const [id]of affected)if(replacement[id])run.chaosPool[id]=replacement[id];
+}
+export function chaosDefinition(run,id){removeBossChaosCards(run);return run?.mode==='chaos'?run.chaosPool?.[id]:null;}
 export function chaosProgram(definition,level){
  if(!definition||definition.version!==CHAOS_VERSION)throw Error('混沌卡牌定义缺失或版本不兼容');
  const lv=effectiveSkillLevel(level);

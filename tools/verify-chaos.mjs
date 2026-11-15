@@ -26,3 +26,16 @@ assert.equal(C.assembleChaosName([{source:'sklpoison'},{source:'sklfire'}],()=>0
 const card=state.collection[0],input=E.buildLine(card)+'\n\n'+E.buildLine(E.makeCard('测试对手','敌'));const probe=new w.BattleSession(input,{}),team=probe.initial_states().find(x=>x.input_team_index===0).team_index;assert.ok(probe.initial_states().find(x=>x.input_team_index===0).skills.length===0);probe.free();const duel=new Duel({wasm:w,iconFor:E.iconFor},{input,playerTeam:team,champion:card,team:[card],chaosRun:state.run});const decision=duel.nextDecision();const played=card.skillList[0];duel.queue(decision.unit.id,255,1,null,played);const replay=duel.simulate();assert.ok(replay.frames.some(f=>f.updates.some(u=>u.message_rendered?.includes(played.chaos.name))));duel.dispose();
 for(const definition of Object.values(state.run.chaosPool)){const description=C.chaosDescription(definition,20),program=C.chaosProgram(definition,20);assert.ok(description.length>0&&description.endsWith('。'));assert.equal(description.split('。').filter(Boolean).length,program.ops.length);assert.ok(!/[·0-9]/.test(definition.name));assert.deepEqual(definition.nameSources,definition.ops.map(op=>op.source));assert.equal(program.ops.length,definition.ops.length);}
 console.log(JSON.stringify({mode:'chaos',pool:37,operations:C.CHAOS_OPERATIONS.length,allAtomsExecuted:true,shield:47,invalidProgram:'atomic rejection',nativeSkillsRemoved:true,duelIntegration:true,persistentTransferAndDelete:true,shopsAndRewards:80,descriptions:'structured program generated'}));
+
+// 新牌池完全排除 Boss 来源，旧牌仅替换受影响定义且保持归属与熟练度。
+const bossOps=new Set(['covid','lazy','pneumonia','saitama']);
+for(let seed=0;seed<200;seed++)for(const def of Object.values(C.createChaosPool(seed)))assert.ok(def.ops.every(op=>!bossOps.has(op.op)&&!op.source.startsWith('boss_')));
+const oldRun={mode:'chaos',seed:91,chaosPool:C.createChaosPool(91)},unchanged=structuredClone(oldRun.chaosPool.sklice);
+oldRun.chaosPool.sklfire={version:1,id:'sklfire',name:'新冠火球',ops:[{op:'covid',source:'boss_covid',target:'enemy',base:1,step:0}]};
+const migrated=C.chaosSkill(oldRun,{id:'sklfire',lv:73});assert.equal(migrated.lv,73);assert.ok(migrated.chaos.ops.every(op=>!bossOps.has(op.op)));assert.deepEqual(oldRun.chaosPool.sklice,unchanged);
+console.log(JSON.stringify({bossFreePools:200,oldBossCardMigration:'only affected recipes; level preserved'}));
+
+// 混沌战报按程序顺序使用原技能模板，不额外重复通用作用文本。
+const logs=new w.BattleSession(raw,options);drain(logs);const logActor=logs.paused_actor();logs.submit_chaos_action(logActor,JSON.stringify({version:1,name:'蓄加速',ops:[{op:'shield',target:'self',value:9},{op:'haste',target:'self',value:2}]}),1);
+const logFrame=logs.next_frame(),messages=logFrame.updates.map(x=>x.message_rendered||'');assert.ok(messages.some(x=>x.includes('护盾')&&x.includes('上升')));assert.ok(messages.some(x=>x.includes('疾走')));assert.ok(!messages.some(x=>x.includes('效果作用于')));assert.ok(messages.findIndex(x=>x.includes('护盾'))<messages.findIndex(x=>x.includes('疾走')));logs.free();
+console.log(JSON.stringify({chaosLogs:'ordered original skill fragments; no generic effect line'}));

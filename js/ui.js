@@ -442,7 +442,7 @@ export function unitPanel(u, { side }) {
 
 export function handCardEl(card, { onPlay, disabled, locked = false }) {
   if (card.id === 'berserk') {
-    return el('button', { class: 'hcard hcard--berserk', type: 'button', disabled: disabled || undefined, onclick: () => onPlay(card) },
+    return el('button', { class: 'hcard hcard--expanded hcard--berserk', type: 'button', disabled: disabled || undefined, onclick: () => onPlay(card) },
       el('div', { class: 'hcard__glyph' }, emojiImg('sklberserk', 'emoji emoji--xl')),
       el('div', { class: 'hcard__body' },
         el('b', {}, '狂暴攻击'),
@@ -453,7 +453,7 @@ export function handCardEl(card, { onPlay, disabled, locked = false }) {
     );
   }
   if (card.id === 'normal') {
-    return el('button', { class: 'hcard hcard--normal', type: 'button', disabled: disabled || undefined, onclick: () => onPlay(card) },
+    return el('button', { class: 'hcard hcard--expanded hcard--normal', type: 'button', disabled: disabled || undefined, onclick: () => onPlay(card) },
       el('div', { class: 'hcard__glyph' }, emojiImg('normal', 'emoji emoji--xl')),
       el('div', { class: 'hcard__body' },
         el('b', {}, '普通攻击'),
@@ -467,7 +467,7 @@ export function handCardEl(card, { onPlay, disabled, locked = false }) {
   const passive = !!card.passive;
   return el('button', {
     // 净化的金色品质与来源无关，在手牌及 MP 不足时仍能辨认。
-    class: `hcard${card.chaos?' hcard--chaos':''} cat-${meta.cat}${isRareSkill(card.id) ? ' hcard--gold' : ''}${passive ? ' is-passive' : ''}${locked ? ' is-locked' : ''}`,
+    class: `hcard hcard--expanded${card.chaos?' hcard--chaos':''} cat-${meta.cat}${isRareSkill(card.id) ? ' hcard--gold' : ''}${passive ? ' is-passive' : ''}${locked ? ' is-locked' : ''}`,
     type: 'button',
     disabled: disabled || passive || locked || undefined,
     onclick: () => onPlay(card),
@@ -477,7 +477,7 @@ export function handCardEl(card, { onPlay, disabled, locked = false }) {
     el('div', { class: 'hcard__body' },
       el('b', { class: card.ability ? 'hcard__ability-name' : '' }, meta.name + (card.ability ? '+' : '')),
       el('span', { class: 'hcard__lv' }, passive ? '被动 · 自动' : `熟练度 ${playerSkillLevel(card)} · 消耗 ${card.cost} MP`),
-      el('small', {}, passive ? '条件满足时自动发动，不需要点击。' : meta.desc),
+      el('small', {}, meta.desc),
     ),
     el('div', { class: 'hcard__cat' }, isRareSkill(card.id) ? '金色 · 稀有' : passive ? '被动' : CAT[meta.cat]?.name || ''),
     el('span', { class: `hcard__cost${locked ? ' is-locked' : ''}` }, card.cost),
