@@ -1,3 +1,4 @@
+import {cardArtFor} from './card-art.js';
 import {chaosDescription} from './chaos.js';
 import { abilityDescription, abilityKey } from './abilities.js';
 import { RELICS, relicById } from './relics.js';
@@ -443,48 +444,35 @@ export function unitPanel(u, { side }) {
   );
 }
 
-export function handCardEl(card, { onPlay, disabled, locked = false }) {
-  if (card.id === 'berserk') {
-    return el('button', { class: 'hcard hcard--expanded hcard--berserk', type: 'button', disabled: disabled || undefined, onclick: () => onPlay(card) },
-      el('div', { class: 'hcard__glyph' }, emojiImg('sklberserk', 'emoji emoji--xl')),
-      el('div', { class: 'hcard__body' },
-        el('b', {}, '狂暴攻击'),
-        el('span', { class: 'hcard__lv' }, '引擎接管 · 自动打出'),
-        el('small', {}, '狂暴中无法选择技能，随机挥出一击。'),
-      ),
-      el('span', { class: 'hcard__cost is-free' }, '狂'),
-    );
+// 数字强调只创建文本和strong，不执行描述内的HTML。
+export function skillDescriptionNodes(text){return String(text||'').split(/([−-]?[0-9]+(?:[.][0-9]+)?(?:%|％)?)/g).filter(Boolean).map(part=>/^[−-]?[0-9]/.test(part)?el('strong',{class:'skill-number'},part):document.createTextNode(part));}
+// 出牌区布局完成后优先压缩战场高度，确保卡面正文留在视口内。
+let handLayoutPending=false;
+function schedulePortraitHand(){
+ if(typeof requestAnimationFrame==='undefined'||handLayoutPending)return;handLayoutPending=true;
+ requestAnimationFrame(()=>requestAnimationFrame(()=>{
+  handLayoutPending=false;
+  for(const battle of document.querySelectorAll('.battle:has(.hcard--illustrated)')){
+   const hand=battle.querySelector('.hand'),arena=battle.querySelector('.arena');if(!hand||!arena)continue;
+   const descriptions=[...hand.querySelectorAll('.hcard__description')];
+   const bottom=()=>Math.max(0,...descriptions.map(n=>n.getBoundingClientRect().bottom));
+   const excess=bottom()-innerHeight+10;
+   if(excess>0){const height=Math.max(70,arena.getBoundingClientRect().height-excess);arena.style.height=height+'px';arena.style.minHeight='0';arena.style.maxHeight=height+'px';}
+   requestAnimationFrame(()=>{const remaining=bottom()-innerHeight+10;if(remaining>0&&battle.isConnected)window.scrollBy({top:remaining,behavior:'instant'});});
   }
-  if (card.id === 'normal') {
-    return el('button', { class: 'hcard hcard--expanded hcard--normal', type: 'button', disabled: disabled || undefined, onclick: () => onPlay(card) },
-      el('div', { class: 'hcard__glyph' }, emojiImg('normal', 'emoji emoji--xl')),
-      el('div', { class: 'hcard__body' },
-        el('b', {}, '普通攻击'),
-        el('span', { class: 'hcard__lv' }, '0 MP · 物理 · 永远可用'),
-        el('small', {}, '没有技能可用时，拳头永远在。'),
-      ),
-      el('span', { class: 'hcard__cost is-free' }, '0'),
-    );
-  }
-  const meta = card.chaos?{name:card.chaos.name,cat:skillMeta(card.chaos.icon).cat,desc:card.description||chaosDescription(card.chaos,card.lv)}:skillMeta(card.id);
-  const passive = !!card.passive;
-  return el('button', {
-    // 净化的金色品质与来源无关，在手牌及 MP 不足时仍能辨认。
-    class: `hcard hcard--expanded${card.chaos?' hcard--chaos':''} cat-${meta.cat}${isRareSkill(card.id) ? ' hcard--gold' : ''}${passive ? ' is-passive' : ''}${locked ? ' is-locked' : ''}`,
-    type: 'button',
-    disabled: disabled || passive || locked || undefined,
-    onclick: () => onPlay(card),
-    title: locked ? `魔力不足（这张牌要 ${card.cost} MP）` : passive ? `${meta.desc}（被动：满足条件时自动发动）` : meta.desc,
-  },
-    el('div', { class: 'hcard__glyph' }, emojiImg(card.chaos?.icon||card.id, 'emoji emoji--xl')),
-    el('div', { class: 'hcard__body' },
-      el('b', { class: card.ability ? 'hcard__ability-name' : '' }, meta.name + (card.ability ? '+' : '')),
-      el('span', { class: 'hcard__lv' }, passive ? '被动 · 自动' : `熟练度 ${playerSkillLevel(card)} · 消耗 ${card.cost} MP`),
-      el('small', {}, meta.desc),
-    ),
-    el('div', { class: 'hcard__cat' }, isRareSkill(card.id) ? '金色 · 稀有' : passive ? '被动' : CAT[meta.cat]?.name || ''),
-    el('span', { class: `hcard__cost${locked ? ' is-locked' : ''}` }, card.cost),
-  );
+ }));
+}
+if(typeof window!=='undefined')window.addEventListener?.('resize',schedulePortraitHand);
+export function handCardEl(card,{onPlay,disabled,locked=false}){
+ schedulePortraitHand();
+ const normal=card.id==='normal',berserk=card.id==='berserk',passive=!!card.passive;
+ const meta=normal?{name:'普通攻击',cat:'atk',desc:'进行一次物理普通攻击，不消耗MP。'}:berserk?{name:'狂暴攻击',cat:'atk',desc:'进行120%物理攻击，随机攻击场上的目标，不分敌我。'}:card.chaos?{name:card.chaos.name,cat:skillMeta(card.chaos.icon).cat,desc:card.description||chaosDescription(card.chaos,card.lv)}:skillMeta(card.id);
+ const cost=normal?0:berserk?'狂':passive?'被动':card.cost??0,art=cardArtFor(card);
+ return el('button',{class:'hcard hcard--expanded hcard--illustrated cat-'+meta.cat+(card.chaos?' hcard--chaos':'')+(normal?' hcard--normal':'')+(berserk?' hcard--berserk':'')+(isRareSkill(card.id)?' hcard--gold':'')+(passive?' is-passive':'')+(locked?' is-locked':''),type:'button',disabled:disabled||passive||locked||undefined,onclick:()=>onPlay(card),title:meta.desc},
+  el('span',{class:'hcard__cost'+(normal?' is-free':'')+(locked?' is-locked':''),'aria-label':typeof cost==='number'?'消耗 '+cost+' MP':cost},cost),
+  el('b',{class:'hcard__name'},meta.name+(card.ability?'+':'')),
+  el('div',{class:'hcard__art'+(art?'':' is-empty'),'aria-label':art?meta.name+'立绘':'普通攻击立绘留空'},art?el('img',{src:art,alt:meta.name,loading:'eager',decoding:'async'}):null),
+  el('div',{class:'hcard__body'},el('small',{class:'hcard__description'},skillDescriptionNodes(meta.desc))));
 }
 
 // ————————————————————— 战斗驱动（动画）

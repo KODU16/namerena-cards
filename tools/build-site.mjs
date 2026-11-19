@@ -71,7 +71,7 @@ const iconSpriteName = 'icons-32-' + hash(iconSprite) + '.png';
 // 英雄立绘按需请求，独立内容指纹缓存，不计入游戏首屏下载。
 let appSource = bundled.outputFiles[0].text;
 // 商人立绘同样只在打开对应商店时加载，保留透明背景并使用内容指纹。
-for (const folder of ['assets/heroes', 'assets/characters']) {
+for (const folder of ['assets/heroes', 'assets/characters', 'assets/card-art']) {
   for (const name of (await readdir(join(root, folder))).sort()) {
     if (!name.endsWith('.webp')) continue;
     const art = await read(folder + '/' + name);

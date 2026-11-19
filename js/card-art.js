@@ -1,0 +1,31 @@
+// 立绘路径供发布构建替换内容指纹，普通攻击明确留空。
+const ART={
+  "sklfire": "assets/card-art/sklfire.webp",
+  "sklice": "assets/card-art/sklice.webp",
+  "sklthunder": "assets/card-art/sklthunder.webp",
+  "sklquake": "assets/card-art/sklquake.webp",
+  "sklabsorb": "assets/card-art/sklabsorb.webp",
+  "sklpoison": "assets/card-art/sklpoison.webp",
+  "sklrapid": "assets/card-art/sklrapid.webp",
+  "sklcritical": "assets/card-art/sklcritical.webp",
+  "sklhalf": "assets/card-art/sklhalf.webp",
+  "sklexchange": "assets/card-art/sklexchange.webp",
+  "sklberserk": "assets/card-art/sklberserk.webp",
+  "sklcharm": "assets/card-art/sklcharm.webp",
+  "sklhaste": "assets/card-art/sklhaste.webp",
+  "sklslow": "assets/card-art/sklslow.webp",
+  "sklcurse": "assets/card-art/sklcurse.webp",
+  "sklheal": "assets/card-art/sklheal.webp",
+  "sklrevive": "assets/card-art/sklrevive.webp",
+  "skldisperse": "assets/card-art/skldisperse.webp",
+  "skliron": "assets/card-art/skliron.webp",
+  "sklcharge": "assets/card-art/sklcharge.webp",
+  "sklaccumulate": "assets/card-art/sklaccumulate.webp",
+  "sklassassinate": "assets/card-art/sklassassinate.webp",
+  "sklsummon": "assets/card-art/sklsummon.webp",
+  "sklclone": "assets/card-art/sklclone.webp",
+  "sklshadow": "assets/card-art/sklshadow.webp",
+  "berserk": "assets/card-art/berserk.webp"
+};
+const ALIAS={skldefend:'skliron',sklprotect:'skliron',sklreflect:'sklcurse',sklreraise:'sklrevive',sklshield:'skliron',sklcounter:'sklrapid',sklmerge:'sklabsorb',sklzombie:'sklrevive',sklupgrade:'sklaccumulate',sklhide:'sklassassinate',sklexplode:'sklsummon',sklpossess:'sklcharm'};
+export function cardArtFor(card){if(card.id==='normal')return '';const id=card.chaos?.icon||card.id;return ART[ALIAS[id]||id]||'';}
