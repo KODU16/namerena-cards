@@ -455,6 +455,11 @@ function schedulePortraitHand(){
   for(const battle of document.querySelectorAll('.battle:has(.hcard--illustrated)')){
    const hand=battle.querySelector('.hand'),arena=battle.querySelector('.arena');if(!hand||!arena)continue;
    const descriptions=[...hand.querySelectorAll('.hcard__description')];
+   // 同手牌共用最短可用画框高度，描述长短不再改变图片下沿。
+   const cards=[...hand.querySelectorAll('.hcard--illustrated:not(.card-flying)')];
+   const maxText=Math.max(0,...descriptions.map(n=>n.scrollHeight));
+   const artHeight=Math.max(24,Math.min(...cards.map(card=>{const style=getComputedStyle(card),name=card.querySelector('.hcard__name');return card.clientHeight-parseFloat(style.paddingTop)-parseFloat(style.paddingBottom)-name.offsetHeight-maxText-parseFloat(style.rowGap)*2-16;})));
+   if(Number.isFinite(artHeight))hand.style.setProperty('--portrait-art-height',Math.floor(artHeight)+'px');
    const bottom=()=>Math.max(0,...descriptions.map(n=>n.getBoundingClientRect().bottom));
    const excess=bottom()-innerHeight+10;
    if(excess>0){const height=Math.max(70,arena.getBoundingClientRect().height-excess);arena.style.height=height+'px';arena.style.minHeight='0';arena.style.maxHeight=height+'px';}
