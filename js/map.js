@@ -111,20 +111,28 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
 
   // 以旧版约 50 节点地图的平均数量为比例缩放；节点总数确定后不再掷“是否出现”。
   const scaleCount = (count, atLeastOne = true) => Math.max(atLeastOne ? 1 : 0, Math.round(targetNodes * count / 50));
-  const campCount = scaleCount(3.5);
+  let campCount = scaleCount(3.5);
   const baseEliteCount = scaleCount(2);
   // A1 的精英增量即使在 20 节点小地图也至少保留一格，避免词条被整数舍入吞掉。
   const wantedEliteCount = makeElite ? Math.max(baseEliteCount + (eliteCount > 2 ? 1 : 0), scaleCount(eliteCount)) : 0;
-  const shopCount = scaleCount(2);
-  const cpuCount = makeCpu ? scaleCount(1) : 0;
-  const chestCount = scaleCount(1.5);
-  const eventCount = scaleCount(2.5);
+  let shopCount = scaleCount(2);
+  let cpuCount = makeCpu ? scaleCount(1) : 0;
+  let chestCount = scaleCount(1.5);
+  let eventCount = scaleCount(2.5);
   const baseSpecialCount = campCount + wantedEliteCount + shopCount + cpuCount + chestCount + eventCount;
   const merchantCount = Math.min(3, Math.max(0, Math.min(scaleCount(1, false), targetNodes - 1 - ladderNodes.length - baseSpecialCount)));
   // 商人数量固定，种类仅改变落点，不改变节点总量或出现占比。
+  // 只将普通试炼预算改为更多成长节点，天梯、精英和总节点数保持不变。
+  let growthBudget=Math.max(0,targetNodes-1-ladderNodes.length-baseSpecialCount-merchantCount);
+  const growth={camp:campCount,cpu:cpuCount,shop:shopCount,chest:chestCount,event:eventCount};
+  const desired={camp:scaleCount(5),cpu:makeCpu?scaleCount(2.5):0,shop:scaleCount(3.5),chest:scaleCount(2.5),event:scaleCount(4)};
+  let added=true;
+  while(growthBudget>0&&added){added=false;for(const kind of ['camp','cpu','event','shop','chest'])if(growthBudget>0&&growth[kind]<desired[kind]){growth[kind]++;growthBudget--;added=true;}}
+  ({camp:campCount,cpu:cpuCount,shop:shopCount,chest:chestCount,event:eventCount}=growth);
+  const specialCount=campCount+wantedEliteCount+shopCount+cpuCount+chestCount+eventCount;
   const activeMerchants = shuffle(['weaponMerchant', 'curseMerchant', 'constructMerchant'], rng).slice(0, merchantCount);
   // battleCount 含层末 Boss；起点单独计数，避免总节点预算少算 Boss 一格。
-  const battleCount = targetNodes - 1 - baseSpecialCount - merchantCount;
+  const battleCount = targetNodes - 1 - specialCount - merchantCount;
   const fillerCount = Math.max(0, battleCount - ladderNodes.length);
 
   let seq = 0;
@@ -289,9 +297,13 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
   for (let d = 1; d < depths; d++) {
     const from = groups[d];
     const to = groups[d + 1];
-    const candidates = shuffle(from.flatMap((node) => to.map((target) => [node, target])), rng);
+    // 对所有地图采用同一分支规则；优先尝试成长节点相邻连线，不指定获胜路线。
+    const growthKind=new Set(['camp','cpu','shop','event','chest','weaponMerchant','curseMerchant','constructMerchant']);
+    const candidates = shuffle(from.flatMap((node) => to.map((target) => [node, target])), rng)
+      .sort((a,b)=>Number(growthKind.has(b[0].kind)||growthKind.has(b[1].kind))-Number(growthKind.has(a[0].kind)||growthKind.has(a[1].kind)));
     for (const [node, target] of candidates) {
-      if (node.next.includes(target.id) || rng() >= 0.4) continue;
+      const branchChance=(growthKind.has(node.kind)||growthKind.has(target.kind)) ? 0.85 : 0.6;
+      if (node.next.includes(target.id) || rng() >= branchChance) continue;
       if (degree.get(node.id) >= MAX_CONNECTIONS || degree.get(target.id) >= MAX_CONNECTIONS) continue;
       const crosses = from.some((source) => source.next.some((id) => {
         const dest = to.find((candidate) => candidate.id === id);

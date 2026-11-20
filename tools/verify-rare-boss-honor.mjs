@@ -125,3 +125,9 @@ G.restoreSnapshot(clean,other);assert.ok(H.hasHonor(clean.run));other.run.nodeId
 clean.run.layer=10;G.advanceLayer(clean);assert.ok(clean.run.goldVictory);assert.ok(clean.records[0].gold);
 honorState.run.layer=10;G.advanceLayer(honorState);assert.equal(honorState.run.goldVictory,false);assert.equal(honorState.records[0].gold,false);
 console.log(JSON.stringify({shops:1000,shadowOffers,purifyOffers,bossLayers:10,rareCurseOffers:expensive,shadowSourceAndCap:'passed',honorRollbackAndGold:'passed'}));
+
+// 普通及混沌诅咒商人均排除角色与属性卡，其余交易保留；旧库存也不能通过报价购买。
+for(const mode of ['standard','chaos']){const seen=new Set();for(let seed=0;seed<200;seed++){const state=makeState(E.makeCard('诅咒过滤','青'),seed);state.run.mode=mode;const stock=G.curseStock(state,state.collection[0].id);for(const offer of stock){assert.notEqual(offer.kind,'card');assert.notEqual(offer.skill?.kind,'attribute');seen.add(offer.kind);}}
+for(const kind of ['skill','weapon','potion','tactic','relic'])assert.ok(seen.has(kind),mode+' '+kind);
+const old=makeState(E.makeCard('旧报价','青'));old.run.mode=mode;const node=old.run.graph.byId.get(old.run.nodeId);node.curseStocks={[old.collection[0].id]:[{id:'bad-role',kind:'card',card:old.collection[0]},{id:'bad-stat',kind:'skill',skill:{kind:'attribute',attrs:{atk:10}}}]};assert.equal(G.curseStock(old,old.collection[0].id).length,0);assert.ok(!G.buyCurseItem(old,old.collection[0].id,'bad-role'));}
+console.log(JSON.stringify({curseSeeds:400,excluded:['characters','attribute forge cards'],otherItems:'preserved',oldQuotes:'filtered'}));

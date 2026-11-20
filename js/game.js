@@ -1364,7 +1364,8 @@ export function curseStock(state, charId) {
       const max = Math.min(...state.collection.map((c) => Math.ceil(((curseBaseStats(c)[key] || 0) - floor) / factor) - 1));
       return { type: 'stat', key, label, factor, max };
     }).filter((cost) => cost.max >= 1);
-    node.curseStocks[charId] = rollShop(state, seed, state.run.layer).map((item, i) => {
+    // 诅咒只交换技能和物品，不产出角色或属性锻造卡。
+    node.curseStocks[charId] = rollShop(state, seed, state.run.layer).filter(item=>item.kind!=='card'&&item.skill?.kind!=='attribute').map((item, i) => {
       let cost;
       const rare=RARE_SKILLS[item.skill?.id],minimum=rare?.curseStat||1;
       const available=costs.map(c=>({...c,max:Math.min(rare?60:40,c.max)})).filter(c=>c.max>=minimum);
@@ -1381,7 +1382,7 @@ export function curseStock(state, charId) {
   }
   // 库存一经生成即锁定：买走或后来付不起的商品仍占原栏位，绝不重掷或补货。
   // 兼容已经存入旧档的混沌商店报价，避免读档仍能买到能力。
-  return node.curseStocks[charId].filter(o => (state.run.mode!=='chaos'||o.kind!=='ability')&&(o.kind !== 'tactic' || isTacticEnabled(o.tactic)));
+  return node.curseStocks[charId].filter(o => o.kind!=='card'&&o.skill?.kind!=='attribute'&&(state.run.mode!=='chaos'||o.kind!=='ability')&&(o.kind !== 'tactic' || isTacticEnabled(o.tactic)));
 }
 
 // 同时校验所有角色，绝不让部分角色先扣款；技能报价必须仍为该人物的最高技能。
