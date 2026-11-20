@@ -58,6 +58,7 @@ export function coopOpponent(room){
   for(let i=0;i<room.population;i++){
     // 天梯复制同一原节点，试炼则重新生成彼此独立的随机 @! 队伍。
     if(node.kind==='filler')cards.push(...G.makeFiller(s.run.teamSize,G.mulberry32(seedFor(room,node.id,i+1))).map(c=>G.applyDifficultyEnemy(c,s.run,'normal')));
+    else if(node.kind==='end'&&base.trial){const mult=1+.05*s.run.layer;cards.push(...G.makeFiller(s.run.teamSize,G.mulberry32(seedFor(room,node.id,i+1))).map(c=>G.applyDifficultyEnemy({...c,bossMult:mult,stats:Object.fromEntries(Object.entries(c.stats).map(([key,value])=>[key,Math.round(value*mult)]))},s.run,'boss')));}
     else if(node.kind==='elite'){
       const rng=G.mulberry32(seedFor(room,node.id,i+1)),mult=node.payload.mode==='heavy'?node.payload.mult:1;
       cards.push(...Array.from({length:base.cards.length},()=>{const c=makeCard(G.randomName(rng),'!');c.eliteMult=mult;c.stats=Object.fromEntries(Object.entries(c.stats).map(([k,v])=>[k,Math.round(v*mult)]));return G.applyDifficultyEnemy(c,s.run,'elite');}));
@@ -167,7 +168,7 @@ export function settleCoopBattle(room,result){
   for(const m of room.members){G.recordBattleResult(m.state,true,result.rounds);G.clearNode(personalState(m));}
   // 共享战力币是同一件遗物，每个共同节点只结算一次。
   changeShared(room,first.run.score-baseScore);
-  if(node.kind==='ladder'||node.kind==='end'){const before=first.run.score;G.addScore(first,node.payload.score);changeShared(room,(first.run.score-before)*room.population);}
+  if((node.kind==='ladder'||node.kind==='end')&&!node.payload.trial){const before=first.run.score;G.addScore(first,node.payload.score);changeShared(room,(first.run.score-before)*room.population);}
   else {
     const offer=G.rollRewards(first,seedFor(room,room.node,room.attempt||0),node.kind==='elite',true).find(o=>o.kind==='score');
     if(offer)changeShared(room,offer.points*room.population);

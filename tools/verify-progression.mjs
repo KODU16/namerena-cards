@@ -35,3 +35,15 @@ assert.equal(G.forgeChance(state,attrTarget.id,attrCard),1);assert.ok(G.forgeSki
 for(const [key,value] of Object.entries(attrCard.attrs))assert.equal(attrTarget.forge[key],(forgeBefore[key]||0)+value);
 assert.equal(state.run.skillCards.length,0);const forgedStats={...attrTarget.stats};G.refreshRunBuff(state);assert.deepEqual(attrTarget.stats,forgedStats);
 console.log(JSON.stringify({attributeForge:'guaranteed and permanent',attributes:attrCard.attrs}));
+
+// 缺员天梯用试炼占据缺失进度位，十层始终覆盖100个位置且终点可战斗。
+for(const count of [0,34,40,75,77,87,99,100]){
+ const entries=Array.from({length:count},(_,i)=>G.opponentFromEntry({rank:i+1,score:100+i,name:'补齐验证'+i+'@检查'},1));
+ const f=G.createState();f.collection=[E.makeCard('进度补齐','青')];f.tacticsPool=[];f.run={seed:517,difficulty:20,layer:1,teamSize:1,nodeCount:40,entries,index:0,score:0};
+ let positions=0,trials=0;for(let layer=1;layer<=10;layer++){f.run.layer=layer;G.buildGraphForLayer(f);const g=f.run.graph,end=g.byId.get(g.endId);assert.equal(g.nodes.length,40);assert.ok(end.payload.cards.length);const slots=g.nodes.filter(n=>n.progressionRank!=null);assert.equal(slots.length,10);positions+=slots.length;trials+=slots.filter(n=>n.kind==='filler'||n.payload?.trial).length;for(const n of slots)if(n.kind==='ladder')assert.ok(n.rank<=count);}
+ assert.equal(positions,100);assert.equal(trials,100-count);
+}
+console.log(JSON.stringify({sparseLadderSizes:[0,34,40,75,77,87,99,100],progressionSlots:100,missingSlots:'random trials',bosses:'all have enemies'}));
+
+// 已存在的缺员旧存档只修复空终点，不清空路线、当前位置或角色。
+const legacy=G.createState();legacy.collection=[E.makeCard('旧档补齐','青')];legacy.run={seed:9,layer:1,teamSize:1,difficulty:20,index:6,nodeId:'old-current',selectedId:'old-end',cleared:['kept'],graph:{endId:'old-end',nodes:[{id:'old-current',kind:'filler',next:['old-end']},{id:'old-end',kind:'end',next:[],rank:91}]}};legacy.run.graph.byId=new Map(legacy.run.graph.nodes.map(n=>[n.id,n]));G.enhanceLayerBoss(legacy.run);assert.ok(G.currentOpponent(legacy).trial);assert.ok(G.currentOpponent(legacy).cards.length);assert.deepEqual(legacy.run.cleared,['kept']);assert.equal(legacy.run.nodeId,'old-current');

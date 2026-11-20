@@ -2,7 +2,7 @@
 
 源码仓库：https://github.com/KODU16/tswn-cards
 
-固定源码提交：977be8fc687cff657d974fe5d0db9107878e7482
+固定源码提交：97c42bf536fac57b03bd5bae534da2c14909245b
 
 本目录的 JS、标准 WASM 和类型声明由该提交构建，网站与多人运行时复用同一份 WASM。
 
@@ -11,7 +11,7 @@
 使用与 Cargo.lock 相匹配的 wasm-bindgen-cli（本版 0.2.129），并安装 wasm32-unknown-unknown target：
 
 ~~~powershell
-git checkout 977be8fc687cff657d974fe5d0db9107878e7482
+git checkout 97c42bf536fac57b03bd5bae534da2c14909245b
 cargo build -p tswn_wasm --target wasm32-unknown-unknown --release
 wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/release/tswn_wasm.wasm
 ~~~
@@ -39,3 +39,5 @@ Cards：node tools/verify-engine.mjs vendor/tswn_wasm_duel、node tools/verify-r
 混沌战报复用原生伤害/回复/状态/召唤文本，静默操作补入对应原技能词片段，不再输出通用效果提示。混沌新牌池排除 Boss 专用操作，旧存档按配方定向迁移；普通与混沌战斗均使用扩展卡面。
 
 混沌召唤按类别使用幻影、使魔、丧尸、分身名称，战报与快照一致。混沌商店不出售能力卡；角色技能标签和详情按实际混沌配方显示，并提供描述悬浮提示。
+
+尖塔受控战斗统一限制双方七围外显值不超过255，体力保持独立范围。药水只记录实际增量以便正确还原，混沌多段增益在每个操作后应用上限。验证：node tools/verify-stat-limits.mjs。

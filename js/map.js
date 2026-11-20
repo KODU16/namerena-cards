@@ -99,7 +99,8 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
   const depths = Math.max(5, Math.ceil((targetNodes - 2) / MAX_PER_DEPTH));
   const ranks = layerRanks(layer);
   const byRank = new Map(entries.map((e) => [e.rank, e]));
-  const ladderNodes = ranks.map((r) => byRank.get(r)).filter(Boolean);
+  // 不足100名时保留固定进度位，用随机试炼补空缺，不伪造天梯对手。
+  const ladderNodes = ranks.map(rank=>byRank.get(rank)||{rank,score:0,name:'试炼守关',trial:true,cards:makeFiller(teamSize,rng)});
   const endRank = layerEndRank(layer);
   const endEntry = ladderNodes.find((e) => e.rank === endRank) || ladderNodes[0];
 
@@ -140,7 +141,8 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
   const groups = Array.from({ length: depths + 2 }, () => []);
   const start = mk('start', null, null);
   const runnerUp = bossRush ? ladderSorted.find((entry) => entry.rank === endRank + 1) : null;
-  const end = mk('end', bossRush && runnerUp ? { ...endLadder, cards: [...(runnerUp.cards || []), ...(endLadder.cards || [])], rank: endRank, score: endLadder.score, name: '天梯 #2/#1 连战' } : endLadder, endRank);
+  const end = mk('end', bossRush && runnerUp ? { ...endLadder, cards: [...(runnerUp.cards || []), ...(endLadder.cards || [])], rank: endRank, score: endLadder.score, name: '天梯 #2/#1 连战' } : endLadder, endLadder.trial?null:endRank);
+  end.progressionRank=endRank;
   groups[0] = [start];
   groups[depths + 1] = [end];
 
@@ -151,7 +153,7 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
   for (let d = 1; d <= depths; d++) {
     for (let k = 0; k < perDepthLadder[d - 1]; k++) {
       const e = ladderRest[li++];
-      if (e) groups[d].push(mk('ladder', e, e.rank));
+      if(e){const node=e.trial?mk('filler',e.cards,null):mk('ladder',e,e.rank);node.progressionRank=e.rank;groups[d].push(node);}
     }
   }
   // 优先补到节点最少的深度，同样稀疏的行随机选择，避免节点聚集。

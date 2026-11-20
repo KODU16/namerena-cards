@@ -1,3 +1,4 @@
+import {createChaosPool,ensureChaosSkills} from './chaos.js';
 // 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
 import { loadEngine, makeCard, hydrateCard, buildLine, applyTactics, applyRunBuff, runMultiplier, engineWasm, iconFor } from './engine.js';
 import { Duel, DuelView } from './duel.js';
@@ -332,16 +333,19 @@ function syncDraft() {
   while (draft.names.length < size) draft.names.push(G.randomName());
   draft.names.length = size;
   const played = 0; // 新一局从 2 倍开始，随后按已走过的节点衰减。
+  if(draft.mode==='chaos')draft.chaosPool||=createChaosPool(draft.seed);
   draft.cards = draft.names.map((n) => {
     const card = n ? safeCard(n, draft.clan || '无名') : null;
-    return card ? G.withRunBuff(G.replaceStarterRareSkills(card), played) : null;
+    if(!card)return null;const ready=G.withRunBuff(G.replaceStarterRareSkills(card),played);
+    if(draft.mode==='chaos'){ready.skillTraining={};ready.skillList=ensureChaosSkills({run:{mode:'chaos',seed:draft.seed,chaosPool:draft.chaosPool,forged:[]}},ready,ready.skillList);ready.chaosMode=true;}
+    return ready;
   }).filter(Boolean);
 }
 
 let newRunMode='standard';
 function newRunSetup(mode=null) {
   if(typeof mode==='string')newRunMode=mode;
-  if (!draft) draft = { mode:newRunMode, clan: '青', lane: '1A', difficulty: 0, nodeCount: 40, names: [], rerolls: 3 };
+  if (!draft) draft = { mode:newRunMode,seed:Date.now()>>>0, clan: '青', lane: '1A', difficulty: 0, nodeCount: 40, names: [], rerolls: 3 };
   syncDraft();
   nav('newrun', () => UI.renderNewRun(root, state, {
     draft,
@@ -397,7 +401,7 @@ function newRunSetup(mode=null) {
       if (!draft.cards || draft.cards.length < teamSizeOf(draft.lane)) return toast('还有空位，先填满名字');
       await G.startRun(state, {
         mode:draft.mode||'standard',
-        seed: Date.now() >>> 0,
+        seed:draft.seed??(Date.now()>>>0),
         lane: draft.lane || '1A',
         difficulty: draft.difficulty || 0,
         nodeCount: draft.nodeCount || 40,
@@ -649,7 +653,7 @@ function afterBattle(won) {
   }
   // 赢下这个节点：位置推进过去
   const node = G.clearNode(state);
-  if (node && (node.kind === 'ladder' || node.kind === 'end')) {
+  if (node && (node.kind === 'ladder' || node.kind === 'end')&&!node.payload?.trial) {
     const gain = G.addScore(state, node.payload?.score);
     if (gain) toast('天梯 +' + gain + ' 分', 1800);
   }
@@ -668,7 +672,7 @@ function afterBattle(won) {
     return mapScreen();
   }
   // 天梯节点的 Elo 分数已在 clearNode 后即时入账，三选一不再重复提供分数。
-  const isLadderFight = node?.kind === 'ladder' || node?.kind === 'end';
+  const isLadderFight = (node?.kind === 'ladder' || node?.kind === 'end')&&!node?.payload?.trial;
   let offers = G.rollRewards(state, (state.run.seed + state.run.index * 7919) >>> 0, node?.kind === 'elite', node?.kind === 'filler' || node?.kind === 'elite', false, false, !isLadderFight);
   if (state.run.difficulty >= 15) offers = offers.slice(0, 2);
   nav('reward', () => UI.renderReward(root, state, offers, {

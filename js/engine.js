@@ -1,3 +1,4 @@
+import {capStats} from './stat-limits.js';
 ﻿// tswn_wasm 的薄封装：名字 → 卡牌（八围 / 技能 / 头像）。
 // 所有数值都来自 tswn_core 的构建结果，前端只负责把它们整理成卡面。
 import initWasm, * as wasm from '../vendor/tswn_wasm_duel/tswn_wasm.js';
@@ -50,7 +51,7 @@ function decodeStats(attrs) {
 
 // 卡牌 ol.attrs 已是 tswn 外显值；只有战斗 Runtime 的七围需要转换偏移。
 export function cardDisplayStats(stats = {}) {
-  return Object.fromEntries(['hp', 'atk', 'def', 'spd', 'agi', 'mag', 'res', 'wis'].map((key) => [key, Math.round(stats[key] || 0)]));
+  return capStats(Object.fromEntries(['hp', 'atk', 'def', 'spd', 'agi', 'mag', 'res', 'wis'].map((key) => [key, Math.round(stats[key] || 0)])));
 }
 
 // 八围统一使用外显七围，体力按三分之一折合；不混入 Runtime 的速度偏移。
@@ -93,7 +94,7 @@ export function buildWithWeapon(name, clan, weapon) {
     const skills = Object.entries(ol.skills || {})
       .map(([id, v]) => ({ id, lv: Math.round(levelOf(v)) }))
       .filter((s) => SKILLS[s.id] && s.lv > 0);
-    return { stats: decodeStats(ol.attrs), skills };
+    return { stats: capStats(decodeStats(ol.attrs)), skills };
   } catch { return null; }
 }
 
@@ -157,7 +158,7 @@ export function applyTactics(card, tactics) {
   }
   return {
     ...card,
-    stats,
+    stats:capStats(stats),
     skillList: [...skills.entries()].map(([id, lv]) => ({ ...card.skillList?.find((s) => s.id === id), id, lv })),
   };
 }
@@ -170,8 +171,8 @@ export function applyRunBuff(card, mult) {
     ...card,
     stats: {
       // 体力不吃保底：血量必须和 tswn 算出来的一致
-      hp: Math.max(1, Math.round(s.hp)), atk: scale(s.atk), def: scale(s.def), spd: scale(s.spd),
-      agi: scale(s.agi), mag: scale(s.mag), res: scale(s.res), wis: scale(s.wis),
+      hp: Math.max(1, Math.round(s.hp)), atk: Math.min(255,scale(s.atk)), def: Math.min(255,scale(s.def)), spd: Math.min(255,scale(s.spd)),
+      agi: Math.min(255,scale(s.agi)), mag: Math.min(255,scale(s.mag)), res: Math.min(255,scale(s.res)), wis: Math.min(255,scale(s.wis)),
     },
   };
 }

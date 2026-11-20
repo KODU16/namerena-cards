@@ -1,3 +1,4 @@
+import {capStats,attributeRoom} from './stat-limits.js';
 import {createChaosPool,ensureChaosSkills,chaosSkill,moveChaosSkill} from './chaos.js';
 import { acquireAbility, normalizeAbilities, rollAbility, abilityDescription, abilityKey } from './abilities.js';
 import { RELIC_RARITIES, relicById, normalizeRelics, rollRelic } from './relics.js';
@@ -82,7 +83,7 @@ export function potionPreview(meta, state) {
   else if (meta.id === 'mp') next.magic_point = Math.min(100, (state.magic_point || 0) + 40);
   else {
     const field = ['attack', 'defense', 'speed', 'agility', 'magic', 'resistance', 'wisdom'][meta.field];
-    if (field) next[field] = state[field] + Math.max(8, Math.trunc(state[field] / 4));
+    if(field){const cap=field==='speed'?379:219;next[field]=Math.min(cap,state[field]+Math.max(8,Math.trunc(state[field]/4)));}
   }
   return next;
 }
@@ -457,7 +458,9 @@ export function buildGraphForLayer(state) {
 export function enhanceLayerBoss(run) {
   if(!run?.graph)return;
   const node=run.graph.byId?.get(run.graph.endId)||run.graph.nodes?.find(n=>n.id===run.graph.endId);
-  if(!node?.payload?.cards)return;
+  if(!node)return;
+  // 旧缺员存档可能已有空终点，只修复该终点，保留已走路线和物品。
+  if(!node.payload?.cards?.length){node.payload={rank:null,score:0,name:'试炼守关',trial:true,cards:makeFiller(run.teamSize,mulberry32((run.seed^Math.imul(run.layer||1,2654435761)^0x7469616c)>>>0))};node.rank=null;}
   const mult=Math.round((1+.05*(run.layer||1))*100)/100;
   node.payload={...node.payload,cards:node.payload.cards.map(card=>{
     const base=card.bossBaseStats||card.stats;
@@ -471,7 +474,7 @@ export function applyDifficultyEnemy(card, run, kind) {
   const base = card.difficultyBaseStats || { ...card.stats };
   const stats = { ...base };
   for (const [key, factor] of Object.entries(mult)) if (factor !== 1) stats[key] = Math.round((base[key] || 0) * factor);
-  return { ...card, difficultyBaseStats: base, difficultyMult: mult, stats };
+  return { ...card, difficultyBaseStats: base, difficultyMult: mult, stats:capStats(stats) };
 }
 
 // 前两层只出现 1.2/1.5 倍数值精英，第三层起才开放双倍人数或双倍属性。
@@ -807,11 +810,11 @@ export function applyRelicBattleBonuses(card, relics = []) {
 function finalStats(card, stats) {
   const mult = card.runMult || 1;
   // 诅咒降低基础值：武器差值不变，开局倍率作用于降低后的基础，锻造独立叠回。
-  return Object.fromEntries(Object.entries(stats).map(([key, value]) => {
+  return capStats(Object.fromEntries(Object.entries(stats).map(([key, value]) => {
     const factor = key === 'hp' ? 1 : mult;
     const shown = Math.round((value - (card.curseStats?.[key] || 0)) * factor) + (card.forge?.[key] || 0);
     return [key, Math.max(key === 'hp' ? 1 : 0, shown)];
-  }));
+  })));
 }
 
 // 黑字基础只含本体、永久锻造和诅咒；交易生成和扣款都使用同一口径。
@@ -823,7 +826,7 @@ export function curseBaseStats(card) {
 export function applyCurses(stats, curseStats) {
   const out = { ...stats };
   for (const [key, loss] of Object.entries(curseStats || {})) out[key] = Math.max(key === 'hp' ? 1 : 0, Math.round((out[key] || 0) - loss));
-  return out;
+  return capStats(out);
 }
 
 // 锻造增量叠加在任何构建结果之上（锻造只锻基础值，不进蓝字加成）
@@ -832,7 +835,7 @@ export function applyForge(stats, forge) {
   const f = forge || {};
   const out = { ...stats };
   for (const k of Object.keys(f)) out[k] = Math.round((out[k] || 0) + f[k]);
-  return out;
+  return capStats(out);
 }
 
 // 装备武器：用引擎重算该角色的属性线
@@ -1136,13 +1139,13 @@ export function constructCharacter(state, charId, amount) {
   if (!build) return { ok:false, reason:'角色构建失败，请重新选择角色' };
   // 节点交易序号参与种子；关闭重开面板不改变下一次结果。
   const rng = mulberry32(nodeSeed(run, node, 0xc05712) ^ Math.imul(node.constructCount || 0, 2654435761));
-  const keys = shuffle(STAT_LABELS, rng).slice(0, 1 + Math.floor(rng() * Math.min(8, quote.units)));
+  const keys = shuffle(STAT_LABELS.filter(([key])=>attributeRoom(card.stats,key)>0), rng).slice(0, 1 + Math.floor(rng() * Math.min(8, quote.units)));
   const gains = keys.map(([key,label]) => ({key,label,units:1}));
   // 按随机切点分配剩余额度，大额投入也只需处理最多八项。
   const cuts = [0, ...Array.from({length:gains.length - 1}, () => Math.floor(rng() * (quote.units - gains.length + 1))), quote.units - gains.length].sort((a,b) => a-b);
   gains.forEach((gain,i) => { gain.units += cuts[i+1] - cuts[i]; });
   card.forge ||= {};
-  for (const gain of gains) { gain.amount = gain.units * (gain.key === 'hp' ? 3 : 1); card.forge[gain.key] = (card.forge[gain.key] || 0) + gain.amount; }
+  for (const gain of gains) { gain.amount = Math.min(attributeRoom(card.stats,gain.key),gain.units*(gain.key==='hp'?3:1)); card.forge[gain.key] = (card.forge[gain.key] || 0) + gain.amount; }
   changeScore(state, -quote.spend);
   card.constructSpent = (card.constructSpent || 0) + quote.spend;
   card.stats = finalStats(card, build.stats);
@@ -1488,7 +1491,8 @@ export function campForgeStat(state, charId, key) {
   const buildStats = build ? build.stats : card.stats;
   card.forge = card.forge || {};
   const cur = (buildStats[key] || 0) + (card.forge[key] || 0);
-  const gain = Math.max(1, Math.round(cur * 0.1));
+  const gain = Math.min(attributeRoom(card.stats,key),Math.max(1,Math.round(cur*.1)));
+  if(!gain)return null;
   card.forge[key] = (card.forge[key] || 0) + gain;
   card.stats = finalStats(card, buildStats);
   persist(state);
@@ -1707,7 +1711,7 @@ export function forgeSkill(state, uid, characterId) {
     target.forge = target.forge || {};
     for (const [key, gain] of Object.entries(card.attrs)) {
       if (!STAT_LABELS.some(([id]) => id === key) || !Number.isFinite(gain)) continue;
-      target.forge[key] = (target.forge[key] || 0) + Math.max(0, Math.round(gain));
+      target.forge[key] = (target.forge[key] || 0) + Math.min(attributeRoom(target.stats,key),Math.max(0,Math.round(gain)));
     }
     run.skillCards.splice(idx, 1);
     refreshRunBuff(state);

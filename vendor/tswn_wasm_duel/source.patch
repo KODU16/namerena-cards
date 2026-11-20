@@ -72,7 +72,7 @@ index 062e6f08..5d1fe314 100644
          )
          .map_err(cli_api_error)?;
 diff --git a/crates/tswn_core/src/cli_api/battle/driver.rs b/crates/tswn_core/src/cli_api/battle/driver.rs
-index c5a769ff..16edf05e 100644
+index c5a769ff..eb03e9ee 100644
 --- a/crates/tswn_core/src/cli_api/battle/driver.rs
 +++ b/crates/tswn_core/src/cli_api/battle/driver.rs
 @@ -1,12 +1,15 @@
@@ -92,7 +92,7 @@ index c5a769ff..16edf05e 100644
      pub rounds_advanced: usize,
      pub frames_emitted: usize,
      pub stop_reason: Option<BattleStopReason>,
-@@ -33,18 +36,140 @@ impl BattleDriver {
+@@ -33,18 +36,143 @@ impl BattleDriver {
              return Err(CliApiError::InvalidArgument("battle eval_rq must be finite".into()));
          }
          let (groups, seed) = RuntimeRunner::split_namerena_into_groups(raw.to_owned());
@@ -209,6 +209,9 @@ index c5a769ff..16edf05e 100644
 +                }
 +            }
 +        }
++        if options.controlled_team.is_some() {
++            runner.runtime_mut().cap_card_attributes();
++        }
 +        // 创建时接管暂存指令；会话之间不共享后续动作。
 +        let mut forced = crate::runtime::forced_action::ForcedState::default();
 +        forced.queue = crate::runtime::forced_action::take_pending_actions();
@@ -235,7 +238,7 @@ index c5a769ff..16edf05e 100644
              max_rounds,
              rounds_advanced: 0,
              frames_emitted: 0,
-@@ -73,7 +198,18 @@ impl BattleDriver {
+@@ -73,7 +201,18 @@ impl BattleDriver {
              return Err(error);
          }
          let round_index = self.rounds_advanced;
@@ -1065,10 +1068,10 @@ index fefc009d..a7835241 100644
 +}
 diff --git a/crates/tswn_core/src/runtime/chaos.rs b/crates/tswn_core/src/runtime/chaos.rs
 new file mode 100644
-index 00000000..5c7358a8
+index 00000000..8b332590
 --- /dev/null
 +++ b/crates/tswn_core/src/runtime/chaos.rs
-@@ -0,0 +1,410 @@
+@@ -0,0 +1,413 @@
 +//! 混沌爬塔结构化操作：同一份参数决定执行与卡面，独立于原技能概率与被动钩子。
 +use super::*;
 +use serde::{Deserialize, Serialize};
@@ -1434,6 +1437,9 @@ index 00000000..5c7358a8
 +                            _ => unreachable!(),
 +                        }
 +                    }
++                }
++                if crate::runtime::forced_action::controlled_team().is_some() {
++                    self.cap_card_attributes();
 +                }
 +                // 原生入口已生成伤害/回复/状态文本，仅为无文本操作拼接原技能词片段。
 +                let message = match operation.op.as_str() {
@@ -1981,7 +1987,7 @@ index 92e74615..aac8164b 100644
              static_handler
          } else {
 diff --git a/crates/tswn_core/src/runtime/combat/mod.rs b/crates/tswn_core/src/runtime/combat/mod.rs
-index 11a65d86..7f663efb 100644
+index 11a65d86..ce4fbe64 100644
 --- a/crates/tswn_core/src/runtime/combat/mod.rs
 +++ b/crates/tswn_core/src/runtime/combat/mod.rs
 @@ -7,12 +7,14 @@
@@ -2007,7 +2013,7 @@ index 11a65d86..7f663efb 100644
      BasicAttack {
          target: EntityIdx,
          use_magic: bool,
-@@ -91,4 +94,36 @@ pub struct CombatRuntime {
+@@ -91,4 +94,58 @@ pub struct CombatRuntime {
      #[cfg(not(feature = "no_debug"))]
      pub trace: Option<RuntimeTrace>,
      pub round: u64,
@@ -2042,6 +2048,28 @@ index 11a65d86..7f663efb 100644
 +                .get(caster)
 +                .zip(self.entities.get(target))
 +                .is_some_and(|(from, to)| from.runtime.team != to.runtime.team)
++    }
++}
++
++impl CombatRuntime {
++    /// 尖塔七围外显上限255：运行时一般项为外显-36，速度为外显+124；体力独立。
++    pub(crate) fn cap_card_attributes(&mut self) {
++        for entity in self.entities.iter_all_mut() {
++            entity.template.attack = entity.template.attack.min(219);
++            entity.runtime.attack = entity.runtime.attack.min(219);
++            entity.template.defense = entity.template.defense.min(219);
++            entity.runtime.defense = entity.runtime.defense.min(219);
++            entity.template.magic = entity.template.magic.min(219);
++            entity.runtime.magic = entity.runtime.magic.min(219);
++            entity.template.resistance = entity.template.resistance.min(219);
++            entity.runtime.resistance = entity.runtime.resistance.min(219);
++            entity.template.agility = entity.template.agility.min(219);
++            entity.runtime.agility = entity.runtime.agility.min(219);
++            entity.template.wisdom = entity.template.wisdom.min(219);
++            entity.runtime.wisdom = entity.runtime.wisdom.min(219);
++            entity.template.speed = entity.template.speed.min(379);
++            entity.runtime.speed = entity.runtime.speed.min(379);
++        }
 +    }
  }
 diff --git a/crates/tswn_core/src/runtime/combat/passive.rs b/crates/tswn_core/src/runtime/combat/passive.rs
@@ -2349,7 +2377,7 @@ index 00000000..470b5882
 +    }
 +}
 diff --git a/crates/tswn_core/src/runtime/combat/round.rs b/crates/tswn_core/src/runtime/combat/round.rs
-index 05132896..c1c4fdfd 100644
+index 05132896..316e697e 100644
 --- a/crates/tswn_core/src/runtime/combat/round.rs
 +++ b/crates/tswn_core/src/runtime/combat/round.rs
 @@ -37,6 +37,8 @@ impl CombatRuntime {
@@ -2361,12 +2389,15 @@ index 05132896..c1c4fdfd 100644
          for target in self.scheduler.take_ice_release_events() {
              updates.add_newline();
              updates.add(RuntimeFrame::replay_update(
-@@ -73,7 +75,19 @@ impl CombatRuntime {
+@@ -73,7 +75,22 @@ impl CombatRuntime {
          }
          #[cfg(not(feature = "no_debug"))]
          let action_rng_before = RngCheckpoint::from_rc4(&self.rng);
 +        // 药水持续到服用者的下一次行动，不因其他单位行动而失效。
 +        self.revert_active_potion(action.actor);
++        if crate::runtime::forced_action::controlled_team().is_some() {
++            self.cap_card_attributes();
++        }
          let smart = self.roll_actor_smart(action.actor);
 +        // 潜行 pending 的 pre-action 槽位可能在技能表重建（升级/合并/状态刷新）时被丢掉，
 +        // tswn 自己在施放时会 ensure 一次，这里在每次行动前补回来，
@@ -2381,7 +2412,7 @@ index 05132896..c1c4fdfd 100644
          let plain_skill_pre_action = legacy_plain_action
              .then(|| self.run_plain_skill_pre_action_accumulator(action.actor))
              .unwrap_or_default();
-@@ -105,10 +119,19 @@ impl CombatRuntime {
+@@ -105,10 +122,19 @@ impl CombatRuntime {
                  return None;
              }
              let forced_pre_action_skill = plain_skill_pre_action.forced_skill.is_some();
@@ -2402,7 +2433,7 @@ index 05132896..c1c4fdfd 100644
                  PreparedPlainAction::BasicAttack { target, amount, .. } => {
                      action.target = *target;
                      action.amount = *amount;
-@@ -150,6 +173,11 @@ impl CombatRuntime {
+@@ -150,6 +176,11 @@ impl CombatRuntime {
          let terminal_plain_action = if state_intercepted_action {
              // PRE_ACTION 状态钩子接管本次行动后，legacy 仍会继续执行恢复和完整的行动后链。
              legacy_plain_action && !self.has_alive_enemy_or_pending_spawn(action.actor)
@@ -2414,7 +2445,7 @@ index 05132896..c1c4fdfd 100644
          } else if builtin_plain_action {
              let Some(PreparedPlainAction::BuiltinSkill(prepared)) = prepared_plain_action.take() else {
                  unreachable!("builtin action marker must retain the prepared action")
-@@ -173,6 +201,7 @@ impl CombatRuntime {
+@@ -173,6 +204,7 @@ impl CombatRuntime {
                  Some(PreparedPlainAction::Saitama { target }) => {
                      self.drain_plain_saitama_action_into(action.actor, target, &mut updates);
                  }
@@ -2422,7 +2453,7 @@ index 05132896..c1c4fdfd 100644
                  Some(PreparedPlainAction::BuiltinSkill(_)) => {
                      unreachable!("builtin skill actions are handled before the default action branch")
                  }
-@@ -309,9 +338,43 @@ impl CombatRuntime {
+@@ -309,9 +341,46 @@ impl CombatRuntime {
      fn finish_round_with_capture<const CAPTURE_UPDATES: bool>(
          &mut self,
          action: Option<ActionPlan>,
@@ -2464,10 +2495,13 @@ index 05132896..c1c4fdfd 100644
 +        self.relic_reflect_expired(&mut updates);
 +        self.relic_consumed
 +            .retain(|id| self.entities.get(EntityIdx(*id)).is_none_or(|e| e.runtime.hp <= 0));
++        if crate::runtime::forced_action::controlled_team().is_some() {
++            self.cap_card_attributes();
++        }
          let frame = (CAPTURE_UPDATES && updates.had_updates()).then_some(RuntimeFrame { updates });
          self.round += 1;
          let winner_team = if CAPTURE_UPDATES {
-@@ -347,12 +410,127 @@ impl CombatRuntime {
+@@ -347,12 +416,127 @@ impl CombatRuntime {
              .unwrap_or(false)
      }
  
@@ -2595,7 +2629,7 @@ index 05132896..c1c4fdfd 100644
          if let Some(forced_skill) = pre_action.forced_skill {
              return Some(PreparedPlainAction::BuiltinSkill(forced_skill));
          }
-@@ -392,7 +570,12 @@ impl CombatRuntime {
+@@ -392,7 +576,12 @@ impl CombatRuntime {
                  },
              )
          };
@@ -2609,7 +2643,7 @@ index 05132896..c1c4fdfd 100644
          #[cfg(not(feature = "no_debug"))]
          let probe_action = self.probe_plain_action_matches(actor);
          #[cfg(not(feature = "no_debug"))]
-@@ -450,8 +633,16 @@ impl CombatRuntime {
+@@ -450,8 +639,16 @@ impl CombatRuntime {
              } else {
                  self.scan_plain_action_skill_probabilities(actor, smart)
              };
@@ -2628,7 +2662,7 @@ index 05132896..c1c4fdfd 100644
          } else {
              None
          };
-@@ -511,6 +702,55 @@ impl CombatRuntime {
+@@ -511,6 +708,57 @@ impl CombatRuntime {
          }
      }
  
@@ -2657,7 +2691,9 @@ index 05132896..c1c4fdfd 100644
 +            5 => &mut entity.runtime.resistance,
 +            _ => &mut entity.runtime.wisdom,
 +        };
-+        let delta = (*slot / 4).max(8);
++        // 只记录实际加上的药水量，回合结束还原不会把被上限截掉的数值再扣一次。
++        let cap = if field == 2 { 379 } else { 219 };
++        let delta = (*slot / 4).max(8).min((cap - *slot).max(0));
 +        *slot += delta;
 +        crate::runtime::forced_action::set_active_potion(actor.0 as u32, field as u8, delta);
 +    }
@@ -2684,7 +2720,7 @@ index 05132896..c1c4fdfd 100644
      pub fn has_plain_berserk_state(&self, actor: EntityIdx) -> bool {
          self.entities.get(actor).is_some_and(|entity| {
              entity
-@@ -624,6 +864,92 @@ impl CombatRuntime {
+@@ -624,6 +872,92 @@ impl CombatRuntime {
          debug_assert!(removed, "runtime berserk state disappeared before state clear");
      }
  
@@ -2777,7 +2813,7 @@ index 05132896..c1c4fdfd 100644
      pub fn scan_plain_action_skill_probabilities(&mut self, actor: EntityIdx, smart: bool) -> Option<PreparedBuiltinSkillAction> {
          let (scan_len, cached_scan) = {
              let skills = &self
-@@ -746,6 +1072,7 @@ impl CombatRuntime {
+@@ -746,6 +1080,7 @@ impl CombatRuntime {
          level: u32,
          smart: bool,
      ) -> bool {
@@ -2785,7 +2821,7 @@ index 05132896..c1c4fdfd 100644
          #[cfg(not(feature = "no_debug"))]
          let probe_action = self.probe_plain_action_matches(actor);
          match builtin_skill {
-@@ -935,3 +1262,36 @@ impl CombatRuntime {
+@@ -935,3 +1270,36 @@ impl CombatRuntime {
          roll < level
      }
  }

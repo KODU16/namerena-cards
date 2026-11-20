@@ -298,7 +298,7 @@ export function renderPrep(root, state, h) {
     el('section', { class: 'prep' },
       el('div', { class: 'prep__head' },
         el('div', { class: 'stage' }, el('span', { class: 'stage__n' }, `第 ${run.layer || 1} 层`), el('span', { class: 'muted' }, `天梯 ${run.lane} · 队伍 ${run.teamSize} 人`)),
-        el('h2', {}, node?.kind === 'end' ? `层级 Boss · 天梯 #${opp.rank ?? '?'}` : opp.rank ? `天梯对手 #${opp.rank}` : opp.elite ? '精英试炼' : '试炼对手（@! 队名）'),
+        el('h2', {}, node?.kind === 'end' ? (opp.trial?'层级 Boss · 试炼':`层级 Boss · 天梯 #${opp.rank ?? '?'}`) : opp.rank ? `天梯对手 #${opp.rank}` : opp.elite ? '精英试炼' : '试炼对手（@! 队名）'),
         el('div', { class: 'muted' }, `${opp.score ?? 0} 分 · 对方 ${opp.cards.length} 人`),
       ),
       el('div', { class: 'prep__board' },
@@ -1219,7 +1219,7 @@ export function renderMap(root, state, h) {
             ? `<image href="${icon}" x="-16" y="-16" width="32" height="32" />`
             : '<text y="6" text-anchor="middle" class="map-glyph">战</text>';
     const label = n.kind === 'start' ? '起点'
-      : n.kind === 'end' ? `终点 #${n.rank ?? ''}`
+      : n.kind === 'end' ? (n.payload?.trial?'终点 · 试炼':`终点 #${n.rank ?? ''}`)
         : n.kind === 'ladder' ? `天梯 #${n.rank ?? '?'}`
           : n.kind === 'elite' ? '精英'
             : n.kind === 'cpu' ? '电脑'
