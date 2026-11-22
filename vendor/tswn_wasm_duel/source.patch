@@ -1,3 +1,31 @@
+diff --git a/CARDS_ENGINE.md b/CARDS_ENGINE.md
+new file mode 100644
+index 00000000..eb065a31
+--- /dev/null
++++ b/CARDS_ENGINE.md
+@@ -0,0 +1,22 @@
++# tswn-cards 引擎维护约定
++
++`KODU16/tswn-cards` 是 `namerena-cards` 的固定战斗引擎源码仓库。
++在本地 `cards-main` 分支维护，发布到该仓库的 `main`；cards 专用规则不推送到 `KODU16/tswn-core`。
++
++## 发布链路
++
++1. 修改 Rust / WASM 源码，执行 `cargo +nightly fmt --check` 和受影响 crate 的测试。
++2. 执行 `cargo build -p tswn_wasm --target wasm32-unknown-unknown --release`。
++3. 使用匹配依赖版本的 `wasm-bindgen --target web` 生成 JS、标准 WASM 及类型声明，同步到 `namerena-cards/vendor/tswn_wasm_duel/`。
++4. 执行 cards 的引擎、遗物、能力、分身和进度回归，再运行 `npm run build:site`。
++5. 记录引擎完整提交 SHA，推送两个项目的发布分支；核对远端提交以及线上静态资源的内容哈希。
++
++## 已完成的移植
++
++遗物包括开场状态、持续回复和护盾、低伤害拦截、原角色独立属性加成、负面状态附加狂暴、状态持续延长、分身衰减减免、负面状态返还、阵亡吞噬与背刺增强。
++
++归档补丁中缺失的 `runtime/forced_action.rs` 已从本地保留的完整源码恢复。会话支持双方受控、开局逐角色 HP、负 MP 普攻、独立能力乘区和交错会话隔离；新产物必须保留这些现有接口。
++
++## 版本固定
++
++cards 的 `BUILD.md` 记录引擎完整 SHA 和补丁基线。固定 SHA 是发布的源码来源，构建成功后仍需实际运行 cards 回归。
 diff --git a/Cargo.toml b/Cargo.toml
 index b6d81a36..0bc4d0e4 100644
 --- a/Cargo.toml
@@ -17,6 +45,63 @@ index b6d81a36..0bc4d0e4 100644
  
  [profile.release-fast]
  inherits = "release"
+diff --git a/FORK.md b/FORK.md
+new file mode 100644
+index 00000000..7de652ac
+--- /dev/null
++++ b/FORK.md
+@@ -0,0 +1,51 @@
++# 本 fork 的改动（名竞尖塔 · 卡牌对决）
++
++上游：[shenjackyuanjie/tswn-core](https://github.com/shenjackyuanjie/tswn-core) 的本地副本，
++只为一件事服务：让卡牌前端能把「这个单位这一次行动用哪个技能」交给引擎执行，
++并且保证玩家角色（本体 + 分身）的每个动作都由玩家发出。
++
++构建方式（Windows，GNU 工具链 + MinGW）：
++
++```powershell
++$env:PATH = "$env:USERPROFILE\.cargo\bin;C:\Strawberry\c\bin;$env:PATH"
++cargo build -p tswn_wasm --target wasm32-unknown-unknown --release
++wasm-bindgen --target web --out-dir dist target\wasm32-unknown-unknown\release\tswn_wasm.wasm
++```
++
++产物（`dist/`）复制到游戏仓库的 `vendor/tswn_wasm_duel/`。
++
++## 改了哪些文件
++
++| 文件 | 改动 |
++| --- | --- |
++| `crates/tswn_core/src/runtime/forced_action.rs` | **新增**：线程内的强制行动队列、受控队伍、暂停标记 |
++| `crates/tswn_core/src/runtime/mod.rs` | 注册 `forced_action` 模块 |
++| `crates/tswn_core/src/runtime/combat/round.rs` | 核心改动：消费强制行动、按抽牌时定好的 MP 扣费、受控单位暂停、潜行→背刺窗口、狂暴接管、待发背刺的 pre-action 槽位补回 |
++| `crates/tswn_core/src/cli_api/battle/dto.rs` | `BattlePlayerState.skills`、`BattleReplay.paused_actor`、`BattleOptions.controlled_team`、`BattleStopReason::Paused` |
++| `crates/tswn_core/src/cli_api/battle/session.rs` | 暂停时截断回放、填充技能熟练度 |
++| `crates/tswn_core/src/cli_api/battle/replay.rs` | 暂停时提前返回回放，设置/清理受控队伍 |
++| `crates/tswn_wasm/src/lib.rs` | 导出 `battle_replay_forced(raw, actions, options)`，`actions` 是 `[actor, skill, mp]` 三元组 |
++| `crates/tswn_wasm/src/model.rs` | wasm 侧选项映射（`controlled_team`） |
++| `Cargo.toml` | release profile 加 `opt-level = "z"` 和 `strip = "symbols"`，wasm 从 1.52 MB 降到 942 KB |
++
++## 接口语义
++
++```js
++const replay = wasm.battle_replay_forced(input, [actor, skill, mp, ...], {
++  max_rounds: 20000,
++  controlled_team: playerTeam,   // 玩家队伍编号（从 initial_states 取）
++});
++// replay.paused_actor === 实体 id → 这个单位在等玩家下指令，回放到此为止
++// replay.paused_actor === null   → 战斗已结束，看 winner_team_indices
++```
++
++- `skill` 用 overlay 的公开编号 `0..34`，`255` 表示普通攻击；
++- `mp` 是抽牌时就掷好的消耗（`8 + (byte & 15)`），传 `0` 表示让引擎现场掷；
++- 受控队伍里只有**本体**和**分身**会暂停等指令；幻影 / 使魔 / 丧尸仍由引擎自动行动；
++- 引擎自身的强制动作优先于玩家指令：潜行→背刺的第二段、狂暴期间的强制攻击，
++  都不接受玩家插入技能，也不会停下来要牌。
++
++## 注意
++
++- 上游的 `.gitignore` 会忽略 `target`、`vendor`、`dist`、`*.txt` 等，构建产物不会进仓库；
++- 本仓库是**手工副本**，不是 `git clone`，与上游的合并需要手动处理。
 diff --git a/crates/tswn_capi/include/tswn_capi.h b/crates/tswn_capi/include/tswn_capi.h
 index 963a95af..57340edb 100644
 --- a/crates/tswn_capi/include/tswn_capi.h
@@ -71,6 +156,20 @@ index 062e6f08..5d1fe314 100644
              },
          )
          .map_err(cli_api_error)?;
+diff --git a/crates/tswn_core/Cargo.toml b/crates/tswn_core/Cargo.toml
+index c03d74e5..29b4c621 100644
+--- a/crates/tswn_core/Cargo.toml
++++ b/crates/tswn_core/Cargo.toml
+@@ -16,7 +16,8 @@ serde_json = "1.0"
+ # encoder-manifest 的契约摘要；纯 Rust 实现，wasm32 可用。
+ sha2 = "0.11"
+ # 用来优化性能
+-smallvec = "1.16.3"
++# 遭遇存档保存状态载荷中的小向量，不改变运行时容器。
++smallvec = { version = "1.16.3", features = ["serde"] }
+ toml = "1.1.8"
+ 
+ # wasm32-unknown-unknown 上 std::time::Instant 未实现，`src/time.rs` 改用 js-sys 的
 diff --git a/crates/tswn_core/src/cli_api/battle/driver.rs b/crates/tswn_core/src/cli_api/battle/driver.rs
 index c5a769ff..eb03e9ee 100644
 --- a/crates/tswn_core/src/cli_api/battle/driver.rs
@@ -398,10 +497,102 @@ index 2ccdaefa..d6e0722d 100644
  mod tests {
      use super::*;
 diff --git a/crates/tswn_core/src/cli_api/battle/session.rs b/crates/tswn_core/src/cli_api/battle/session.rs
-index fefc009d..a7835241 100644
+index fefc009d..12ed89e5 100644
 --- a/crates/tswn_core/src/cli_api/battle/session.rs
 +++ b/crates/tswn_core/src/cli_api/battle/session.rs
-@@ -34,6 +34,7 @@ pub struct BattleSession {
+@@ -1,5 +1,91 @@
+ use std::collections::HashMap;
+ 
++// 逃跑汇总走真实分身生成和状态存储，防止换角色或重进战斗时重复计算。
++#[cfg(test)]
++mod escape_regressions {
++    use super::*;
++    use crate::runtime::{EntityIdx, RunUpdates, StateEntry, StatePayload};
++    fn slow(step: i32) -> StateEntry {
++        let mut entry = StateEntry::legacy(8222);
++        entry.payload = StatePayload::Slow { step };
++        entry
++    }
++
++    #[test]
++    fn escape_sums_all_clone_debuffs_only_into_their_own_root() {
++        let raw = "caster@red+ol:{\"attrs\":[40,40,200,40,40,40,100,20000],\"skills\":{\"sklclone\":106},\"name_factor_enabled\":false}\nfriend@red+ol:{\"attrs\":[40,40,100,40,40,40,100,20000],\"skills\":{},\"name_factor_enabled\":false}\n\nenemy@blue+ol:{\"attrs\":[40,40,80,40,40,40,100,20000],\"skills\":{},\"name_factor_enabled\":false}\nseed:clone-escape@!";
++        let options = BattleOptions {
++            controlled_team: Some(0),
++            ..Default::default()
++        };
++        let mut session = BattleSession::new(raw, options).unwrap();
++        let root = session.driver.runner.input_groups[0][0];
++        let friend = session.driver.runner.input_groups[0][1];
++        let rt = session.driver.runner.runtime_mut();
++        let lane = rt
++            .entities
++            .get(root)
++            .unwrap()
++            .template
++            .skills
++            .skills()
++            .iter()
++            .position(|skill| rt.registry.skill(*skill).unwrap().export_name == "core.skill.clone")
++            .unwrap();
++        for _ in 0..2 {
++            rt.drain_plain_clone_skill_into(root, lane, &mut RunUpdates::new());
++        }
++        let clones: Vec<EntityIdx> = rt
++            .entities
++            .iter()
++            .filter(|(id, e)| *id != root && e.runtime.root_owner == root)
++            .map(|(id, _)| id)
++            .collect();
++        assert!(clones.len() >= 2);
++        rt.entities.get_mut(root).unwrap().states.add_entry(slow(2));
++        rt.entities.get_mut(friend).unwrap().states.add_entry(slow(5));
++        for (i, id) in clones.iter().enumerate() {
++            rt.entities.get_mut(*id).unwrap().states.add_entry(slow(3 + i as i32));
++        }
++        let hp: Vec<_> = rt.entities.iter().map(|(id, e)| (id, e.runtime.hp)).collect();
++        session.paused = Some(root.0);
++        let json = session.escape().unwrap();
++        let rt = session.driver.runner.runtime();
++        let expected = 2 + (0..clones.len()).map(|i| 3 + i as i32).sum::<i32>();
++        assert_eq!(
++            rt.entities.get(root).unwrap().states.entry(8222).unwrap().payload,
++            StatePayload::Slow { step: expected }
++        );
++        assert_eq!(
++            rt.entities.get(friend).unwrap().states.entry(8222).unwrap().payload,
++            StatePayload::Slow { step: 5 }
++        );
++        for id in clones {
++            assert!(rt.entities.get(id).unwrap().states.entry(8222).is_none());
++        }
++        for (id, value) in hp {
++            assert_eq!(rt.entities.get(id).unwrap().runtime.hp, value);
++        }
++        let mut restored = BattleSession::new(raw, options).unwrap();
++        restored.restore_encounter(&json).unwrap();
++        let id = restored.driver.runner.input_groups[0][0];
++        assert_eq!(
++            restored
++                .driver
++                .runner
++                .runtime()
++                .entities
++                .get(id)
++                .unwrap()
++                .states
++                .entry(8222)
++                .unwrap()
++                .payload,
++            StatePayload::Slow { step: expected }
++        );
++    }
++}
++
+ #[cfg(feature = "png_render")]
+ use crate::namerena::icon_render::render_icon_b64_from_name;
+ use crate::replay_view::{
+@@ -34,6 +120,7 @@ pub struct BattleSession {
      initial_states: Vec<BattlePlayerState>,
      current_states: Vec<BattlePlayerState>,
      icon_cache: HashMap<String, String>,
@@ -409,7 +600,7 @@ index fefc009d..a7835241 100644
  }
  
  impl BattleSession {
-@@ -57,6 +58,7 @@ impl BattleSession {
+@@ -57,6 +144,7 @@ impl BattleSession {
              current_states: initial_states.clone(),
              initial_states,
              icon_cache,
@@ -417,7 +608,7 @@ index fefc009d..a7835241 100644
          })
      }
  
-@@ -85,7 +87,9 @@ impl BattleSession {
+@@ -85,7 +173,9 @@ impl BattleSession {
          }
      }
      /// 正常终止原因；运行中及 Runtime 失败后均为 `None`。
@@ -428,7 +619,7 @@ index fefc009d..a7835241 100644
      /// 是否已产生正常 terminal BattleResult；Runtime failure 不属于正常终止。
      pub fn is_done(&self) -> bool { self.driver.stop_reason.is_some() }
      /// Runtime error 后为 true；后续推进返回相同错误，调用方应停止推进并释放会话。
-@@ -107,11 +111,12 @@ impl BattleSession {
+@@ -107,11 +197,12 @@ impl BattleSession {
          if let Some(error) = &self.driver.failure {
              return Err(error.clone());
          }
@@ -442,7 +633,7 @@ index fefc009d..a7835241 100644
                  return Ok(None);
              };
              let round_index = step.round_index;
-@@ -125,12 +130,137 @@ impl BattleSession {
+@@ -125,12 +216,363 @@ impl BattleSession {
                  frame
              });
              self.current_states = states;
@@ -455,6 +646,232 @@ index fefc009d..a7835241 100644
  
 +    /// 受控单位把战斗逼停时，返回等待玩家指令的实体 id。
 +    pub fn paused_actor(&self) -> Option<u32> { self.paused }
++
++    /// 地图服药或等待出牌时立即结算回复；预饮属性药水延至首次行动。
++    pub fn use_potion(&mut self, actor: u32, code: u32) -> CliApiResult<()> {
++        use crate::cli_api::CliApiError;
++        use crate::runtime::EntityIdx;
++        let entity = self
++            .driver
++            .runner
++            .runtime()
++            .entities
++            .get(EntityIdx(actor))
++            .ok_or_else(|| CliApiError::InvalidArgument("unknown potion actor".into()))?;
++        if self.is_done()
++            || !matches!(code, 1..=7 | 9 | 10)
++            || self.driver.forced.controlled_team != Some(entity.template.team)
++            || !entity.runtime.alive
++            || entity.runtime.hp <= 0
++            || (self.driver.rounds_advanced != 0 && self.paused.is_none())
++        {
++            return Err(CliApiError::InvalidArgument(
++                "potion requires an initial or waiting player actor".into(),
++            ));
++        }
++        crate::runtime::forced_action::with_state(&mut self.driver.forced, || {
++            self.driver.runner.runtime_mut().apply_potion(EntityIdx(actor), code);
++            if code <= 7 {
++                crate::runtime::forced_action::protect_fresh_potion(actor);
++            }
++        });
++        self.current_states = states_from_runner(&self.driver.runner, self.options.include_icons, &mut self.icon_cache);
++        if self.driver.rounds_advanced == 0 && self.paused.is_none() {
++            self.initial_states = self.current_states.clone();
++        }
++        Ok(())
++    }
++
++    /// 暂停遭遇同步地图回复，只修改 HP/MP，不覆盖原有状态或召唤物。
++    pub fn set_field_resources(&mut self, packet: &[i32]) -> CliApiResult<()> {
++        use crate::cli_api::CliApiError;
++        use crate::runtime::EntityIdx;
++        if packet.len() % 3 != 0 || (self.driver.rounds_advanced != 0 && self.paused.is_none()) || self.is_done() {
++            return Err(CliApiError::InvalidArgument("field resources require a safe boundary".into()));
++        }
++        for row in packet.chunks_exact(3) {
++            let e = self
++                .driver
++                .runner
++                .runtime()
++                .entities
++                .get(EntityIdx(row[0] as u32))
++                .ok_or_else(|| CliApiError::InvalidArgument("unknown field actor".into()))?;
++            if self.driver.forced.controlled_team != Some(e.template.team)
++                || row[1] <= 0
++                || row[1] > e.template.max_hp.max(e.runtime.hp)
++                || row[2] > 100.max(e.template.magic_point).max(e.runtime.magic_point)
++                || row[2] < -1000
++            {
++                return Err(CliApiError::InvalidArgument("invalid field resources".into()));
++            }
++        }
++        for row in packet.chunks_exact(3) {
++            let e = self.driver.runner.runtime_mut().entities.get_mut(EntityIdx(row[0] as u32)).unwrap();
++            e.runtime.hp = row[1];
++            e.runtime.magic_point = row[2];
++        }
++        self.current_states = states_from_runner(&self.driver.runner, self.options.include_icons, &mut self.icon_cache);
++        if self.driver.rounds_advanced == 0 && self.paused.is_none() {
++            self.initial_states = self.current_states.clone();
++        }
++        Ok(())
++    }
++
++    /// 逃跑只清己方增益和敌方负面状态；血量、相反方向状态及召唤物原样留在会话。
++    pub fn escape(&mut self) -> CliApiResult<String> {
++        use crate::runtime::StatePayload;
++        if self.paused.is_none() || self.is_done() {
++            return Err(crate::cli_api::CliApiError::InvalidArgument(
++                "escape requires a waiting action".into(),
++            ));
++        }
++        let team = self.driver.forced.controlled_team.unwrap();
++        // 分身不能替本体丢弃负面状态；先把所有分身的载荷加总给各自根角色。
++        let transferred: Vec<_> = self
++            .driver
++            .runner
++            .runtime()
++            .entities
++            .iter()
++            .filter(|(_, entity)| {
++                entity.template.team == team
++                    && self
++                        .driver
++                        .runner
++                        .runtime()
++                        .registry
++                        .player_kind(entity.runtime.kind)
++                        .is_some_and(|kind| kind.export_name == crate::runtime::profile::DEFAULT_CORE_CLONE_KIND_EXPORT)
++            })
++            .map(|(id, entity)| {
++                (
++                    id,
++                    entity.runtime.root_owner,
++                    entity
++                        .states
++                        .entries()
++                        .iter()
++                        .filter(|s| s.is_escape_debuff())
++                        .cloned()
++                        .collect::<Vec<_>>(),
++                )
++            })
++            .collect();
++        for (clone, root, entries) in transferred {
++            for mut entry in entries {
++                if let StatePayload::Poison { target, .. } = &mut entry.payload {
++                    *target = Some(root.0);
++                }
++                let owner = self.driver.runner.runtime_mut().entities.get_mut(root).unwrap();
++                if let Some(current) = owner.states.entry_mut(entry.legacy_order_key) {
++                    current.add_escape_debuff(&entry);
++                } else {
++                    owner.states.add_entry(entry.clone());
++                }
++                // 原会话重入时也只能在本体计算一次，不能在分身上重复保留。
++                self.driver
++                    .runner
++                    .runtime_mut()
++                    .entities
++                    .get_mut(clone)
++                    .unwrap()
++                    .states
++                    .clear_legacy_key(entry.legacy_order_key);
++            }
++        }
++        let ids: Vec<_> = self.driver.runner.runtime().entities.iter().map(|(id, _)| id).collect();
++        // 重算保留的敌方增益时仍使用本会话的能力乘区。
++        crate::runtime::forced_action::with_state(&mut self.driver.forced, || {
++            for id in ids {
++                let entity = self.driver.runner.runtime_mut().entities.get_mut(id).unwrap();
++                let hp = entity.runtime.hp;
++                if entity.template.team == team {
++                    entity.clear_positive_messages();
++                } else {
++                    let keys: Vec<_> = entity
++                        .states
++                        .entries()
++                        .iter()
++                        .filter_map(|entry| entry.is_escape_debuff().then_some(entry.legacy_order_key))
++                        .collect();
++                    for key in keys {
++                        entity.states.clear_legacy_key(key);
++                    }
++                    entity.refresh_runtime_stats_from_template();
++                }
++                entity.runtime.hp = hp;
++                entity.runtime.magic_point = entity.template.magic_point;
++            }
++        });
++        // 药水不能通过逃跑继续保留，未到首次行动的预饮也在此丢弃。
++        crate::runtime::forced_action::with_state(&mut self.driver.forced, || {
++            for (id, _) in self.driver.runner.runtime().entities.iter() {
++                // 清状态时已重算模板属性，避免重复扣除药水增量。
++                while crate::runtime::forced_action::take_active_potion(id.0).is_some() {}
++            }
++        });
++        self.driver.forced.fresh_potions.clear();
++        self.current_states = states_from_runner(&self.driver.runner, self.options.include_icons, &mut self.icon_cache);
++        self.encounter_snapshot()
++    }
++
++    /// 存档保留原始角色的资源与状态载荷，重新开战不重新获得开场血量。
++    pub fn encounter_snapshot(&self) -> CliApiResult<String> {
++        let rows: Vec<_> = self
++            .driver
++            .runner
++            .runtime()
++            .entities
++            .iter()
++            .filter(|(id, e)| *id == e.runtime.root_owner)
++            .map(|(id, e)| {
++                // 输入阵营参与身份匹配，敌我同名不能相互继承血量或状态。
++                let group = self.driver.runner.input_groups.iter().position(|g| g.contains(&id)).unwrap_or(usize::MAX);
++                (e.template.id_key_name.clone(), e.runtime.clone(), e.states.clone(), group)
++            })
++            .collect();
++        serde_json::to_string(&rows).map_err(|e| crate::cli_api::CliApiError::InvalidArgument(e.to_string()))
++    }
++
++    /// 读档恢复仅匹配同名原始角色；新换入角色沿用自己的开局值。
++    pub fn restore_encounter(&mut self, json: &str) -> CliApiResult<()> {
++        use crate::runtime::{PlayerRuntime, StateStore, WorldArena};
++        type Row = (String, PlayerRuntime, StateStore, usize);
++        if self.driver.rounds_advanced != 0 || self.paused.is_some() {
++            return Err(crate::cli_api::CliApiError::InvalidArgument(
++                "encounter restore requires a new session".into(),
++            ));
++        }
++        let rows: Vec<Row> =
++            serde_json::from_str(json).map_err(|e| crate::cli_api::CliApiError::InvalidArgument(e.to_string()))?;
++        let input_groups = self.driver.runner.input_groups.clone();
++        let runtime = self.driver.runner.runtime_mut();
++        let ids: Vec<_> = runtime.entities.iter().map(|(id, _)| id).collect();
++        for id in ids {
++            let entity = runtime.entities.get_mut(id).unwrap();
++            let group = input_groups.iter().position(|g| g.contains(&id)).unwrap_or(usize::MAX);
++            if let Some((_, saved, states, _)) = rows
++                .iter()
++                .find(|(name, _, _, side)| *name == entity.template.id_key_name && *side == group)
++            {
++                entity.runtime = saved.clone();
++                entity.runtime.owner = id;
++                entity.runtime.root_owner = id;
++                entity.runtime.team = entity.template.team;
++                entity.runtime.move_state = entity.template.move_state;
++                entity.states = states.clone();
++                // 保留存档生命和负面状态，同时使用当前装备与成长后的模板属性。
++                crate::runtime::forced_action::with_state(&mut self.driver.forced, || {
++                    entity.refresh_runtime_stats_from_template();
++                });
++            }
++        }
++        runtime.world = WorldArena::from_entities(&runtime.entities);
++        self.initial_states = states_from_runner(&self.driver.runner, self.options.include_icons, &mut self.icon_cache);
++        self.current_states = self.initial_states.clone();
++        Ok(())
++    }
 +
 +    /// 永久将受控根角色及其派生单位交给原生引擎；整包校验后提交，不消耗随机数。
 +    pub fn set_auto_actors(&mut self, roots: &[u32]) -> CliApiResult<()> {
@@ -581,7 +998,7 @@ index fefc009d..a7835241 100644
      /// 正常终止后返回拥有最终快照的结果；运行中或粘性失败时为 `None`。
      ///
      /// 重复查询不推进战斗，但每次都会复制最终快照及其字符串。需要多次使用结果时
-@@ -168,6 +298,27 @@ pub(super) fn states_from_runner(
+@@ -168,6 +610,27 @@ pub(super) fn states_from_runner(
          .into_iter()
          .map(|snapshot| {
              let mut state = state_from_snapshot(snapshot, false);
@@ -609,7 +1026,7 @@ index fefc009d..a7835241 100644
              if include_icons {
                  state.icon_png_base64 = Some(match icon_cache.get(&state.icon_key) {
                      Some(icon) => icon.clone(),
-@@ -187,6 +338,7 @@ fn state_from_snapshot(snapshot: RuntimePlayerSnapshot, include_icons: bool) ->
+@@ -187,6 +650,7 @@ fn state_from_snapshot(snapshot: RuntimePlayerSnapshot, include_icons: bool) ->
      let icon_key = snapshot.id_key_name.clone();
      let icon_png_base64 = include_icons.then(|| render_icon_b64_from_name(&icon_key));
      BattlePlayerState {
@@ -617,7 +1034,7 @@ index fefc009d..a7835241 100644
          id: snapshot.id,
          team_index: snapshot.team_index,
          input_team_index: snapshot.input_team_index,
-@@ -689,7 +841,11 @@ seed:7@!"#;
+@@ -689,7 +1153,11 @@ seed:7@!"#;
              without_icon.icon_png_base64 = None;
              assert_eq!(&without_icon, plain);
          }
@@ -630,7 +1047,7 @@ index fefc009d..a7835241 100644
          let filled_cache = cache.clone();
          assert_eq!(states_from_runner(&runner, true, &mut cache), with_icons);
          assert_eq!(cache, filled_cache);
-@@ -817,3 +973,435 @@ seed:7@!"#;
+@@ -817,3 +1285,435 @@ seed:7@!"#;
          }
      }
  }
@@ -1987,7 +2404,7 @@ index 92e74615..aac8164b 100644
              static_handler
          } else {
 diff --git a/crates/tswn_core/src/runtime/combat/mod.rs b/crates/tswn_core/src/runtime/combat/mod.rs
-index 11a65d86..ce4fbe64 100644
+index 11a65d86..757e9873 100644
 --- a/crates/tswn_core/src/runtime/combat/mod.rs
 +++ b/crates/tswn_core/src/runtime/combat/mod.rs
 @@ -7,12 +7,14 @@
@@ -2005,15 +2422,17 @@ index 11a65d86..ce4fbe64 100644
  mod round;
  mod skills_control;
  mod skills_debuff;
-@@ -56,6 +58,7 @@ pub enum PlainAttackOnDamage {
+@@ -56,6 +58,9 @@ pub enum PlainAttackOnDamage {
  
  #[derive(Debug, Clone, PartialEq, Eq)]
  pub enum PreparedPlainAction {
++    /// 放弃行动，不进行攻击或技能结算。
++    Skip,
 +    Chaos(crate::runtime::chaos::ChaosCard),
      BasicAttack {
          target: EntityIdx,
          use_magic: bool,
-@@ -91,4 +94,58 @@ pub struct CombatRuntime {
+@@ -91,4 +96,58 @@ pub struct CombatRuntime {
      #[cfg(not(feature = "no_debug"))]
      pub trace: Option<RuntimeTrace>,
      pub round: u64,
@@ -2377,7 +2796,7 @@ index 00000000..470b5882
 +    }
 +}
 diff --git a/crates/tswn_core/src/runtime/combat/round.rs b/crates/tswn_core/src/runtime/combat/round.rs
-index 05132896..316e697e 100644
+index 05132896..5c8d5daa 100644
 --- a/crates/tswn_core/src/runtime/combat/round.rs
 +++ b/crates/tswn_core/src/runtime/combat/round.rs
 @@ -37,6 +37,8 @@ impl CombatRuntime {
@@ -2389,7 +2808,18 @@ index 05132896..316e697e 100644
          for target in self.scheduler.take_ice_release_events() {
              updates.add_newline();
              updates.add(RuntimeFrame::replay_update(
-@@ -73,7 +75,22 @@ impl CombatRuntime {
+@@ -49,6 +51,10 @@ impl CombatRuntime {
+         let Some(mut action) = selected_action else {
+             return Some(self.finish_round_with_capture::<CAPTURE_UPDATES>(None, updates));
+         };
++        // 失败逃跑不允许高速队友插队，先把行动机会交给敌方。
++        if crate::runtime::forced_action::should_yield(self.entities.get(action.actor).unwrap().template.team) {
++            return Some(self.finish_round_with_capture::<CAPTURE_UPDATES>(None, updates));
++        }
+         let legacy_plain_action = self.scheduler.uses_legacy_step_scheduler();
+         self.scratch.selected_actor_round = self.round;
+         #[cfg(not(feature = "no_debug"))]
+@@ -73,7 +79,22 @@ impl CombatRuntime {
          }
          #[cfg(not(feature = "no_debug"))]
          let action_rng_before = RngCheckpoint::from_rc4(&self.rng);
@@ -2412,7 +2842,7 @@ index 05132896..316e697e 100644
          let plain_skill_pre_action = legacy_plain_action
              .then(|| self.run_plain_skill_pre_action_accumulator(action.actor))
              .unwrap_or_default();
-@@ -105,10 +122,19 @@ impl CombatRuntime {
+@@ -105,10 +126,23 @@ impl CombatRuntime {
                  return None;
              }
              let forced_pre_action_skill = plain_skill_pre_action.forced_skill.is_some();
@@ -2426,6 +2856,10 @@ index 05132896..316e697e 100644
                  return Some(self.finish_round_with_capture::<CAPTURE_UPDATES>(None, updates));
              };
              match &prepared {
++                PreparedPlainAction::Skip => {
++                    action.target = action.actor;
++                    action.amount = 0;
++                }
 +                PreparedPlainAction::Chaos(_) => {
 +                    action.target = action.actor;
 +                    action.amount = 0;
@@ -2433,8 +2867,21 @@ index 05132896..316e697e 100644
                  PreparedPlainAction::BasicAttack { target, amount, .. } => {
                      action.target = *target;
                      action.amount = *amount;
-@@ -150,6 +176,11 @@ impl CombatRuntime {
-         let terminal_plain_action = if state_intercepted_action {
+@@ -147,9 +181,23 @@ impl CombatRuntime {
+         }
+         let forced_plain_action = matches!(prepared_plain_action.as_ref(), Some(PreparedPlainAction::ForcedAttack { .. }));
+         let builtin_plain_action = matches!(prepared_plain_action.as_ref(), Some(PreparedPlainAction::BuiltinSkill(_)));
+-        let terminal_plain_action = if state_intercepted_action {
++        let terminal_plain_action = if matches!(prepared_plain_action, Some(PreparedPlainAction::Skip)) {
++            updates.add_newline();
++            updates.add(RuntimeFrame::replay_update(
++                action.actor.0 as usize,
++                action.actor.0 as usize,
++                "[1]逃跑失败，失去了行动机会",
++                0,
++            ));
++            false
++        } else if state_intercepted_action {
              // PRE_ACTION 状态钩子接管本次行动后，legacy 仍会继续执行恢复和完整的行动后链。
              legacy_plain_action && !self.has_alive_enemy_or_pending_spawn(action.actor)
 +        } else if matches!(prepared_plain_action, Some(PreparedPlainAction::Chaos(_))) {
@@ -2445,7 +2892,15 @@ index 05132896..316e697e 100644
          } else if builtin_plain_action {
              let Some(PreparedPlainAction::BuiltinSkill(prepared)) = prepared_plain_action.take() else {
                  unreachable!("builtin action marker must retain the prepared action")
-@@ -173,6 +204,7 @@ impl CombatRuntime {
+@@ -164,6 +212,7 @@ impl CombatRuntime {
+             let pre_damage_state_plan = self.scheduler.state_hook_plan(&self.entities, action.actor, ProcMask::PRE_DAMAGE);
+             self.drain_state_hook_plan_into(&pre_damage_state_plan, &mut updates);
+             match prepared_plain_action.take() {
++                Some(PreparedPlainAction::Skip) => unreachable!("skip handled before attacks"),
+                 Some(PreparedPlainAction::BasicAttack { use_magic, .. }) => {
+                     self.drain_plain_default_attack_into(action.actor, action.target, use_magic, &mut updates);
+                 }
+@@ -173,6 +222,7 @@ impl CombatRuntime {
                  Some(PreparedPlainAction::Saitama { target }) => {
                      self.drain_plain_saitama_action_into(action.actor, target, &mut updates);
                  }
@@ -2453,7 +2908,7 @@ index 05132896..316e697e 100644
                  Some(PreparedPlainAction::BuiltinSkill(_)) => {
                      unreachable!("builtin skill actions are handled before the default action branch")
                  }
-@@ -309,9 +341,46 @@ impl CombatRuntime {
+@@ -309,9 +359,46 @@ impl CombatRuntime {
      fn finish_round_with_capture<const CAPTURE_UPDATES: bool>(
          &mut self,
          action: Option<ActionPlan>,
@@ -2501,7 +2956,7 @@ index 05132896..316e697e 100644
          let frame = (CAPTURE_UPDATES && updates.had_updates()).then_some(RuntimeFrame { updates });
          self.round += 1;
          let winner_team = if CAPTURE_UPDATES {
-@@ -347,12 +416,127 @@ impl CombatRuntime {
+@@ -347,12 +434,131 @@ impl CombatRuntime {
              .unwrap_or(false)
      }
  
@@ -2558,6 +3013,10 @@ index 05132896..316e697e 100644
 +            if let Some(command) = crate::runtime::forced_action::take(actor.0 as u32) {
 +                let forced_skill = command.skill;
 +                let forced_mp = command.mp;
++                if forced_skill == 256 {
++                    crate::runtime::forced_action::begin_yield(self.entities.get(actor).unwrap().template.team);
++                    return Some(PreparedPlainAction::Skip);
++                }
 +                if command.potion > 0 {
 +                    self.apply_potion(actor, command.potion);
 +                }
@@ -2629,7 +3088,7 @@ index 05132896..316e697e 100644
          if let Some(forced_skill) = pre_action.forced_skill {
              return Some(PreparedPlainAction::BuiltinSkill(forced_skill));
          }
-@@ -392,7 +576,12 @@ impl CombatRuntime {
+@@ -392,7 +598,12 @@ impl CombatRuntime {
                  },
              )
          };
@@ -2643,7 +3102,7 @@ index 05132896..316e697e 100644
          #[cfg(not(feature = "no_debug"))]
          let probe_action = self.probe_plain_action_matches(actor);
          #[cfg(not(feature = "no_debug"))]
-@@ -450,8 +639,16 @@ impl CombatRuntime {
+@@ -450,8 +661,16 @@ impl CombatRuntime {
              } else {
                  self.scan_plain_action_skill_probabilities(actor, smart)
              };
@@ -2662,24 +3121,25 @@ index 05132896..316e697e 100644
          } else {
              None
          };
-@@ -511,6 +708,57 @@ impl CombatRuntime {
+@@ -511,6 +730,60 @@ impl CombatRuntime {
          }
      }
  
 +    /// 喝药：加强当前角色一项属性一回合（不占行动）+ 少量回血
-+    fn apply_potion(&mut self, actor: EntityIdx, code: u32) {
++    pub fn apply_potion(&mut self, actor: EntityIdx, code: u32) {
 +        // code = 属性下标 + 1（0 表示没喝药）
 +        let field = ((code & 0xF) as usize).saturating_sub(1);
 +        let Some(entity) = self.entities.get_mut(actor) else { return };
 +        if field == 9 {
 +            // 9 = 能量药水：回复 40 点 MP（上限 100）
-+            entity.runtime.magic_point = (entity.runtime.magic_point + 40).min(100);
++            // 默认值或既有增益已超过药水上限时，回复不能反而降低资源。
++            entity.runtime.magic_point = entity.runtime.magic_point.max((entity.runtime.magic_point + 40).min(100));
 +            return;
 +        }
 +        if field >= 8 {
 +            // 8 = 体力药水：回复 25% 最大体力
 +            let heal = (entity.template.max_hp / 4).max(10);
-+            entity.runtime.hp = (entity.runtime.hp + heal).min(entity.template.max_hp);
++            entity.runtime.hp = entity.runtime.hp.max((entity.runtime.hp + heal).min(entity.template.max_hp));
 +            return;
 +        }
 +        let slot = match field {
@@ -2700,27 +3160,29 @@ index 05132896..316e697e 100644
 +
 +    /// 还原上一回合的药水加成
 +    fn revert_active_potion(&mut self, actor: EntityIdx) {
-+        let Some((field, delta)) = crate::runtime::forced_action::take_active_potion(actor.0 as u32) else {
++        // 场外预饮从开战起生效，至少覆盖服用者第一次行动。
++        if crate::runtime::forced_action::take_fresh_potion(actor.0) {
 +            return;
-+        };
-+        let entity = self.entities.get_mut(actor);
-+        let Some(entity) = entity else { return };
-+        match field {
-+            0 => entity.runtime.attack -= delta,
-+            1 => entity.runtime.defense -= delta,
-+            2 => entity.runtime.speed -= delta,
-+            3 => entity.runtime.agility -= delta,
-+            4 => entity.runtime.magic -= delta,
-+            5 => entity.runtime.resistance -= delta,
-+            6 => entity.runtime.wisdom -= delta,
-+            _ => {}
++        }
++        while let Some((field, delta)) = crate::runtime::forced_action::take_active_potion(actor.0 as u32) {
++            let Some(entity) = self.entities.get_mut(actor) else { return };
++            match field {
++                0 => entity.runtime.attack -= delta,
++                1 => entity.runtime.defense -= delta,
++                2 => entity.runtime.speed -= delta,
++                3 => entity.runtime.agility -= delta,
++                4 => entity.runtime.magic -= delta,
++                5 => entity.runtime.resistance -= delta,
++                6 => entity.runtime.wisdom -= delta,
++                _ => {}
++            }
 +        }
 +    }
 +
      pub fn has_plain_berserk_state(&self, actor: EntityIdx) -> bool {
          self.entities.get(actor).is_some_and(|entity| {
              entity
-@@ -624,6 +872,92 @@ impl CombatRuntime {
+@@ -624,6 +897,92 @@ impl CombatRuntime {
          debug_assert!(removed, "runtime berserk state disappeared before state clear");
      }
  
@@ -2813,7 +3275,7 @@ index 05132896..316e697e 100644
      pub fn scan_plain_action_skill_probabilities(&mut self, actor: EntityIdx, smart: bool) -> Option<PreparedBuiltinSkillAction> {
          let (scan_len, cached_scan) = {
              let skills = &self
-@@ -746,6 +1080,7 @@ impl CombatRuntime {
+@@ -746,6 +1105,7 @@ impl CombatRuntime {
          level: u32,
          smart: bool,
      ) -> bool {
@@ -2821,7 +3283,7 @@ index 05132896..316e697e 100644
          #[cfg(not(feature = "no_debug"))]
          let probe_action = self.probe_plain_action_matches(actor);
          match builtin_skill {
-@@ -935,3 +1270,36 @@ impl CombatRuntime {
+@@ -935,3 +1295,36 @@ impl CombatRuntime {
          roll < level
      }
  }
@@ -3246,12 +3708,155 @@ index 72a22d28..44a58e6e 100644
              }
              let root_clan_name = self
                  .get(root_owner)
+diff --git a/crates/tswn_core/src/runtime/entity/state.rs b/crates/tswn_core/src/runtime/entity/state.rs
+index 50dbb17c..70b8d148 100644
+--- a/crates/tswn_core/src/runtime/entity/state.rs
++++ b/crates/tswn_core/src/runtime/entity/state.rs
+@@ -10,7 +10,7 @@ use super::*;
+ /// arena 中稳定的实体索引，允许预留 ID 空槽。
+ pub struct EntityIdx(pub u32);
+ 
+-#[derive(Debug, Clone, PartialEq, Eq)]
++#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+ /// 一个带载荷状态的登记信息；增删由 [`StateStore`] 维护计划缓存与注册游标。
+ pub struct StateEntry {
+     pub legacy_order_key: u32,
+@@ -28,7 +28,7 @@ pub struct CovidInfectionEntry {
+     pub days: i32,
+ }
+ 
+-#[derive(Debug, Default, Clone, PartialEq, Eq)]
++#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+ /// 已实现状态的机制数据；步骤、来源、有效阵营与浮点 bits 均有各自语义。
+ pub enum StatePayload {
+     #[default]
+@@ -93,6 +93,76 @@ pub enum StatePayload {
+ }
+ 
+ impl StateEntry {
++    /// 离战清理/分身汇总只处理负面载荷，不把铁壁、护盾等正面状态带给本体。
++    pub fn is_escape_debuff(&self) -> bool {
++        matches!(
++            self.payload,
++            StatePayload::FireMagHalfSteps(_)
++                | StatePayload::Ice { .. }
++                | StatePayload::Curse { .. }
++                | StatePayload::Poison { .. }
++                | StatePayload::Berserk { .. }
++                | StatePayload::Charm { .. }
++                | StatePayload::Slow { .. }
++                | StatePayload::CovidInfection { .. }
++                | StatePayload::LazyInfection { .. }
++        )
++    }
++
++    /// 同种负面状态叠加剩余计数；无回合计数的灼烧、诅咒叠加载荷强度。
++    pub fn add_escape_debuff(&mut self, other: &Self) {
++        use StatePayload::*;
++        match (&mut self.payload, &other.payload) {
++            (FireMagHalfSteps(a), FireMagHalfSteps(b)) => *a = a.saturating_add(*b),
++            (Ice { frozen_step: a }, Ice { frozen_step: b }) => *a = a.saturating_add(*b),
++            (Slow { step: a }, Slow { step: b })
++            | (Berserk { step: a }, Berserk { step: b })
++            | (Charm { step: a, .. }, Charm { step: b, .. }) => *a = a.saturating_add(*b),
++            (
++                Poison {
++                    count: a,
++                    atp_bits: power,
++                    ..
++                },
++                Poison {
++                    count: b,
++                    atp_bits: other_power,
++                    ..
++                },
++            ) => {
++                *a = a.saturating_add(*b);
++                if f64::from_bits(*other_power) > f64::from_bits(*power) {
++                    *power = *other_power;
++                }
++            }
++            (Curse { prob: a, multiply: x }, Curse { prob: b, multiply: y }) => {
++                *a = a.saturating_add(*b);
++                *x = x.saturating_add(*y);
++            }
++            (
++                CovidInfection {
++                    entries: a,
++                    mutation_set: x,
++                    recovered: r,
++                },
++                CovidInfection {
++                    entries: b,
++                    mutation_set: y,
++                    recovered: s,
++                },
++            ) => {
++                a.extend(b.iter().copied());
++                for value in y {
++                    if !x.contains(value) {
++                        x.push(*value);
++                    }
++                }
++                *r &= *s;
++            }
++            _ => {}
++        }
++    }
++
+     pub fn legacy(legacy_order_key: u32) -> Self {
+         Self {
+             legacy_order_key,
+diff --git a/crates/tswn_core/src/runtime/entity/state/store.rs b/crates/tswn_core/src/runtime/entity/state/store.rs
+index ece5a394..35b647b2 100644
+--- a/crates/tswn_core/src/runtime/entity/state/store.rs
++++ b/crates/tswn_core/src/runtime/entity/state/store.rs
+@@ -86,7 +86,8 @@ fn scheduler_state_flags(payload: &StatePayload) -> u8 {
+     }
+ }
+ 
+-#[derive(Debug, Default, Clone)]
++// 遭遇存档同时保留压缩状态与登记顺序，避免读档改变药效持续时间。
++#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+ pub struct StateStore {
+     entries: SmallVec<[StateEntry; 8]>,
+     hook_mask: ProcMask,
+diff --git a/crates/tswn_core/src/runtime/extension.rs b/crates/tswn_core/src/runtime/extension.rs
+index b34a17eb..68262405 100644
+--- a/crates/tswn_core/src/runtime/extension.rs
++++ b/crates/tswn_core/src/runtime/extension.rs
+@@ -67,7 +67,7 @@ pub struct PlayerKindId(pub u32);
+ #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+ pub struct SkillId(pub u32);
+ 
+-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
++#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+ pub struct StateId(pub u32);
+ 
+ #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+@@ -108,13 +108,13 @@ pub enum ExtensionCapability {
+     MutateEntitySlots,
+ }
+ 
+-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
++#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+ pub struct SkillPriority(pub i32);
+ 
+-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
++#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+ pub struct RegistrationOrder(pub u32);
+ 
+-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
++#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+ pub struct ProcMask(pub u64);
+ 
+ impl ProcMask {
 diff --git a/crates/tswn_core/src/runtime/forced_action.rs b/crates/tswn_core/src/runtime/forced_action.rs
 new file mode 100644
-index 00000000..e028cf3f
+index 00000000..2a248383
 --- /dev/null
 +++ b/crates/tswn_core/src/runtime/forced_action.rs
-@@ -0,0 +1,264 @@
+@@ -0,0 +1,294 @@
 +//! 卡牌指令按会话保存；线程局部状态仅在一次推进期间借给 Runtime，退出即还原。
 +use std::cell::{Cell, RefCell};
 +use std::collections::BTreeMap;
@@ -3266,6 +3871,10 @@ index 00000000..e028cf3f
 +
 +#[derive(Debug, Clone, Default)]
 +pub struct ForcedState {
++    /// 逃跑失败后让出本队行动，直到敌方实际获得行动机会。
++    pub yield_team: Option<usize>,
++    /// 首次行动前服用的药水不能在该次行动开始时就被还原。
++    pub fresh_potions: std::collections::BTreeSet<u32>,
 +    pub queue: Vec<ForcedAction>,
 +    pub controlled_team: Option<usize>,
 +    pub paused_actor: Option<u32>,
@@ -3275,7 +3884,7 @@ index 00000000..e028cf3f
 +    pub automatic_roots: std::collections::BTreeSet<u32>,
 +    /// 能力卡为独立乘区及减耗，不参与技能熟练度读写。
 +    pub abilities: BTreeMap<String, (u32, u32)>,
-+    active_potions: BTreeMap<u32, (u8, i32)>,
++    active_potions: BTreeMap<(u32, u8), i32>,
 +    fallback: Option<(u32, &'static str)>,
 +}
 +
@@ -3294,7 +3903,7 @@ index 00000000..e028cf3f
 +    actions
 +        .chunks_exact(3)
 +        .map(|a| {
-+            if a[1] > 24 && a[1] != 255 {
++            if a[1] > 24 && a[1] != 255 && a[1] != 256 {
 +                return Err("forced skill must be active id 0..24 or normal attack 255");
 +            }
 +            let potion = a[2] >> 8;
@@ -3331,6 +3940,26 @@ index 00000000..e028cf3f
 +}
 +
 +pub fn controlled_team() -> Option<usize> { ACTIVE.with(|cell| cell.borrow().controlled_team) }
++pub fn begin_yield(team: usize) { ACTIVE.with(|cell| cell.borrow_mut().yield_team = Some(team)); }
++pub fn should_yield(team: usize) -> bool {
++    ACTIVE.with(|cell| {
++        let mut state = cell.borrow_mut();
++        match state.yield_team {
++            Some(own) if own == team => true,
++            Some(_) => {
++                state.yield_team = None;
++                false
++            }
++            None => false,
++        }
++    })
++}
++pub fn protect_fresh_potion(actor: u32) {
++    ACTIVE.with(|cell| {
++        cell.borrow_mut().fresh_potions.insert(actor);
++    });
++}
++pub fn take_fresh_potion(actor: u32) -> bool { ACTIVE.with(|cell| cell.borrow_mut().fresh_potions.remove(&actor)) }
 +pub fn set_pause(actor: u32) { ACTIVE.with(|cell| cell.borrow_mut().paused_actor = Some(actor)); }
 +pub fn pause_pending() -> bool { ACTIVE.with(|cell| cell.borrow().paused_actor.is_some()) }
 +pub fn take(actor: u32) -> Option<ForcedAction> {
@@ -3343,10 +3972,16 @@ index 00000000..e028cf3f
 +}
 +pub fn set_active_potion(actor: u32, field: u8, delta: i32) {
 +    ACTIVE.with(|cell| {
-+        cell.borrow_mut().active_potions.insert(actor, (field, delta));
++        *cell.borrow_mut().active_potions.entry((actor, field)).or_default() += delta;
 +    });
 +}
-+pub fn take_active_potion(actor: u32) -> Option<(u8, i32)> { ACTIVE.with(|cell| cell.borrow_mut().active_potions.remove(&actor)) }
++pub fn take_active_potion(actor: u32) -> Option<(u8, i32)> {
++    ACTIVE.with(|cell| {
++        let mut state = cell.borrow_mut();
++        let key = state.active_potions.keys().find(|(id, _)| *id == actor).copied()?;
++        state.active_potions.remove(&key).map(|delta| (key.1, delta))
++    })
++}
 +pub fn record_fallback(actor: u32, reason: &'static str) {
 +    ACTIVE.with(|cell| cell.borrow_mut().fallback = Some((actor, reason)));
 +}
@@ -3679,6 +4314,3040 @@ index 04f84710..314d9bc8 100644
              magic_point: entity.runtime.magic_point,
              move_point: entity.runtime.move_state.speed_points,
              attack: entity.runtime.attack,
+diff --git a/crates/tswn_ds4/data/score_now.txt b/crates/tswn_ds4/data/score_now.txt
+deleted file mode 100644
+index 456cbe40..00000000
+--- a/crates/tswn_ds4/data/score_now.txt
++++ /dev/null
+@@ -1,36 +0,0 @@
+-8518 6357 6819
+-8674 6461 7464
+-8619 6438 7259
+-8633 6469 7025
+-8630 6455 7084
+-8806 6415 7198
+-8643 6384 7297
+-8607 6292 7030
+-8772 6640 7187
+-8572 6491 7199
+-8434 6310 7119
+-8627 6395 7225
+-8466 6458 7037
+-8439 6561 7014
+-8526 6505 7414
+-8613 6309 7140
+-8788 6359 7074
+-8448 6026 6599
+-8650 6647 8210
+-8761 6552 7241
+-8495 6278 7093
+-8762 6408 7182
+-8479 6724 7101
+-8491 6099 6891
+-8274 6378 6701
+-8855 6844 7371
+-8640 6324 7163
+-8427 6490 6415
+-8564 6294 7161
+-8561 6444 7184
+-8683 6568 7362
+-8591 6340 7256
+-8653 6402 6734
+-8414 6330 6575
+-8686 6566 7286
+-8491 6200 6599
+diff --git a/crates/tswn_ds4/tests/ds4_pipeline.rs b/crates/tswn_ds4/tests/ds4_pipeline.rs
+deleted file mode 100644
+index d5cac888..00000000
+--- a/crates/tswn_ds4/tests/ds4_pipeline.rs
++++ /dev/null
+@@ -1,83 +0,0 @@
+-use std::fs;
+-use std::path::{Path, PathBuf};
+-use std::process::Command;
+-
+-fn run(root: &Path) {
+-    let output = Command::new(env!("CARGO_BIN_EXE_tswn_ds4"))
+-        .args(["run", "--root", root.to_str().expect("root path")])
+-        .output()
+-        .expect("start tswn_ds4");
+-    assert!(
+-        output.status.success(),
+-        "stdout: {}\nstderr: {}",
+-        String::from_utf8_lossy(&output.stdout),
+-        String::from_utf8_lossy(&output.stderr)
+-    );
+-}
+-
+-fn temp_root() -> PathBuf {
+-    let root = std::env::temp_dir().join(format!("tswn-ds4-pipeline-json-{}", std::process::id()));
+-    fs::create_dir_all(root.join("input")).expect("create input dir");
+-    root
+-}
+-
+-#[test]
+-fn json_pipeline_filters_team_and_preserves_incremental_state() {
+-    let root = temp_root();
+-    fs::write(
+-        root.join("input/names.txt"),
+-        "alpha@teamA 123\nbeta@teamA_suffix\ngamma@teamA\t\nalpha@teamA\nother@teamB\ninvalid\n",
+-    )
+-    .expect("write input");
+-    fs::write(
+-        root.join("config.json"),
+-        r#"{
+-            "team_name":"teamA", "thread_number":2,
+-            "bc":{"sieve":-100000,"ptt_sieve":-100000},
+-            "fz":{"sieve":-100000,"ptt_sieve":-100000},
+-            "wc":{"sieve":-100000,"ptt_sieve":-100000},
+-            "fs":{"sieve":-100000,"ptt_sieve":-100000},
+-            "pj":{"sieve":-100000,"ptt_sieve":-100000},
+-            "two_fc":{"enable":1,"sieve":-100000},
+-            "two_wc":{"enable":1,"sieve":-100000},
+-            "two_rh":{"enable":1,"sieve":-100000},
+-            "qp":{"enable":1,"sieve":-100000,"skill_sieve":300},
+-            "qd":{"enable":1,"sieve":-100000,"skill_sieve":300},
+-            "pp":{"enable":1,"sieve":-100000,"skill_sieve":300},
+-            "pd":{"enable":1,"sieve":-100000},
+-            "cqd":{"enable":1,"sieve":-100000},
+-            "copy_pf_to_out":1, "copy_to_new":1, "run_dup":1,
+-            "abcp":{"enable":0,"sieve":4500}, "get_3":0
+-        }"#,
+-    )
+-    .expect("write config");
+-
+-    run(&root);
+-    let ignored = fs::read_to_string(root.join("out/ignore_input.txt")).expect("ignored rows");
+-    assert!(ignored.contains("other@teamB"));
+-    assert!(ignored.contains("invalid"));
+-    let old = fs::read_to_string(root.join("file/old.txt")).expect("old names");
+-    assert_eq!(old.lines().count(), 3);
+-    assert!(old.lines().all(|line| line.ends_with("@teamA")));
+-    assert!(root.join("out/new_qp.txt").exists());
+-    assert!(root.join("file/old_qp.txt").exists());
+-    let fc = fs::read_to_string(root.join("out/FC.txt")).expect("FC pairs");
+-    assert!(fc.lines().count() >= 6);
+-    assert!(fc.contains("+beta@teamA"));
+-    assert!(fc.contains("+gamma@teamA"));
+-
+-    let config = tswn_ds4::Config::load_from_root(&root).expect("从 Rust API 加载配置");
+-    let mut stages = Vec::new();
+-    let report = tswn_ds4::run_with_progress(&root, &config, |stage| stages.push(stage)).expect("Rust API 复用 CLI 的历史状态");
+-    assert_eq!(stages.first(), Some(&tswn_ds4::RunStage::Input));
+-    assert_eq!(stages.last(), Some(&tswn_ds4::RunStage::Complete));
+-    assert!(stages.windows(2).all(|stages| stages[0].completed() < stages[1].completed()));
+-    assert_eq!(report.stage1.dedup.remaining, 0);
+-    assert_eq!(report.pair.fc, 0);
+-    assert_eq!(
+-        fs::read_to_string(root.join("file/old.txt")).expect("old names").lines().count(),
+-        3
+-    );
+-    assert!(fs::read_to_string(root.join("out/FC.txt")).expect("FC pairs after rerun").is_empty());
+-    fs::remove_dir_all(root).expect("cleanup temp dir");
+-}
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/config.txt b/crates/tswn_ds4/tests/fixtures/basic/config.txt
+deleted file mode 100644
+index b334542d..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/config.txt
++++ /dev/null
+@@ -1,10 +0,0 @@
+-4
+--100000 -100000
+--100000 -100000
+--100000 -100000
+--100000 -100000
+--100000 -100000
+-1 -100000
+-1 -100000
+-1 -100000
+-1 1
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/file/old.txt
+deleted file mode 100644
+index c237e2a0..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old.txt
++++ /dev/null
+@@ -1,7 +0,0 @@
+-beta@teamA
+-oldone@teamX
+-zeta@teamE
+-epsilon@teamD
+-+delta@teamC+
+-gamma@teamB
+-alpha@teamA
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_bc.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_bc.txt
+deleted file mode 100644
+index 7be9eb45..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_bc.txt
++++ /dev/null
+@@ -1,7 +0,0 @@
+-1200.000 1300.000 oldbc2@teamY
+-1111.000 -557.000 zeta@teamE
+-1111.000 795.000 gamma@teamB
+-1111.000 -922.000 epsilon@teamD
+-1111.000 476.000 alpha@teamA
+-1111.000 310.000 +delta@teamC+
+-1000.000 1000.000 oldbc1@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_bc_ptt.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_bc_ptt.txt
+deleted file mode 100644
+index 839b60b8..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_bc_ptt.txt
++++ /dev/null
+@@ -1,7 +0,0 @@
+-1200.000 1300.000 oldbc2@teamY
+-1000.000 1000.000 oldbc1@teamX
+-1111.000 795.000 gamma@teamB
+-1111.000 476.000 alpha@teamA
+-1111.000 310.000 +delta@teamC+
+-1111.000 -557.000 zeta@teamE
+-1111.000 -922.000 epsilon@teamD
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_fs.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_fs.txt
+deleted file mode 100644
+index b2431e3e..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_fs.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-1111.000 1901.000 zeta@teamE
+-1111.000 1939.000 gamma@teamB
+-1111.000 1411.000 epsilon@teamD
+-1111.000 2505.000 alpha@teamA
+-1111.000 1855.000 +delta@teamC+
+-800.000 810.000 oldfs1@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_fs_ptt.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_fs_ptt.txt
+deleted file mode 100644
+index 9fa9ad60..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_fs_ptt.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-1111.000 2505.000 alpha@teamA
+-1111.000 1939.000 gamma@teamB
+-1111.000 1901.000 zeta@teamE
+-1111.000 1855.000 +delta@teamC+
+-1111.000 1411.000 epsilon@teamD
+-800.000 810.000 oldfs1@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_fz.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_fz.txt
+deleted file mode 100644
+index a81337cc..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_fz.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-2479.000 2823.000 gamma@teamB
+-2320.000 2668.000 alpha@teamA
+-1837.000 2034.000 zeta@teamE
+-1818.000 2165.000 +delta@teamC+
+-1517.000 2246.000 epsilon@teamD
+-1100.000 1200.000 oldfz1@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_fz_ptt.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_fz_ptt.txt
+deleted file mode 100644
+index 4b3a7611..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_fz_ptt.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-2479.000 2823.000 gamma@teamB
+-2320.000 2668.000 alpha@teamA
+-1517.000 2246.000 epsilon@teamD
+-1818.000 2165.000 +delta@teamC+
+-1837.000 2034.000 zeta@teamE
+-1100.000 1200.000 oldfz1@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_pj.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_pj.txt
+deleted file mode 100644
+index f4a5ac58..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_pj.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-2303.000 2603.000 gamma@teamB
+-1844.000 2180.000 alpha@teamA
+-1250.000 1585.000 zeta@teamE
+-1074.000 1997.000 epsilon@teamD
+-863.000 1317.000 +delta@teamC+
+-700.000 705.000 oldpj1@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_pj_ptt.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_pj_ptt.txt
+deleted file mode 100644
+index ae7d15c1..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_pj_ptt.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-2303.000 2603.000 gamma@teamB
+-1844.000 2180.000 alpha@teamA
+-1074.000 1997.000 epsilon@teamD
+-1250.000 1585.000 zeta@teamE
+-863.000 1317.000 +delta@teamC+
+-700.000 705.000 oldpj1@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_wc.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_wc.txt
+deleted file mode 100644
+index 40118413..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_wc.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-1046.000 1651.000 gamma@teamB
+-900.000 950.000 oldwc1@teamX
+-680.000 1270.000 alpha@teamA
+-280.000 678.000 zeta@teamE
+--416.000 958.000 epsilon@teamD
+--596.000 236.000 +delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_wc_ptt.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_wc_ptt.txt
+deleted file mode 100644
+index 5f15cedb..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/file/old_wc_ptt.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-1046.000 1651.000 gamma@teamB
+-680.000 1270.000 alpha@teamA
+--416.000 958.000 epsilon@teamD
+-900.000 950.000 oldwc1@teamX
+-280.000 678.000 zeta@teamE
+--596.000 236.000 +delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/new/new.txt
+deleted file mode 100644
+index b9c0a113..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new.txt
++++ /dev/null
+@@ -1,10 +0,0 @@
+-zeta@teamE
+-epsilon@teamD
+-+delta@teamC+
+-gamma@teamB
+-alpha@teamA
+-zeta@teamE
+-epsilon@teamD
+-+delta@teamC+
+-gamma@teamB
+-alpha@teamA
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_bc.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_bc.txt
+deleted file mode 100644
+index b627bccc..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_bc.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-1111.000 -557.000 zeta@teamE
+-1111.000 795.000 gamma@teamB
+-1111.000 -922.000 epsilon@teamD
+-1111.000 476.000 alpha@teamA
+-1111.000 310.000 +delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_bc_ptt.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_bc_ptt.txt
+deleted file mode 100644
+index fa06abf4..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_bc_ptt.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-1111.000 795.000 gamma@teamB
+-1111.000 476.000 alpha@teamA
+-1111.000 310.000 +delta@teamC+
+-1111.000 -557.000 zeta@teamE
+-1111.000 -922.000 epsilon@teamD
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_fs.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_fs.txt
+deleted file mode 100644
+index 4adadbe8..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_fs.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-1111.000 1901.000 zeta@teamE
+-1111.000 1939.000 gamma@teamB
+-1111.000 1411.000 epsilon@teamD
+-1111.000 2505.000 alpha@teamA
+-1111.000 1855.000 +delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_fs_ptt.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_fs_ptt.txt
+deleted file mode 100644
+index c82207ee..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_fs_ptt.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-1111.000 2505.000 alpha@teamA
+-1111.000 1939.000 gamma@teamB
+-1111.000 1901.000 zeta@teamE
+-1111.000 1855.000 +delta@teamC+
+-1111.000 1411.000 epsilon@teamD
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_fz.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_fz.txt
+deleted file mode 100644
+index d058a83b..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_fz.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-2479.000 2823.000 gamma@teamB
+-2320.000 2668.000 alpha@teamA
+-1837.000 2034.000 zeta@teamE
+-1818.000 2165.000 +delta@teamC+
+-1517.000 2246.000 epsilon@teamD
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_fz_ptt.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_fz_ptt.txt
+deleted file mode 100644
+index 1e78ca18..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_fz_ptt.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-2479.000 2823.000 gamma@teamB
+-2320.000 2668.000 alpha@teamA
+-1517.000 2246.000 epsilon@teamD
+-1818.000 2165.000 +delta@teamC+
+-1837.000 2034.000 zeta@teamE
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_pj.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_pj.txt
+deleted file mode 100644
+index 56c396f9..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_pj.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-2303.000 2603.000 gamma@teamB
+-1844.000 2180.000 alpha@teamA
+-1250.000 1585.000 zeta@teamE
+-1074.000 1997.000 epsilon@teamD
+-863.000 1317.000 +delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_pj_ptt.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_pj_ptt.txt
+deleted file mode 100644
+index f4d4622a..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_pj_ptt.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-2303.000 2603.000 gamma@teamB
+-1844.000 2180.000 alpha@teamA
+-1074.000 1997.000 epsilon@teamD
+-1250.000 1585.000 zeta@teamE
+-863.000 1317.000 +delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_wc.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_wc.txt
+deleted file mode 100644
+index f02f1423..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_wc.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-1046.000 1651.000 gamma@teamB
+-680.000 1270.000 alpha@teamA
+-280.000 678.000 zeta@teamE
+--416.000 958.000 epsilon@teamD
+--596.000 236.000 +delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_wc_ptt.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_wc_ptt.txt
+deleted file mode 100644
+index 84cb7b19..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/new/new_wc_ptt.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-1046.000 1651.000 gamma@teamB
+-680.000 1270.000 alpha@teamA
+--416.000 958.000 epsilon@teamD
+-280.000 678.000 zeta@teamE
+--596.000 236.000 +delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/out/FC.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/out/FC.txt
+deleted file mode 100644
+index eeb64c7c..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/out/FC.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-2479 gamma@teamB+zeta@teamE
+-2320 alpha@teamA+zeta@teamE
+-1837 zeta@teamE+zeta@teamE
+-1817 +zeta@teamE
+-1517 epsilon@teamD+zeta@teamE
+-2479 gamma@teamB+oldbc1@teamX
+-2320 alpha@teamA+oldbc1@teamX
+-1837 zeta@teamE+oldbc1@teamX
+-1818 +oldbc1@teamX
+-1517 epsilon@teamD+oldbc1@teamX
+-1100 oldfz1@teamX+zeta@teamE
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/out/RH.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/out/RH.txt
+deleted file mode 100644
+index 3f02db24..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/out/RH.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-2303 zeta@teamE+gamma@teamB
+-2303 gamma@teamB+gamma@teamB
+-2303 epsilon@teamD+gamma@teamB
+-2316 alpha@teamA+gamma@teamB
+-2303 +gamma@teamB
+-700 zeta@teamE+oldpj1@teamX
+-700 gamma@teamB+oldpj1@teamX
+-700 epsilon@teamD+oldpj1@teamX
+-700 alpha@teamA+oldpj1@teamX
+-700 +oldpj1@teamX
+-2303 oldfs1@teamX+gamma@teamB
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/out/WC.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/out/WC.txt
+deleted file mode 100644
+index 0716e157..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/out/WC.txt
++++ /dev/null
+@@ -1,16 +0,0 @@
+-1763 gamma@teamB+alpha@teamA
+-1326 gamma@teamB+zeta@teamE
+-630 gamma@teamB+epsilon@teamD
+-450 gamma@teamB+
+-960 alpha@teamA+zeta@teamE
+-264 alpha@teamA+epsilon@teamD
+-130 alpha@teamA+
+--136 zeta@teamE+epsilon@teamD
+--245 zeta@teamE+
+--827 epsilon@teamD+
+--2520 +
+-2008 gamma@teamB+oldwc1@teamX
+-1580 alpha@teamA+oldwc1@teamX
+-1252 zeta@teamE+oldwc1@teamX
+-1697 epsilon@teamD+oldwc1@teamX
+-304 +oldwc1@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_bc.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_bc.txt
+deleted file mode 100644
+index b627bccc..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_bc.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-1111.000 -557.000 zeta@teamE
+-1111.000 795.000 gamma@teamB
+-1111.000 -922.000 epsilon@teamD
+-1111.000 476.000 alpha@teamA
+-1111.000 310.000 +delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_dup.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_dup.txt
+deleted file mode 100644
+index b34f416e..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_dup.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-zeta@teamE
+-epsilon@teamD
+-+delta@teamC+
+-gamma@teamB
+-alpha@teamA
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_fs.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_fs.txt
+deleted file mode 100644
+index 4adadbe8..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_fs.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-1111.000 1901.000 zeta@teamE
+-1111.000 1939.000 gamma@teamB
+-1111.000 1411.000 epsilon@teamD
+-1111.000 2505.000 alpha@teamA
+-1111.000 1855.000 +delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_fz.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_fz.txt
+deleted file mode 100644
+index d058a83b..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_fz.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-2479.000 2823.000 gamma@teamB
+-2320.000 2668.000 alpha@teamA
+-1837.000 2034.000 zeta@teamE
+-1818.000 2165.000 +delta@teamC+
+-1517.000 2246.000 epsilon@teamD
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_pj.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_pj.txt
+deleted file mode 100644
+index 56c396f9..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_pj.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-2303.000 2603.000 gamma@teamB
+-1844.000 2180.000 alpha@teamA
+-1250.000 1585.000 zeta@teamE
+-1074.000 1997.000 epsilon@teamD
+-863.000 1317.000 +delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_wc.txt b/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_wc.txt
+deleted file mode 100644
+index f02f1423..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/expected/tmp/new_wc.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-1046.000 1651.000 gamma@teamB
+-680.000 1270.000 alpha@teamA
+-280.000 678.000 zeta@teamE
+--416.000 958.000 epsilon@teamD
+--596.000 236.000 +delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/file/old.txt b/crates/tswn_ds4/tests/fixtures/basic/file/old.txt
+deleted file mode 100644
+index fadc5bde..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/file/old.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-beta@teamA
+-oldone@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/file/old_bc.txt b/crates/tswn_ds4/tests/fixtures/basic/file/old_bc.txt
+deleted file mode 100644
+index 487cd852..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/file/old_bc.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-1000 1000 oldbc1@teamX
+-1200 1300 oldbc2@teamY
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/file/old_fs.txt b/crates/tswn_ds4/tests/fixtures/basic/file/old_fs.txt
+deleted file mode 100644
+index 2350707f..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/file/old_fs.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-800 810 oldfs1@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/file/old_fz.txt b/crates/tswn_ds4/tests/fixtures/basic/file/old_fz.txt
+deleted file mode 100644
+index 04c18d2e..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/file/old_fz.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-1100 1200 oldfz1@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/file/old_pj.txt b/crates/tswn_ds4/tests/fixtures/basic/file/old_pj.txt
+deleted file mode 100644
+index c59d5d54..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/file/old_pj.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-700 705 oldpj1@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/file/old_wc.txt b/crates/tswn_ds4/tests/fixtures/basic/file/old_wc.txt
+deleted file mode 100644
+index 816aaf0c..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/file/old_wc.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-900 950 oldwc1@teamX
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/input/a.txt b/crates/tswn_ds4/tests/fixtures/basic/input/a.txt
+deleted file mode 100644
+index 54f6ba85..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/input/a.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-alpha@teamA
+-beta@teamA
+-gamma@teamB
+-+delta@teamC+
+diff --git a/crates/tswn_ds4/tests/fixtures/basic/input/b.txt b/crates/tswn_ds4/tests/fixtures/basic/input/b.txt
+deleted file mode 100644
+index 3aa8230a..00000000
+--- a/crates/tswn_ds4/tests/fixtures/basic/input/b.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-gamma@teamB
+-epsilon@teamD
+-zeta@teamE
+diff --git a/crates/tswn_ds4/tests/fixtures/ds4_preview/config.json b/crates/tswn_ds4/tests/fixtures/ds4_preview/config.json
+deleted file mode 100644
+index fb782f40..00000000
+--- a/crates/tswn_ds4/tests/fixtures/ds4_preview/config.json
++++ /dev/null
+@@ -1,102 +0,0 @@
+-{
+-  "team_name": "teamA",
+-  "thread_number": 20,
+-  "bc": {
+-    "sieve": -100000,
+-    "ptt_sieve": -100000
+-  },
+-  "fz": {
+-    "sieve": -100000,
+-    "ptt_sieve": -100000
+-  },
+-  "wc": {
+-    "sieve": -100000,
+-    "ptt_sieve": -100000
+-  },
+-  "fs": {
+-    "sieve": -100000,
+-    "ptt_sieve": -100000
+-  },
+-  "pj": {
+-    "sieve": -100000,
+-    "ptt_sieve": -100000
+-  },
+-  "two_fc": {
+-    "enable": 1,
+-    "sieve": -100000
+-  },
+-  "two_wc": {
+-    "enable": 1,
+-    "sieve": -100000
+-  },
+-  "two_rh": {
+-    "enable": 1,
+-    "sieve": -100000
+-  },
+-  "qp": {
+-    "enable": 1,
+-    "sieve": -100000,
+-    "skill_sieve": 300
+-  },
+-  "qd": {
+-    "enable": 1,
+-    "sieve": -100000,
+-    "skill_sieve": 300
+-  },
+-  "pp": {
+-    "enable": 1,
+-    "sieve": -100000,
+-    "skill_sieve": 300
+-  },
+-  "pd": {
+-    "enable": 1,
+-    "sieve": -100000
+-  },
+-  "cqd": {
+-    "enable": 1,
+-    "sieve": -100000
+-  },
+-  "copy_pf_to_out": 1,
+-  "copy_to_new": 1,
+-  "run_dup": 1,
+-  "abcp": {
+-    "enable": 1,
+-    "sieve": 1
+-  },
+-  "get_3": 1,
+-  "three": {
+-    "pair_abcp_sieve": 1,
+-    "ffc": {
+-      "enable": 1,
+-      "sieve": -100000
+-    },
+-    "wfc": {
+-      "enable": 1,
+-      "sieve": -100000
+-    },
+-    "fwc": {
+-      "enable": 1,
+-      "sieve": -100000
+-    },
+-    "wwc": {
+-      "enable": 1,
+-      "sieve": -100000
+-    },
+-    "rwc": {
+-      "enable": 1,
+-      "sieve": -100000
+-    },
+-    "rrh": {
+-      "enable": 1,
+-      "sieve": -100000
+-    },
+-    "prh": {
+-      "enable": 1,
+-      "sieve": -100000
+-    },
+-    "wrh": {
+-      "enable": 1,
+-      "sieve": -100000
+-    }
+-  }
+-}
+diff --git a/crates/tswn_ds4/tests/fixtures/ds4_preview/input/names.txt b/crates/tswn_ds4/tests/fixtures/ds4_preview/input/names.txt
+deleted file mode 100644
+index 1f51ca44..00000000
+--- a/crates/tswn_ds4/tests/fixtures/ds4_preview/input/names.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-alpha@teamA 123
+-beta@teamA_suffix
+-gamma@teamA
+-delta@teamA
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/config.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/config.txt
+deleted file mode 100644
+index 130723b2..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/config.txt
++++ /dev/null
+@@ -1,10 +0,0 @@
+-2
+--100000 -100000
+--100000 -100000
+--100000 -100000
+--100000 -100000
+--100000 -100000
+-0 -100000
+-0 -100000
+-0 -100000
+-0 0
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old.txt
+deleted file mode 100644
+index a4b997af..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-u1@ta
+-u1@ta
+-u2@tb
+-u3@tc
+-u3@tc
+-u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_bc.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_bc.txt
+deleted file mode 100644
+index c07b7de4..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_bc.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-1111.000 -2285.000 u4@td
+-1111.000 -617.000 u3@tc
+-1111.000 -924.000 u2@tb
+-1111.000 -854.000 u1@ta
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_bc_ptt.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_bc_ptt.txt
+deleted file mode 100644
+index 929217ec..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_bc_ptt.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-1111.000 -617.000 u3@tc
+-1111.000 -854.000 u1@ta
+-1111.000 -924.000 u2@tb
+-1111.000 -2285.000 u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_fs.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_fs.txt
+deleted file mode 100644
+index 3c279d10..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_fs.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-1111.000 1045.000 u4@td
+-1111.000 1783.000 u3@tc
+-1111.000 2007.000 u2@tb
+-1111.000 1722.000 u1@ta
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_fs_ptt.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_fs_ptt.txt
+deleted file mode 100644
+index 61cd5cf8..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_fs_ptt.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-1111.000 2007.000 u2@tb
+-1111.000 1783.000 u3@tc
+-1111.000 1722.000 u1@ta
+-1111.000 1045.000 u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_fz.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_fz.txt
+deleted file mode 100644
+index 2a78a91e..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_fz.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-2188.000 2541.000 u2@tb
+-2020.000 2489.000 u1@ta
+-1792.000 2186.000 u3@tc
+-1357.000 2103.000 u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_fz_ptt.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_fz_ptt.txt
+deleted file mode 100644
+index 2a78a91e..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_fz_ptt.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-2188.000 2541.000 u2@tb
+-2020.000 2489.000 u1@ta
+-1792.000 2186.000 u3@tc
+-1357.000 2103.000 u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_pj.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_pj.txt
+deleted file mode 100644
+index 482496eb..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_pj.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-1385.000 1901.000 u2@tb
+-1256.000 1541.000 u3@tc
+-1088.000 1920.000 u1@ta
+--73.000 523.000 u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_pj_ptt.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_pj_ptt.txt
+deleted file mode 100644
+index 7fa68f34..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_pj_ptt.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-1088.000 1920.000 u1@ta
+-1385.000 1901.000 u2@tb
+-1256.000 1541.000 u3@tc
+--73.000 523.000 u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_wc.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_wc.txt
+deleted file mode 100644
+index 8ecae85b..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_wc.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-85.000 1022.000 u2@tb
+--86.000 1011.000 u1@ta
+--450.000 215.000 u3@tc
+--3502.000 -2292.000 u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_wc_ptt.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_wc_ptt.txt
+deleted file mode 100644
+index 8ecae85b..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/file/old_wc_ptt.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-85.000 1022.000 u2@tb
+--86.000 1011.000 u1@ta
+--450.000 215.000 u3@tc
+--3502.000 -2292.000 u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_bc.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_bc.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_bc.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_bc_ptt.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_bc_ptt.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_bc_ptt.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_fs.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_fs.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_fs.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_fs_ptt.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_fs_ptt.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_fs_ptt.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_fz.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_fz.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_fz.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_fz_ptt.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_fz_ptt.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_fz_ptt.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_pj.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_pj.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_pj.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_pj_ptt.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_pj_ptt.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_pj_ptt.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_wc.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_wc.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_wc.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_wc_ptt.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_wc_ptt.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/new/new_wc_ptt.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/out/FC.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/out/FC.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/out/FC.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/out/RH.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/out/RH.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/out/RH.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/out/WC.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/out/WC.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/out/WC.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_bc.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_bc.txt
+deleted file mode 100644
+index c07b7de4..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_bc.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-1111.000 -2285.000 u4@td
+-1111.000 -617.000 u3@tc
+-1111.000 -924.000 u2@tb
+-1111.000 -854.000 u1@ta
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_dup.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_dup.txt
+deleted file mode 100644
+index b2702c77..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_dup.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-u1@ta
+-u2@tb
+-u3@tc
+-u3@tc
+-u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_fs.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_fs.txt
+deleted file mode 100644
+index 3c279d10..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_fs.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-1111.000 1045.000 u4@td
+-1111.000 1783.000 u3@tc
+-1111.000 2007.000 u2@tb
+-1111.000 1722.000 u1@ta
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_fz.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_fz.txt
+deleted file mode 100644
+index 2a78a91e..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_fz.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-2188.000 2541.000 u2@tb
+-2020.000 2489.000 u1@ta
+-1792.000 2186.000 u3@tc
+-1357.000 2103.000 u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_pj.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_pj.txt
+deleted file mode 100644
+index 482496eb..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_pj.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-1385.000 1901.000 u2@tb
+-1256.000 1541.000 u3@tc
+-1088.000 1920.000 u1@ta
+--73.000 523.000 u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_wc.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_wc.txt
+deleted file mode 100644
+index 8ecae85b..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/expected/tmp/new_wc.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-85.000 1022.000 u2@tb
+--86.000 1011.000 u1@ta
+--450.000 215.000 u3@tc
+--3502.000 -2292.000 u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old.txt
+deleted file mode 100644
+index d8193f66..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-u1@ta
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_bc.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_bc.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_bc.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_fs.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_fs.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_fs.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_fz.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_fz.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_fz.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_pj.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_pj.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_pj.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_wc.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_wc.txt
+deleted file mode 100644
+index 8b137891..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/file/old_wc.txt
++++ /dev/null
+@@ -1 +0,0 @@
+-
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/input/a.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/input/a.txt
+deleted file mode 100644
+index 6f94efb6..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/input/a.txt
++++ /dev/null
+@@ -1,3 +0,0 @@
+-u1@ta
+-u2@tb
+-u3@tc
+diff --git a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/input/b.txt b/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/input/b.txt
+deleted file mode 100644
+index eac2d9fb..00000000
+--- a/crates/tswn_ds4/tests/fixtures/no_dedup_no_copy/input/b.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-u3@tc
+-u4@td
+diff --git a/crates/tswn_ds4/tests/fixtures/pairing/expected/fc.txt b/crates/tswn_ds4/tests/fixtures/pairing/expected/fc.txt
+deleted file mode 100644
+index f400a7d3..00000000
+--- a/crates/tswn_ds4/tests/fixtures/pairing/expected/fc.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-1000 fz1@teamA+bc1@teamA
+-1000 fz1@teamA+bc2@teamC
+-1195 fz2@teamB+bc1@teamA
+-1166 fz2@teamB+bc2@teamC
+diff --git a/crates/tswn_ds4/tests/fixtures/pairing/expected/rh.txt b/crates/tswn_ds4/tests/fixtures/pairing/expected/rh.txt
+deleted file mode 100644
+index 6c613834..00000000
+--- a/crates/tswn_ds4/tests/fixtures/pairing/expected/rh.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-700 fs1@teamA+pj1@teamA
+-900 fs1@teamA+pj2@teamZ
+-751 fs2@teamB+pj1@teamA
+-1058 fs2@teamB+pj2@teamZ
+diff --git a/crates/tswn_ds4/tests/fixtures/pairing/expected/wc.txt b/crates/tswn_ds4/tests/fixtures/pairing/expected/wc.txt
+deleted file mode 100644
+index e82c6586..00000000
+--- a/crates/tswn_ds4/tests/fixtures/pairing/expected/wc.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-2153 wc1@teamA+wc3@teamC
+-2000 wc1@teamA+wc4@teamD
+-3395 wc2@teamB+wc3@teamC
+-2100 wc2@teamB+wc4@teamD
+diff --git a/crates/tswn_ds4/tests/fixtures/pairing/input/left_fs.txt b/crates/tswn_ds4/tests/fixtures/pairing/input/left_fs.txt
+deleted file mode 100644
+index 70873807..00000000
+--- a/crates/tswn_ds4/tests/fixtures/pairing/input/left_fs.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-1000 1100 fs1@teamA
+-1300 1350 fs2@teamB
+diff --git a/crates/tswn_ds4/tests/fixtures/pairing/input/left_fz.txt b/crates/tswn_ds4/tests/fixtures/pairing/input/left_fz.txt
+deleted file mode 100644
+index 819a5b91..00000000
+--- a/crates/tswn_ds4/tests/fixtures/pairing/input/left_fz.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-1000 1100 fz1@teamA
+-1200 1300 fz2@teamB
+diff --git a/crates/tswn_ds4/tests/fixtures/pairing/input/left_wc.txt b/crates/tswn_ds4/tests/fixtures/pairing/input/left_wc.txt
+deleted file mode 100644
+index 22ca4427..00000000
+--- a/crates/tswn_ds4/tests/fixtures/pairing/input/left_wc.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-1100 1110 wc1@teamA
+-1200 1220 wc2@teamB
+diff --git a/crates/tswn_ds4/tests/fixtures/pairing/input/right_bc.txt b/crates/tswn_ds4/tests/fixtures/pairing/input/right_bc.txt
+deleted file mode 100644
+index 83587b3f..00000000
+--- a/crates/tswn_ds4/tests/fixtures/pairing/input/right_bc.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-900 950 bc1@teamA
+-800 870 bc2@teamC
+diff --git a/crates/tswn_ds4/tests/fixtures/pairing/input/right_pj.txt b/crates/tswn_ds4/tests/fixtures/pairing/input/right_pj.txt
+deleted file mode 100644
+index eb0f6c50..00000000
+--- a/crates/tswn_ds4/tests/fixtures/pairing/input/right_pj.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-700 760 pj1@teamA
+-900 940 pj2@teamZ
+diff --git a/crates/tswn_ds4/tests/fixtures/pairing/input/right_wc.txt b/crates/tswn_ds4/tests/fixtures/pairing/input/right_wc.txt
+deleted file mode 100644
+index d321baf3..00000000
+--- a/crates/tswn_ds4/tests/fixtures/pairing/input/right_wc.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-1000 1010 wc3@teamC
+-900 930 wc4@teamD
+diff --git a/crates/tswn_ds4/tests/fixtures/single/expected/bc.txt b/crates/tswn_ds4/tests/fixtures/single/expected/bc.txt
+deleted file mode 100644
+index d4b185ca..00000000
+--- a/crates/tswn_ds4/tests/fixtures/single/expected/bc.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-1111 476 alpha@teamA
+-1111 -635 beta@teamA
+-1111 795 gamma@teamB
+-1111 310 +delta@teamC+
+-1111 -922 epsilon@teamD
+-1111 -557 zeta@teamE
+diff --git a/crates/tswn_ds4/tests/fixtures/single/expected/fs.txt b/crates/tswn_ds4/tests/fixtures/single/expected/fs.txt
+deleted file mode 100644
+index 6fa7111b..00000000
+--- a/crates/tswn_ds4/tests/fixtures/single/expected/fs.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-1111 2505 alpha@teamA
+-1111 1626 beta@teamA
+-1111 1939 gamma@teamB
+-1111 1855 +delta@teamC+
+-1111 1411 epsilon@teamD
+-1111 1901 zeta@teamE
+diff --git a/crates/tswn_ds4/tests/fixtures/single/expected/fz.txt b/crates/tswn_ds4/tests/fixtures/single/expected/fz.txt
+deleted file mode 100644
+index ab615998..00000000
+--- a/crates/tswn_ds4/tests/fixtures/single/expected/fz.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-2320 2668 alpha@teamA
+-1853 2335 beta@teamA
+-2479 2823 gamma@teamB
+-1818 2165 +delta@teamC+
+-1517 2246 epsilon@teamD
+-1837 2034 zeta@teamE
+diff --git a/crates/tswn_ds4/tests/fixtures/single/expected/pj.txt b/crates/tswn_ds4/tests/fixtures/single/expected/pj.txt
+deleted file mode 100644
+index 14e9a920..00000000
+--- a/crates/tswn_ds4/tests/fixtures/single/expected/pj.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-1844 2180 alpha@teamA
+-688 1481 beta@teamA
+-2303 2603 gamma@teamB
+-863 1317 +delta@teamC+
+-1074 1997 epsilon@teamD
+-1250 1585 zeta@teamE
+diff --git a/crates/tswn_ds4/tests/fixtures/single/expected/wc.txt b/crates/tswn_ds4/tests/fixtures/single/expected/wc.txt
+deleted file mode 100644
+index e50baedf..00000000
+--- a/crates/tswn_ds4/tests/fixtures/single/expected/wc.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-680 1270 alpha@teamA
+--854 467 beta@teamA
+-1046 1651 gamma@teamB
+--596 236 +delta@teamC+
+--416 958 epsilon@teamD
+-280 678 zeta@teamE
+diff --git a/crates/tswn_ds4/tests/fixtures/single/input/names.txt b/crates/tswn_ds4/tests/fixtures/single/input/names.txt
+deleted file mode 100644
+index 65672a28..00000000
+--- a/crates/tswn_ds4/tests/fixtures/single/input/names.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-alpha@teamA
+-beta@teamA
+-gamma@teamB
+-+delta@teamC+
+-epsilon@teamD
+-zeta@teamE
+diff --git a/crates/tswn_ds4/tests/golden_pairing.rs b/crates/tswn_ds4/tests/golden_pairing.rs
+deleted file mode 100644
+index e02650d6..00000000
+--- a/crates/tswn_ds4/tests/golden_pairing.rs
++++ /dev/null
+@@ -1,100 +0,0 @@
+-use std::fs;
+-use std::path::{Path, PathBuf};
+-use std::time::{SystemTime, UNIX_EPOCH};
+-
+-fn project_root() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")) }
+-
+-fn fixture_dir(name: &str) -> PathBuf { project_root().join("tests").join("fixtures").join(name) }
+-
+-fn temp_dir(prefix: &str) -> PathBuf {
+-    let suffix = SystemTime::now().duration_since(UNIX_EPOCH).map(|value| value.as_nanos()).unwrap_or(0);
+-    let path = std::env::temp_dir().join(format!("{prefix}-{}-{suffix}", std::process::id()));
+-    fs::create_dir_all(&path).expect("create temp dir");
+-    path
+-}
+-
+-fn bin_path() -> PathBuf {
+-    let exe = if cfg!(windows) { "tswn_ds4.exe" } else { "tswn_ds4" };
+-    PathBuf::from(env!("CARGO_BIN_EXE_tswn_ds4")).parent().expect("binary parent").join(exe)
+-}
+-
+-fn run_and_expect_success(args: &[&str]) {
+-    let output = std::process::Command::new(bin_path()).args(args).output().expect("run tswn_ds4 command");
+-    assert!(
+-        output.status.success(),
+-        "command failed: tswn_ds4 {}\nstdout:\n{}\nstderr:\n{}",
+-        args.join(" "),
+-        String::from_utf8_lossy(&output.stdout),
+-        String::from_utf8_lossy(&output.stderr)
+-    );
+-}
+-
+-fn read_bytes(path: &Path) -> Vec<u8> { fs::read(path).unwrap_or_else(|err| panic!("read {} failed: {err}", path.display())) }
+-
+-fn assert_same_file(actual: &Path, expected: &Path) {
+-    assert_eq!(
+-        read_bytes(actual),
+-        read_bytes(expected),
+-        "file mismatch:\nactual: {}\nexpected: {}",
+-        actual.display(),
+-        expected.display()
+-    );
+-}
+-
+-fn run_pair_mode(mode: &str, pair_type: i32, left: &Path, right: &Path, output: &Path, threads: usize) {
+-    let pair_type_str = pair_type.to_string();
+-    let threads_str = threads.to_string();
+-    run_and_expect_success(&[
+-        &format!("pair-{mode}"),
+-        &pair_type_str,
+-        &threads_str,
+-        "-100000",
+-        &left.to_string_lossy(),
+-        &right.to_string_lossy(),
+-        &output.to_string_lossy(),
+-    ]);
+-}
+-
+-#[test]
+-fn golden_pairing_outputs_match_fixture() {
+-    let fixture = fixture_dir("pairing");
+-    let input = fixture.join("input");
+-    let expected = fixture.join("expected");
+-    let work = temp_dir("tswn-ds4-golden-pairing");
+-
+-    let fc_out = work.join("fc.txt");
+-    run_pair_mode("fc", 1, &input.join("left_fz.txt"), &input.join("right_bc.txt"), &fc_out, 4);
+-    assert_same_file(&fc_out, &expected.join("fc.txt"));
+-
+-    let wc_out = work.join("wc.txt");
+-    run_pair_mode("wc", 1, &input.join("left_wc.txt"), &input.join("right_wc.txt"), &wc_out, 4);
+-    assert_same_file(&wc_out, &expected.join("wc.txt"));
+-
+-    let rh_out = work.join("rh.txt");
+-    run_pair_mode("rh", 1, &input.join("left_fs.txt"), &input.join("right_pj.txt"), &rh_out, 4);
+-    assert_same_file(&rh_out, &expected.join("rh.txt"));
+-
+-    fs::remove_dir_all(&work).expect("cleanup temp dir");
+-}
+-
+-#[test]
+-fn pairing_threads_1_and_4_are_identical() {
+-    let fixture = fixture_dir("pairing");
+-    let input = fixture.join("input");
+-    let work = temp_dir("tswn-ds4-pair-threads");
+-
+-    let cases = [
+-        ("fc", 1, "left_fz.txt", "right_bc.txt"),
+-        ("wc", 1, "left_wc.txt", "right_wc.txt"),
+-        ("rh", 1, "left_fs.txt", "right_pj.txt"),
+-    ];
+-    for (mode, pair_type, left, right) in cases {
+-        let one = work.join(format!("{mode}-t1.txt"));
+-        let many = work.join(format!("{mode}-t4.txt"));
+-        run_pair_mode(mode, pair_type, &input.join(left), &input.join(right), &one, 1);
+-        run_pair_mode(mode, pair_type, &input.join(left), &input.join(right), &many, 4);
+-        assert_same_file(&one, &many);
+-    }
+-
+-    fs::remove_dir_all(&work).expect("cleanup temp dir");
+-}
+diff --git a/crates/tswn_ds4/tests/golden_pipeline.rs b/crates/tswn_ds4/tests/golden_pipeline.rs
+deleted file mode 100644
+index c24ec41a..00000000
+--- a/crates/tswn_ds4/tests/golden_pipeline.rs
++++ /dev/null
+@@ -1,172 +0,0 @@
+-use std::fs;
+-use std::path::{Path, PathBuf};
+-use std::time::{SystemTime, UNIX_EPOCH};
+-
+-fn project_root() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")) }
+-
+-fn fixture_dir(name: &str) -> PathBuf { project_root().join("tests").join("fixtures").join(name) }
+-
+-fn temp_dir(prefix: &str) -> PathBuf {
+-    let suffix = SystemTime::now().duration_since(UNIX_EPOCH).map(|value| value.as_nanos()).unwrap_or(0);
+-    let path = std::env::temp_dir().join(format!("{prefix}-{}-{suffix}", std::process::id()));
+-    fs::create_dir_all(&path).expect("create temp dir");
+-    path
+-}
+-
+-fn copy_dir_contents(src: &Path, dst: &Path) {
+-    fs::create_dir_all(dst).expect("create dst");
+-    for entry in fs::read_dir(src).expect("read src dir") {
+-        let entry = entry.expect("read dir entry");
+-        let path = entry.path();
+-        let target = dst.join(entry.file_name());
+-        if path.is_dir() {
+-            copy_dir_contents(&path, &target);
+-        } else {
+-            fs::copy(&path, &target)
+-                .unwrap_or_else(|err| panic!("copy {} -> {} failed: {err}", path.display(), target.display()));
+-        }
+-    }
+-}
+-
+-fn bin_path() -> PathBuf {
+-    let exe = if cfg!(windows) { "tswn_ds4.exe" } else { "tswn_ds4" };
+-    PathBuf::from(env!("CARGO_BIN_EXE_tswn_ds4")).parent().expect("binary parent").join(exe)
+-}
+-
+-fn run_pipeline(root: &Path) {
+-    let output = std::process::Command::new(bin_path())
+-        .args(["run", "--root", &root.to_string_lossy()])
+-        .output()
+-        .expect("run tswn_ds4 run");
+-    assert!(
+-        output.status.success(),
+-        "pipeline run failed at {}\nstdout:\n{}\nstderr:\n{}",
+-        root.display(),
+-        String::from_utf8_lossy(&output.stdout),
+-        String::from_utf8_lossy(&output.stderr)
+-    );
+-}
+-
+-fn assert_same_file(actual: &Path, expected: &Path) {
+-    let actual_bytes = fs::read(actual).unwrap_or_else(|err| panic!("read {} failed: {err}", actual.display()));
+-    let expected_bytes = fs::read(expected).unwrap_or_else(|err| panic!("read {} failed: {err}", expected.display()));
+-    assert_eq!(
+-        actual_bytes,
+-        expected_bytes,
+-        "file mismatch:\nactual: {}\nexpected: {}",
+-        actual.display(),
+-        expected.display()
+-    );
+-}
+-
+-fn assert_expected_tree(work_root: &Path, expected_root: &Path, validate_dirs: &[&str]) {
+-    for dir in validate_dirs {
+-        let actual_dir = work_root.join(dir);
+-        let expected_dir = expected_root.join(dir);
+-        assert!(expected_dir.exists(), "missing expected dir: {}", expected_dir.display());
+-        assert!(actual_dir.exists(), "missing actual dir: {}", actual_dir.display());
+-
+-        let mut stack = vec![expected_dir.clone()];
+-        while let Some(cur) = stack.pop() {
+-            for entry in fs::read_dir(&cur).expect("read expected tree") {
+-                let entry = entry.expect("entry");
+-                let path = entry.path();
+-                let rel = path.strip_prefix(&expected_dir).expect("relative expected path");
+-                let actual_path = actual_dir.join(rel);
+-                if path.is_dir() {
+-                    stack.push(path);
+-                } else {
+-                    assert!(actual_path.exists(), "missing actual file {}", actual_path.display());
+-                    assert_same_file(&actual_path, &path);
+-                }
+-            }
+-        }
+-    }
+-}
+-
+-fn prepare_fixture_work(fixture_name: &str) -> (PathBuf, PathBuf) {
+-    let fixture = fixture_dir(fixture_name);
+-    let expected = fixture.join("expected");
+-    let work = temp_dir(&format!("tswn-ds4-pipeline-{fixture_name}"));
+-    copy_dir_contents(&fixture, &work);
+-    let expected_in_work = work.join("expected");
+-    if expected_in_work.exists() {
+-        fs::remove_dir_all(&expected_in_work).expect("remove copied expected");
+-    }
+-    (work, expected)
+-}
+-
+-#[test]
+-fn golden_pipeline_basic_matches_expected() {
+-    let (work, expected) = prepare_fixture_work("basic");
+-    run_pipeline(&work);
+-    assert_expected_tree(&work, &expected, &["tmp", "file", "new"]);
+-    let fc = fs::read_to_string(work.join("out/FC.txt")).expect("read FC output");
+-    assert!(
+-        fc.lines().count()
+-            > fs::read_to_string(expected.join("out/FC.txt"))
+-                .expect("read old FC baseline")
+-                .lines()
+-                .count()
+-    );
+-    fs::remove_dir_all(&work).expect("cleanup temp dir");
+-}
+-
+-#[test]
+-fn golden_pipeline_no_dedup_no_copy_matches_expected() {
+-    let (work, expected) = prepare_fixture_work("no_dedup_no_copy");
+-    run_pipeline(&work);
+-    assert_expected_tree(&work, &expected, &["tmp", "file"]);
+-    let out_files = fs::read_dir(work.join("out"))
+-        .expect("read out dir")
+-        .filter_map(Result::ok)
+-        .filter(|entry| entry.path().is_file())
+-        .count();
+-    let new_files = fs::read_dir(work.join("new"))
+-        .expect("read new dir")
+-        .filter_map(Result::ok)
+-        .filter(|entry| entry.path().is_file())
+-        .count();
+-    assert_eq!(out_files, 0, "no_dedup_no_copy should not emit pair output files");
+-    assert_eq!(new_files, 0, "no_dedup_no_copy should not emit new/* files");
+-    fs::remove_dir_all(&work).expect("cleanup temp dir");
+-}
+-
+-#[test]
+-fn pipeline_outputs_stable_between_threads_1_and_4() {
+-    let (work1, expected) = prepare_fixture_work("basic");
+-    let (work4, _) = prepare_fixture_work("basic");
+-
+-    let cfg1 = "1\r\n-100000 -100000\r\n-100000 -100000\r\n-100000 -100000\r\n-100000 -100000\r\n-100000 -100000\r\n1 -100000\r\n1 -100000\r\n1 -100000\r\n1 1\r\n";
+-    let cfg4 = "4\r\n-100000 -100000\r\n-100000 -100000\r\n-100000 -100000\r\n-100000 -100000\r\n-100000 -100000\r\n1 -100000\r\n1 -100000\r\n1 -100000\r\n1 1\r\n";
+-    fs::write(work1.join("config.txt"), cfg1).expect("write cfg1");
+-    fs::write(work4.join("config.txt"), cfg4).expect("write cfg4");
+-
+-    run_pipeline(&work1);
+-    run_pipeline(&work4);
+-
+-    assert_expected_tree(&work1, &expected, &["tmp", "file", "new"]);
+-    assert_expected_tree(&work4, &expected, &["tmp", "file", "new"]);
+-    for dir in ["tmp", "file", "new"] {
+-        let expected_dir = expected.join(dir);
+-        let mut stack = vec![expected_dir.clone()];
+-        while let Some(cur) = stack.pop() {
+-            for entry in fs::read_dir(&cur).expect("read expected for compare") {
+-                let entry = entry.expect("entry");
+-                let path = entry.path();
+-                let rel = path.strip_prefix(&expected_dir).expect("relative expected path");
+-                if path.is_dir() {
+-                    stack.push(path);
+-                } else {
+-                    assert_same_file(&work1.join(dir).join(rel), &work4.join(dir).join(rel));
+-                }
+-            }
+-        }
+-    }
+-    for name in ["FC.txt", "WC.txt", "RH.txt"] {
+-        assert_same_file(&work1.join("out").join(name), &work4.join("out").join(name));
+-    }
+-
+-    fs::remove_dir_all(&work1).expect("cleanup temp dir");
+-    fs::remove_dir_all(&work4).expect("cleanup temp dir");
+-}
+diff --git a/crates/tswn_ds4/tests/golden_single.rs b/crates/tswn_ds4/tests/golden_single.rs
+deleted file mode 100644
+index 3340ed9e..00000000
+--- a/crates/tswn_ds4/tests/golden_single.rs
++++ /dev/null
+@@ -1,89 +0,0 @@
+-use std::fs;
+-use std::path::{Path, PathBuf};
+-use std::time::{SystemTime, UNIX_EPOCH};
+-
+-fn project_root() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")) }
+-
+-fn fixture_dir(name: &str) -> PathBuf { project_root().join("tests").join("fixtures").join(name) }
+-
+-fn temp_dir(prefix: &str) -> PathBuf {
+-    let suffix = SystemTime::now().duration_since(UNIX_EPOCH).map(|value| value.as_nanos()).unwrap_or(0);
+-    let path = std::env::temp_dir().join(format!("{prefix}-{}-{suffix}", std::process::id()));
+-    fs::create_dir_all(&path).expect("create temp dir");
+-    path
+-}
+-
+-fn bin_path() -> PathBuf {
+-    let exe = if cfg!(windows) { "tswn_ds4.exe" } else { "tswn_ds4" };
+-    PathBuf::from(env!("CARGO_BIN_EXE_tswn_ds4")).parent().expect("binary parent").join(exe)
+-}
+-
+-fn run_and_expect_success(args: &[&str]) {
+-    let output = std::process::Command::new(bin_path()).args(args).output().expect("run tswn_ds4 command");
+-    assert!(
+-        output.status.success(),
+-        "command failed: tswn_ds4 {}\nstdout:\n{}\nstderr:\n{}",
+-        args.join(" "),
+-        String::from_utf8_lossy(&output.stdout),
+-        String::from_utf8_lossy(&output.stderr)
+-    );
+-}
+-
+-fn read_bytes(path: &Path) -> Vec<u8> { fs::read(path).unwrap_or_else(|err| panic!("read {} failed: {err}", path.display())) }
+-
+-fn assert_same_file(actual: &Path, expected: &Path) {
+-    let actual_bytes = read_bytes(actual);
+-    let expected_bytes = read_bytes(expected);
+-    assert_eq!(
+-        actual_bytes,
+-        expected_bytes,
+-        "file mismatch:\nactual: {}\nexpected: {}",
+-        actual.display(),
+-        expected.display()
+-    );
+-}
+-
+-fn run_single_mode(mode: &str, input: &Path, output: &Path, threads: usize) {
+-    let threads_str = threads.to_string();
+-    run_and_expect_success(&[
+-        &format!("score-{mode}"),
+-        &threads_str,
+-        &input.to_string_lossy(),
+-        &output.to_string_lossy(),
+-        "-100000",
+-        "-100000",
+-    ]);
+-}
+-
+-#[test]
+-fn golden_single_outputs_match_fixture() {
+-    let fixture = fixture_dir("single");
+-    let work = temp_dir("tswn-ds4-golden-single");
+-    let input = fixture.join("input").join("names.txt");
+-
+-    for mode in ["bc", "fz", "wc", "fs", "pj"] {
+-        let actual = work.join(format!("{mode}.txt"));
+-        let expected = fixture.join("expected").join(format!("{mode}.txt"));
+-        run_single_mode(mode, &input, &actual, 4);
+-        assert_same_file(&actual, &expected);
+-    }
+-
+-    fs::remove_dir_all(&work).expect("cleanup temp dir");
+-}
+-
+-#[test]
+-fn single_threads_1_and_4_are_identical() {
+-    let fixture = fixture_dir("single");
+-    let work = temp_dir("tswn-ds4-single-threads");
+-    let input = fixture.join("input").join("names.txt");
+-
+-    for mode in ["bc", "fz", "wc", "fs", "pj"] {
+-        let one = work.join(format!("{mode}-t1.txt"));
+-        let many = work.join(format!("{mode}-t4.txt"));
+-        run_single_mode(mode, &input, &one, 1);
+-        run_single_mode(mode, &input, &many, 4);
+-        assert_same_file(&one, &many);
+-    }
+-
+-    fs::remove_dir_all(&work).expect("cleanup temp dir");
+-}
+diff --git a/crates/tswn_openbox_backend/assets/score_now.toml b/crates/tswn_openbox_backend/assets/score_now.toml
+deleted file mode 100644
+index 010cde52..00000000
+--- a/crates/tswn_openbox_backend/assets/score_now.toml
++++ /dev/null
+@@ -1,199 +0,0 @@
+-[sklfire]
+-pp = 8674
+-qp = 6461
+-qd = 7464
+-all = 31881
+-
+-[sklice]
+-pp = 8619
+-qp = 6438
+-qd = 7259
+-all = 31562
+-
+-[sklthunder]
+-pp = 8633
+-qp = 6469
+-qd = 7025
+-all = 30681
+-
+-[sklquake]
+-pp = 8630
+-qp = 6445
+-qd = 7084
+-all = 30971
+-
+-[sklabsorb]
+-pp = 8806
+-qp = 6415
+-qd = 7198
+-all = 31509
+-
+-[sklpoison]
+-pp = 8643
+-qp = 6384
+-qd = 7297
+-all = 31106
+-
+-[sklrapid]
+-pp = 8607
+-qp = 6292
+-qd = 7030
+-all = 30239
+-
+-[sklcritical]
+-pp = 8772
+-qp = 6640
+-qd = 7187
+-all = 31978
+-
+-[sklhalf]
+-pp = 8572
+-qp = 6491
+-qd = 7199
+-all = 31446
+-
+-[sklexchange]
+-pp = 8434
+-qp = 6310
+-qd = 7119
+-
+-[sklberserk]
+-pp = 8627
+-qp = 6395
+-qd = 7225
+-all = 31248
+-
+-[sklcharm]
+-pp = 8365
+-qp = 6458
+-qd = 7037
+-
+-[sklhaste]
+-pp = 8439
+-qp = 6561
+-qd = 7014
+-all = 30873
+-
+-[sklslow]
+-pp = 8526
+-qp = 6505
+-qd = 7414
+-all = 31655
+-
+-[sklcurse]
+-pp = 8613
+-qp = 6309
+-qd = 7140
+-all = 30820
+-
+-[sklheal]
+-pp = 8788
+-qp = 6359
+-qd = 7074
+-all = 31328
+-
+-[sklrevive]
+-pp = 8448
+-qp = 6026
+-qd = 6599
+-
+-[skldisperse]
+-pp = 8650
+-qp = 6647
+-qd = 8210
+-all = 32721
+-
+-[skliron]
+-pp = 8761
+-qp = 6552
+-qd = 7241
+-all = 31073
+-
+-[sklcharge]
+-pp = 8495
+-qp = 6278
+-qd = 7093
+-
+-[sklaccumulate]
+-pp = 8762
+-qp = 6408
+-qd = 7182
+-all = 31788
+-
+-[sklassassinate]
+-pp = 8479
+-qp = 6724
+-qd = 7101
+-all = 31185
+-
+-[sklsummon]
+-pp = 8491
+-qp = 6099
+-qd = 6891
+-
+-[sklclone]
+-pp = 8274
+-qp = 6378
+-qd = 6701
+-
+-[sklshadow]
+-pp = 8855
+-qp = 6844
+-qd = 7371
+-all = 32166
+-
+-[skldefend]
+-pp = 8640
+-qp = 6324
+-qd = 7163
+-all = 31098
+-
+-[sklprotect]
+-pp = 8427
+-qp = 6490
+-qd = 6415
+-
+-[sklreflect]
+-pp = 8564
+-qp = 6294
+-qd = 7161
+-all = 30964
+-
+-[sklreraise]
+-pp = 8561
+-qp = 6444
+-qd = 7184
+-all = 30625
+-
+-[sklshield]
+-pp = 8683
+-qp = 6501
+-qd = 7362
+-all = 31364
+-
+-[sklcounter]
+-pp = 8589
+-qp = 6340
+-qd = 7256
+-all = 30820
+-
+-[sklmerge]
+-pp = 8653
+-qp = 6402
+-qd = 6734
+-
+-[sklzombie]
+-pp = 8414
+-qp = 6330
+-qd = 6575
+-
+-[sklupgrade]
+-pp = 8686
+-qp = 6566
+-qd = 7286
+-all = 31920
+-
+-[sklhide]
+-pp = 8491
+-qp = 6200
+-qd = 6599
+diff --git a/crates/tswn_openbox_backend/assets/settings.toml b/crates/tswn_openbox_backend/assets/settings.toml
+deleted file mode 100644
+index d3cdd5f3..00000000
+--- a/crates/tswn_openbox_backend/assets/settings.toml
++++ /dev/null
+@@ -1,81 +0,0 @@
+-[[targets]]
+-id = 1
+-name = "单人组"
+-file = "targets/newTarget1.toml"
+-factor_enabled = true
+-
+-[[targets]]
+-id = 2
+-name = "双人组"
+-file = "targets/newTarget2.toml"
+-factor_enabled = true
+-
+-[[targets]]
+-id = 3
+-name = "三人组"
+-file = "targets/target3.txt"
+-
+-[[targets]]
+-id = 4
+-name = "单人组20251102"
+-file = "targets/target1.txt"
+-
+-[[targets]]
+-id = 5
+-name = "双人组20251102"
+-file = "targets/target2.txt"
+-
+-[[teammate]]
+-head = 4
+-name = "刺评"
+-file = "teammates/teammate_fz.toml"
+-factor_enabled = true
+-
+-[[teammate]]
+-head = 4
+-name = "辅评"
+-file = "teammates/teammate_bc.toml"
+-factor_enabled = true
+-
+-[[teammate]]
+-head = 4
+-name = "无刺评"
+-file = "teammates/teammate_wc.toml"
+-factor_enabled = true
+-
+-[[teammate]]
+-head = 4
+-name = "分身评"
+-file = "teammates/teammate_pj.toml"
+-factor_enabled = true
+-
+-[[teammate]]
+-head = 4
+-name = "配件评"
+-file = "teammates/teammate_fs.toml"
+-factor_enabled = true
+-
+-[[teammate]]
+-head = 5
+-name = "刺评20251109"
+-file = "teammates/teammate_fz.txt"
+-
+-[[teammate]]
+-head = 5
+-name = "辅评20251109"
+-file = "teammates/teammate_bc.txt"
+-
+-[[teammate]]
+-head = 5
+-name = "无刺评20251109"
+-file = "teammates/teammate_wc.txt"
+-
+-[[teammate]]
+-head = 3
+-name = "分身评20251109"
+-file = "teammates/teammate_pj.txt"
+-
+-[[teammate]]
+-head = 3
+-name = "配件评20251109"
+-file = "teammates/teammate_fs.txt"
+\ No newline at end of file
+diff --git a/crates/tswn_openbox_backend/assets/targets/newTarget1.toml b/crates/tswn_openbox_backend/assets/targets/newTarget1.toml
+deleted file mode 100644
+index b809c7cc..00000000
+--- a/crates/tswn_openbox_backend/assets/targets/newTarget1.toml
++++ /dev/null
+@@ -1,199 +0,0 @@
+-[[targets]]
+-factor = 1.255339401484
+-players = ["Tik_Tok #IBxWzGZtr@Shabby_fish"]
+-
+-[[targets]]
+-factor = 1.579395694784
+-players = ["\\HandsInTheFire\\-899252857203@\\XIV\\-14"]
+-
+-[[targets]]
+-factor = 1.145560219366
+-players = ["天依 'i[8S`Aw@LuoTianyi"]
+-
+-[[targets]]
+-factor = 1.234503706816
+-players = ["0000006NTVJWbvH@aaa"]
+-
+-[[targets]]
+-factor = 1.064187377468
+-players = ["虚空托腮 IVHEWTNEA@TigerStar"]
+-
+-[[targets]]
+-factor = 1.050372435186
+-players = ["喘际瞬爆@昀澤"]
+-
+-[[targets]]
+-factor = 1.233647917892
+-players = ["7aKO XkQ@Nexus_Mirabilis"]
+-
+-[[targets]]
+-factor = 1.248415759175
+-players = ["杀 amUrtLhpqzFq@Afterglow"]
+-
+-[[targets]]
+-factor = 1.008076445602
+-players = ["一人行者 Da22adc4bC2B@LuoTianyi"]
+-
+-[[targets]]
+-factor = 1.156158937086
+-players = ["蕾蒂·怀特洛可-65HEZHB264LFPFQ@Squall"]
+-
+-[[targets]]
+-factor = 1.394509937355
+-players = ["不知者 OTKJAHHBM@LuoTianyi"]
+-
+-[[targets]]
+-factor = 1.102836138268
+-players = ["涵虚abrfxfx黄瓜a0smdda0smddsmdd阿郎新纪元@名字竞技场"]
+-
+-[[targets]]
+-factor = 1.192812473965
+-players = ["鑺掕悂 R9feo6cEJ4Aj@芒萁"]
+-
+-[[targets]]
+-factor = 1.370956263137
+-players = ["Imperio #IZIYGpKZ@Shabby_fish"]
+-
+-[[targets]]
+-factor = 1.190692910640
+-players = ["Tachibana_kanade #ipOjmvSKQy@🥒"]
+-
+-[[targets]]
+-factor = 1.171865402985
+-players = ["𝞮𝞯𝞻𝞸𝞰𝞮𝞸𝞳@昀澤"]
+-
+-[[targets]]
+-factor = 0.794633428255
+-players = ["Aihara_tsubaki #XFwTfrRbZw@🥒"]
+-
+-[[targets]]
+-factor = 0.863813302650
+-players = ["秋菊 mcrP7gX?shadow@魔"]
+-
+-[[targets]]
+-factor = 0.753547340038
+-players = ["00000000MOYffOK@aaa"]
+-
+-[[targets]]
+-factor = 0.593220779040
+-players = ["溯桤蛥赢，加一昏@爱"]
+-
+-[[targets]]
+-factor = 1.215240204656
+-players = ["Ⅹ q5H2HO5@新纪元"]
+-
+-[[targets]]
+-factor = 0.708839018713
+-players = ["稗田阿求-UU4Q3YPGL84QO1G@Squall"]
+-
+-[[targets]]
+-factor = 1.349116834816
+-players = ["涵虚不等式 PFVKEUPBU@TigerStar"]
+-
+-[[targets]]
+-factor = 1.320291891752
+-players = ["リズと青い鳥 #GDatSLaSpu@🥒"]
+-
+-[[targets]]
+-factor = 1.053864829902
+-players = ["十六夜咲夜 imIuZYJk@Squall"]
+-
+-[[targets]]
+-factor = 0.903931098663
+-players = ["睦 laqkDvDuCZ@🥒"]
+-
+-[[targets]]
+-factor = 0.945370850833
+-players = ["<λγ>-arrc7pg1@ReturnVoid"]
+-
+-[[targets]]
+-factor = 0.818317457461
+-players = ["射却S4z1tff7m@candle"]
+-
+-[[targets]]
+-factor = 0.831357083910
+-players = ["芳寒滢.霜栀痛魔 S/*`kms`6@四象柯"]
+-
+-[[targets]]
+-factor = 0.671017219650
+-players = ["Momo #L9GHU8F@Arcadia"]
+-
+-[[targets]]
+-factor = 0.506254812220
+-players = ["Limit1-608000844Lillia@shadowT"]
+-
+-[[targets]]
+-factor = 1.251793167094
+-players = ["前尘如梦 UYGMHRNX@LuoTianyi"]
+-
+-[[targets]]
+-factor = 0.319620503878
+-players = ["育欢学诀@Hell"]
+-
+-[[targets]]
+-factor = 1.019181669330
+-players = ["milkΙлЯωΦПΞΣъЭ@lzk"]
+-
+-[[targets]]
+-factor = 0.499838877380
+-players = ["自傷無色 #DpPzLuVmWe@🥒"]
+-
+-[[targets]]
+-factor = 0.441666127458
+-players = ["1Reh>\\Ma@Hell"]
+-
+-[[targets]]
+-factor = 1.057418535994
+-players = ["沺岨伹䟧姐坥狙柤柤粗鈿伹@涵虚"]
+-
+-[[targets]]
+-factor = 0.383494937028
+-players = ["00000052qRHvFoy@aaa"]
+-
+-[[targets]]
+-factor = 0.956066548084
+-players = ["飞雪PSODKKXWP@涵虚"]
+-
+-[[targets]]
+-factor = 1.380586134578
+-players = ["席尔娜 nkkP4td@无惨"]
+-
+-[[targets]]
+-factor = 1.038523111447
+-players = ["谁敢挡路，揍他 qACN0KQVqgpROQY@TigerStar"]
+-
+-[[targets]]
+-factor = 0.717863142944
+-players = ["0000001p5tE2pMs@aaa"]
+-
+-[[targets]]
+-factor = 1.263478019193
+-players = ["解 c5hlvevqciBk@Afterglow"]
+-
+-[[targets]]
+-factor = 0.863070534340
+-players = ["黄陆汹聊级神秘战巡舰@巡洋舰"]
+-
+-[[targets]]
+-factor = 1.141322294400
+-players = ["跙坥咀诅阻珇伹伹怚@涵虚"]
+-
+-[[targets]]
+-factor = 1.210987093008
+-players = ["失温滢霞.寂静蓝 `f.Gi\\Z:R@四象柯"]
+-
+-[[targets]]
+-factor = 0.990485176844
+-players = ["Meranti FBPITYXTBPQG@nan"]
+-
+-[[targets]]
+-factor = 1.013224931310
+-players = ["艾泽莉娅 #DANOKVKIUZ@无惨"]
+-
+-[[targets]]
+-factor = 1.184271521187
+-players = ["Momomomo #YAORzaY@Arcadia"]
+-
+-[[targets]]
+-factor = 0.538960500734
+-players = ["Rin opTSeXM3V@candle"]
+\ No newline at end of file
+diff --git a/crates/tswn_openbox_backend/assets/targets/newTarget2.toml b/crates/tswn_openbox_backend/assets/targets/newTarget2.toml
+deleted file mode 100644
+index 0995aac7..00000000
+--- a/crates/tswn_openbox_backend/assets/targets/newTarget2.toml
++++ /dev/null
+@@ -1,199 +0,0 @@
+-[[targets]]
+-factor = 0.771707798161
+-players = ["⑨-MXgoCOds6Glu@新纪元", "ⅺ Hf3Yqb4@新纪元"]
+-
+-[[targets]]
+-factor = 1.290490726575
+-players = ["智障 YRj4wIzaR5s1@Afterglow", "nXAsBGsjpc8t@Afterglow"]
+-
+-[[targets]]
+-factor = 0.991893127943
+-players = ["无限热情 /CIG0mdjNEF/@新纪元", "歌者之印 /fvQbAhVRyC/@新纪元"]
+-
+-[[targets]]
+-factor = 0.708860818427
+-players = ["自傷無色 #hppypcGNKF@🥒", "Straight_into_the_lights #VpdbCrcFJV@🥒"]
+-
+-[[targets]]
+-factor = 1.221446709089
+-players = ["Orbital #sfPTzSpZz@tyakasha", "H6PeQOTNUlx@tyakasha"]
+-
+-[[targets]]
+-factor = 1.237156904669
+-players = ["力量 2#pfiD1t@仙蛊屋", "行空 29#tTfIBV@仙蛊屋"]
+-
+-[[targets]]
+-factor = 0.206959498257
+-players = ["双向 UFFLYDJJE@LuoTianyi", "无理无智 MJTEZIUCQ@LuoTianyi"]
+-
+-[[targets]]
+-factor = 1.146154461392
+-players = ["Nepartak XJZBUIDVDDCX@nan", "Fengshen ONVWTGMPNCKV@nan"]
+-
+-[[targets]]
+-factor = 1.263335615968
+-players = ["浆洿辳瘸詯@四象柯", "结晶萤灰滢 🃈🂤🃒🃎🂵🃋🂺@四象柯"]
+-
+-[[targets]]
+-factor = 1.342731918759
+-players = ["skywork-13b #0w1cbREuh@Shabby_fish", "Tik_Tok #IBxWzGZtr@Shabby_fish"]
+-
+-[[targets]]
+-factor = 1.172822626458
+-players = ["伊甸 en5QiIQ?shadow@魔", "秋菊 mcrP7gX?shadow@魔"]
+-
+-[[targets]]
+-factor = 0.869833824663
+-players = ["<γω>-91zuonbf@ReturnVoid", "<ηψ>-bjdrswie@ReturnVoid"]
+-
+-[[targets]]
+-factor = 0.869349008238
+-players = ["000000039BXLGdc@aaa", "0000002Aft3uuC5@aaa"]
+-
+-[[targets]]
+-factor = 0.884777278812
+-players = ["上山岗 DXACQPRRC@LuoTianyi", "上山岗 SHSBGNXBW@LuoTianyi"]
+-
+-[[targets]]
+-factor = 1.145983465074
+-players = ["<ηω>-mf5uz2u5@ReturnVoid", "<ζο>-2ny1o5sk@ReturnVoid"]
+-
+-[[targets]]
+-factor = 0.954670664899
+-players = ["一对笑面虎 my7CAxNHHz@XJ联队", "2LRLYnOw5pmmhXG@XJ联队"]
+-
+-[[targets]]
+-factor = 1.106545523167
+-players = ["1^GNC.%F@Hell", "1f67~3l}@Hell"]
+-
+-[[targets]]
+-factor = 1.029761312359
+-players = ["四风判词 SDTCKJJYY@LuoTianyi", "春风来 HLSKCEFAT@LuoTianyi"]
+-
+-[[targets]]
+-factor = 1.163697257014
+-players = ["тцчяёсюфъ@新纪元", "⑦ KR3K0bY@新纪元"]
+-
+-[[targets]]
+-factor = 1.305161156455
+-players = ["九十九八桥 6G6GIGLI@Squall", "稗田阿求 OQL68NN8@Squall"]
+-
+-[[targets]]
+-factor = 0.899208453210
+-players = ["七岔要塞 -A8PT6j3aIl-@新纪元", "➏ 2BD-6=W@新纪元"]
+-
+-[[targets]]
+-factor = 0.986317735964
+-players = ["艾泽莉娅 #sDEeWv1@无惨", "花语堂夜 #OHKFKDOOI@无惨"]
+-
+-[[targets]]
+-factor = 1.221161982354
+-players = ["黎明叙事 677097391180@Squall", "沓颊 LCI2QNZ5@Squall"]
+-
+-[[targets]]
+-factor = 0.895386628350
+-players = ["灀瑈篆狓鵃@四象柯", "冷酷.僵直 cVh|1;Rl@四象柯"]
+-
+-[[targets]]
+-factor = 1.009333778338
+-players = ["牙四 xX4hHzW@fx", "三田一重 TxtrdTN4l8nT@fx"]
+-
+-[[targets]]
+-factor = 1.112999680243
+-players = ["0000000RsY6L2Wn@aaa", "0000005dj3ealJd@aaa"]
+-
+-[[targets]]
+-factor = 1.017646210694
+-players = ["⑥ nR-TB89@新纪元", "Ⅻ-C9uFmDObJS6a@新纪元"]
+-
+-[[targets]]
+-factor = 0.971239303299
+-players = ["雾山惟助 BAAOVADZ@TigerStar", "锋利Ⅴ EGZPVQMY@TigerStar"]
+-
+-[[targets]]
+-factor = 0.921030106310
+-players = ["錦帆 #hF0kQwdQp@Shabby_fish", "Italian_Love #5Agn8kVYl@Shabby_fish"]
+-
+-[[targets]]
+-factor = 0.990731740027
+-players = ["Saeki_sayaka #ihzmDmwsho@🥒", "緋色のDance #hUxfUgcfAp@🥒"]
+-
+-[[targets]]
+-factor = 1.303774301085
+-players = ["风驰-xtxxgwcb@涵虚", "潮汐-糖藷愠颏@涵虚"]
+-
+-[[targets]]
+-factor = 1.298191039379
+-players = ["豹邻跑恒 #ytRNzqQCmO@🥒", "Wakaba_mutsumi #WDmikbTndr@🥒"]
+-
+-[[targets]]
+-factor = 0.847258790183
+-players = ["0000003sbxSc0Xy@aaa", "0000004rYcndKOh@aaa"]
+-
+-[[targets]]
+-factor = 0.875202944629
+-players = ["权计WN13vmJnn@candle", "Rewrite 7CQd5C23F@candle"]
+-
+-[[targets]]
+-factor = 0.931892423896
+-players = ["仇决clFJZCMHS@candle", "Sorrowless 2nafI0zFE@candle"]
+-
+-[[targets]]
+-factor = 0.922773387821
+-players = ["ilem ?MJxj&<^@LuoTianyi", "前尘如梦 UYGMHRNX@LuoTianyi"]
+-
+-[[targets]]
+-factor = 0.459891783610
+-players = ["春归 #AzKpHrQnMY@🥒", "ポケットをふくらませて~ #PwoRpIIwgw@🥒"]
+-
+-[[targets]]
+-factor = 0.309367854964
+-players = ["二阶堂希罗 1RCcDJR8yR1@无惨", "樱井光 #EVBIKHRIGNWH@无惨"]
+-
+-[[targets]]
+-factor = 1.119109489633
+-players = ["百合IQ180 916973361557@Squall", "约伦·蕾恩·里德韦尔德 864903811148@Squall"]
+-
+-[[targets]]
+-factor = 1.136601989839
+-players = ["渡里贝子 TJZMB3ZF@Squall", "萨丽爱尔 IELUALOU@Squall"]
+-
+-[[targets]]
+-factor = 0.969121615261
+-players = ["0000001k0cMp9JI@aaa", "0000001DuKtKYYr@aaa"]
+-
+-[[targets]]
+-factor = 0.953596462782
+-players = ["<ζε>-fhepgq2n@ReturnVoid", "<δγ>-2y8tkiju@ReturnVoid"]
+-
+-[[targets]]
+-factor = 1.178910665339
+-players = ["Tachibana_akira #BydbIMidbs@🥒", "透明な海 #qFIRwpGNOd@🥒"]
+-
+-[[targets]]
+-factor = 1.197418172466
+-players = ["涵虚不等式 PFVKEUPBU@TigerStar", "三猴一体 vFz1cu21MCaW@TigerStar"]
+-
+-[[targets]]
+-factor = 0.550213067582
+-players = ["咲夜 bJjbFYez@Squall", "SIN_BA-NELRTUTMI4JNEBF@Squall"]
+-
+-[[targets]]
+-factor = 1.215675447066
+-players = ["世末积雨云 MEENDWBQU@LuoTianyi", "大氿歌 FESNBZBOJ@LuoTianyi"]
+-
+-[[targets]]
+-factor = 0.989234726800
+-players = ["Accio #LD5MtqO8@Shabby_fish", "喘息之机 #fZQJ6LHzs@Shabby_fish"]
+-
+-[[targets]]
+-factor = 0.951469628788
+-players = ["玷裙染.无眠 w|W(Z71S@四象柯", "银铃歌者.流花燕 \\!}G2F0Z/@四象柯"]
+-
+-[[targets]]
+-factor = 0.902363134263
+-players = ["镜湖TVWAFPFHB@涵虚", "田柤钿坥畑租鉏组佃怚钿组@涵虚"]
+-
+-[[targets]]
+-factor = 1.179537759445
+-players = ["Parma KKMJDZDJPYBW@nan", "Saomai BFFVJMEIFRCK@nan"]
+diff --git a/crates/tswn_openbox_backend/assets/targets/target1.txt b/crates/tswn_openbox_backend/assets/targets/target1.txt
+deleted file mode 100644
+index 75c202a0..00000000
+--- a/crates/tswn_openbox_backend/assets/targets/target1.txt
++++ /dev/null
+@@ -1,35 +0,0 @@
+-涵虚不等式 PFVKEUPBU@TigerStar
+-虚空托腮 IVHEWTNEA@TigerStar
+-豹山惟助 PFOQXFYL@TigerStar
+-十六夜咲夜 imIuZYJk@Squall
+-𝞮𝞯𝞻𝞸𝞰𝞮𝞸𝞳@昀澤
+-爱丽丝·玛格特洛依德 G26FRAL0@Squall
+-<αβ>-02pjt42k@ReturnVoid
+-虚境-4xtrv36e@涵虚
+-Momomomo #YAORzaY@Arcadia
+-CtC7gL9JNpvNpOl@新纪元
+-睦 laqkDvDuCZ@🥒
+-Yuuki_tomosane rrMCskOAUx@🥒
+-天依 'i[8S`Aw@LuoTianyi
+-Squall 啹嘒髫@名字竞技场
+-candle 蜍緞補@名字竞技场
+-milkΙлЯωΦПΞΣъЭ@lzk
+-Limit1-608000844Lillia@shadowT
+-冷霞洞.鸣湘榔狞@四象柯
+-Imperio #IZIYGpKZ@Shabby_fish
+-黄陆汹聊级神秘战巡舰@巡洋舰
+-CL.IRLCKBPEG@巡洋舰
+-Wynne JMSBOHVXRGSA@nan
+-浅间司 9swptcQWL@candle
+-JFFOyHAVyts6@Afterglow
+-J"*)uEx@Hell
+-OBMi-La@Hell
+-Istar-325438679405@Mithril
+-白鸟 EwCcwQTFP@锦依卫
+-溯桤蛥赢，加一昏@爱
+-鑺掕悂 R9feo6cEJ4Aj@芒萁
+-Seben OOjTXWQTFFEB@橙红耀阳
+-0000006NTVJWbvH@aaa
+-00000000MOYffOK@aaa
+-0000001p5tE2pMs@aaa
+-00000052qRHvFoy@aaa
+diff --git a/crates/tswn_openbox_backend/assets/targets/target2.txt b/crates/tswn_openbox_backend/assets/targets/target2.txt
+deleted file mode 100644
+index 0718a37a..00000000
+--- a/crates/tswn_openbox_backend/assets/targets/target2.txt
++++ /dev/null
+@@ -1,41 +0,0 @@
+-luogu.com.cn/paste/q9h8sdzk@Shabby_fish+Riddikulus Cft~F`gf@Shabby_fish
+-Accio #LD5MtqO8@Shabby_fish+Therefore #acwRLW7RO@Shabby_fish
+-<ζε>-6kumvoe2@ReturnVoid+<γν>-e5m3usa8@ReturnVoid
+-aaa 5.gf'#2@shadowT+yyy 1d'^y]U@shadowT
+-前尘如梦 UYGMHRNX@LuoTianyi+ilem ?MJxj&<^@LuoTianyi
+-力气 30#zxQ4y6@仙蛊屋+挽澜 0#lbmWrL@仙蛊屋
+-<ζε>-fhepgq2n@ReturnVoid+<δγ>-2y8tkiju@ReturnVoid
+-0000001k0cMp9JI@aaa+0000001DuKtKYYr@aaa
+-如月澪 $0498yNuN@爱+糍粑姐 #06fJFRN2@爱
+-1^GNC.%F@Hell+1f67~3l}@Hell
+-Hiyajo_Maho #CXdZDxIQRV@🥒+Kiriyama_tadasuke cklwbHDpkk@🥒
+-Red OT<{f2=v}67w@流浪冒险者+Tirn y_[yNJ#jq"9r@流浪冒险者
+-↩️↖️↗️↕️↪️↕️↕️↘️↔️↩️⤴️➡️@新纪元+7oV3mo4L5qzjgla@新纪元
+-feapkHz9fVeYUl9@XJ联队+OqQokGheNbpvy9D@XJ联队
+-秋菊 mcrP7gX?shadow@魔+伊甸 en5QiIQ?shadow@魔
+-のちべりぐぜん@新纪元+⑨-MXgoCOds6Glu@新纪元
+-氯化钠 8UJMGcZ@fx+冬村四织 #0864333336683@fx
+-Obsession #EYNIZRX@Unbound+冥府默客 789572444596@Unbound
+-七七 #EUEMIGPI@暗黑突击+青木丽华 #IGZMGWUI@暗黑突击
+-铃瑚-MMZDNGCIZAOS3P0@Squall+Christian COLEMAN 9.374143947365375@Squall
+-10l-DYWg@Hell+1asw5mAp@Hell
+-睡得正香，脚抽筋了 #00HNv3SH@爱+防昏睡·用兽王 #08lXHKNL@爱
+-愞㢯老海@昀澤+碧歧砚杭@昀澤
+-nXAsBGsjpc8t@Afterglow+三气归来 fg7puGTD2raj@Afterglow
+-神谷紫苑 #EUKSOXAA@暗黑突击+吸血魔兽 #OPZDENED@暗黑突击
+-湖心 ASOQHHFWL@TigerStar+虚空托腮 IALPCNAIA@TigerStar
+-𝛝𝟖𝛌𝟑𝛒𝛙𝛙@昀澤+𝚭𝚯𝚰𝟗𝚽𝟓𝚹𝚮@昀澤
+-虚空咦 aubHluOMPElA@芒萁+《宋正攘疾》@芒萁
+-Pray kxtsMobhMzey@橙红耀阳+Seben CCyDvA3QjbHf@橙红耀阳
+-=8AAh72hQ1DWwaZ@XJ联队+7eDAtZbnBN5R31>@XJ联队
+-末otW7sfqOze@807139+末AFavv2iUUA@807139
+-锋利Ⅴ EGZPVQMY@TigerStar+雾山惟助 BAAOVADZ@TigerStar
+-灀瑈篆狓鵃@四象柯+冷酷.僵直 cVh|1;Rl@四象柯
+-0000000RsY6L2Wn@aaa+0000005dj3ealJd@aaa
+-Wakaba_mutsumi #WDmikbTndr@🥒+豹邻跑恒 #ytRNzqQCmO@🥒
+-凿险hYHZhGJqD@candle+权计WN13vmJnn@candle
+-0000003FzAO7HhL@aaa+0000004zsX0ITJH@aaa
+-孤鸿-搀蝯侯碿@涵虚+星垂-谒籛珇曜@涵虚
+-時の魔法 #JOmFlppbzv@🥒+Kuouji_alice RQjZVeBMVC@🥒
+-潮汐-糖藷愠颏@涵虚+风驰-xtxxgwcb@涵虚
+-三日月羽奈 #XWJPVQOQT@无惨+三日月羽奈 BZz4K63@无惨
+\ No newline at end of file
+diff --git a/crates/tswn_openbox_backend/assets/targets/target3.txt b/crates/tswn_openbox_backend/assets/targets/target3.txt
+deleted file mode 100644
+index 3b66c3b2..00000000
+--- a/crates/tswn_openbox_backend/assets/targets/target3.txt
++++ /dev/null
+@@ -1,21 +0,0 @@
+-SHAPE-OF-RELX-apLidvQzkr@🥒+Tachibana_akira #BydbIMidbs@🥒+Mutsumi AvPyNrGZfR@🥒
+-syVS:et@Hell+'Yz|AS}@Hell+1t9R-b$r@Hell
+-luogu.com.cn/paste/q9h8sdzk@Shabby_fish+Accio #LD5MtqO8@Shabby_fish+Tik_Tok #IBxWzGZtr@Shabby_fish
+-Yooh #896695860594@新纪元+aGIu6296EcGwMyG@新纪元+CtC7gL9JNpvNpOl@新纪元
+-opWS>O76kKbeyzp@XJ联队+YDdu22=GZbcQt=2@XJ联队+gaDUGvcLjf3adAl@XJ联队
+-冥河 WyO8MUZPPtKH@Afterglow+光 jKLA6V5mirfs@Afterglow+夏 rgPbhssrqs91@Afterglow
+-湖心 SHVPEMAPV@TigerStar+涵伯发威 TGDPANBQM@TigerStar+涵虚不等式 PFVKEUPBU@TigerStar
+-時の魔法 #JOmFlppbzv@🥒+Kuouji_alice RQjZVeBMVC@🥒+Arcueid LfsxCJYLuj@🥒
+-灀瑈篆狓鵃@四象柯+冷酷.僵直 cVh|1;Rl@四象柯+圣秩霜.致棠诽岩@四象柯
+-Wakaba_mutsumi #WDmikbTndr@🥒+豹邻跑恒 #ytRNzqQCmO@🥒+ウミユリ海底譚 #wLobCqaKmO@🥒
+-乱舞J1X2AVzVU@candle+权计WN13vmJnn@candle+Rin Xox608djA@candle
+-F=mω²r #XSmVDrTom@Shabby_fish+胜券在握 #15JmPDLtS@Shabby_fish+时间而已 #V9pM09ibz@Shabby_fish
+-锋利Ⅴ EGZPVQMY@TigerStar+雾山惟助 BAAOVADZ@TigerStar+涵伯发威 ULMELGRYX@TigerStar
+-虚空咦 aubHluOMPElA@芒萁+《宋正攘疾》@芒萁+：）00118431736385锑@芒萁
+-睡得正香，脚抽筋了 #00HNv3SH@爱+防昏睡·用兽王 #08lXHKNL@爱+存在证明的自动机械 #03dJAOGJ@爱
+-<ζο>-2ny1o5sk@ReturnVoid+<ηω>-mf5uz2u5@ReturnVoid+<ημ>-nfw5ezna@ReturnVoid
+-神谷紫苑 #EUKSOXAA@暗黑突击+吸血魔兽 #OPZDENED@暗黑突击+大西由里子 #NCPEGNID@暗黑突击
+-τ-N8zFoDrBqqyj@新纪元+⑨-MXgoCOds6Glu@新纪元+5UWSX0DGRE5pTA9@新纪元
+-1^GNC.%F@Hell+竞唆芳杰@Hell+1f67~3l}@Hell
+-滢滢子 _hKOH3C@四象柯+涂愿捄褎僰@四象柯+诺滢宵 u5k:$(_S@四象柯
+-东乡幻翎 #BCBNRCXFX@无惨+月见夜子 WUiv8MH@无惨+朝雾和梦 KIJKUMJIA@无惨
+\ No newline at end of file
+diff --git a/crates/tswn_openbox_backend/assets/teammates/teammate_bc.toml b/crates/tswn_openbox_backend/assets/teammates/teammate_bc.toml
+deleted file mode 100644
+index 4503921e..00000000
+--- a/crates/tswn_openbox_backend/assets/teammates/teammate_bc.toml
++++ /dev/null
+@@ -1,71 +0,0 @@
+-[[targets]]
+-factor = 0.98057557
+-players = ["^o^ Fm$UD2EM@KODU大好人"]
+-
+-[[targets]]
+-factor = 0.98244480
+-players = ["⑨-MXgoCOds6Glu@新纪元"]
+-
+-[[targets]]
+-factor = 0.98569075
+-players = ["1^GNC.%F@Hell"]
+-
+-[[targets]]
+-factor = 0.98672652
+-players = ["智障 YRj4wIzaR5s1@Afterglow"]
+-
+-[[targets]]
+-factor = 0.98889011
+-players = ["Orbital #sfPTzSpZz@tyakasha"]
+-
+-[[targets]]
+-factor = 0.98861797
+-players = ["Wispy #6uttTRg@Arcadia"]
+-
+-[[targets]]
+-factor = 0.98862525
+-players = ["伊甸 en5QiIQ?shadow@魔"]
+-
+-[[targets]]
+-factor = 0.99212506
+-players = ["星辰魔术 747995597493@Squall"]
+-
+-[[targets]]
+-factor = 0.98990637
+-players = ["芳縼乌菈 🂷🂭🃇🂭🃞🃜🂫@四象柯"]
+-
+-[[targets]]
+-factor = 0.99009886
+-players = ["酥皮浓汤 #02eev5fa@爱"]
+-
+-[[targets]]
+-factor = 0.99124138
+-players = ["Iridia_Noctiluca #6H9Vt9Bd@Nexus_Mirabilis"]
+-
+-[[targets]]
+-factor = 0.99351477
+-players = ["故障机器人 #VJCLMOZPE@暗黑突击"]
+-
+-[[targets]]
+-factor = 0.99541359
+-players = ["Bascor cW1JWDuv7f@RbCl"]
+-
+-[[targets]]
+-factor = 0.99402303
+-players = ["Hell 迚昫餅@名字竞技场"]
+-
+-[[targets]]
+-factor = 0.99508402
+-players = ["Tirn y_[yNJ#jq\"9r@流浪冒险者"]
+-
+-[[targets]]
+-factor = 0.99509193
+-players = ["镜华 CWXJVQRP@公主连结"]
+-
+-[[targets]]
+-factor = 0.99904186
+-players = ["上山岗 DXACQPRRC@LuoTianyi"]
+-
+-[[targets]]
+-factor = 1.00120127
+-players = ["Kuouji_alice fEhChpbSwh@🥒"]
+diff --git a/crates/tswn_openbox_backend/assets/teammates/teammate_bc.txt b/crates/tswn_openbox_backend/assets/teammates/teammate_bc.txt
+deleted file mode 100644
+index 3b62c5e9..00000000
+--- a/crates/tswn_openbox_backend/assets/teammates/teammate_bc.txt
++++ /dev/null
+@@ -1,14 +0,0 @@
+-^o^ Fm$UD2EM@KODU大好人+diy[61,88,97,94,91,94,80,344]{"SklPoison":19,"SklAbsorb":1,"SklUpgrade":21,"SklClone":1,"SklAssassinate":92,"SklMerge":56}
+-⑨-MXgoCOds6Glu@新纪元+diy[62,93,95,85,98,92,94,327]{"SklCounter":8,"SklZombie":5,"SklAssassinate":90,"SklHide":10,"SklMerge":49}
+-1^GNC.%F@Hell+diy[54,91,93,90,90,94,89,342]{"SklHide":1,"SklPoison":6,"SklDefend":12,"SklClone":2,"SklMerge":15,"SklAssassinate":96,"SklZombie":26}
+-Wispy #6uttTRg@Arcadia+diy[78,92,93,55,97,92,84,354]{"SklUpgrade":13,"SklHeal":8,"SklCharm":5,"SklAssassinate":94,"SklHide":6,"SklZombie":46,"SklShield":26}
+-永劫回归#118486227619108@TigerStar+diy[63,87,97,54,81,91,84,360]{"sklHalf": 6,"SklSlow": 9,"SklAccumulate": 3,"SklAssassinate": 100,"SklMerge": 72}
+-伊甸 en5QiIQ?shadow@魔+diy[55,88,91,82,85,93,85,350]{"SklCounter":8,"SklAssassinate":100,"SklReraise":3,"SklZombie":16,"SklMerge":52}
+-Hell 迚昫餅@名字竞技场+diy[54,82,92,60,94,89,90,321]{"SklQuake":1,"SklShield":10,"SklDefend":5,"SklCounter":2,"SklAssassinate":100,"SklReraise":3,"SklMerge":52,"SklUpgrade":30}
+-镜华 CWXJVQRP@公主连结+diy[61,80,98,95,90,93,89,318]{"SklQuake":4,"SklShadow":3,"SklAccumulate":10,"SklRevive":26,"SklMerge":60,"SklAssassinate":90}
+-Tirn y_[yNJ#jq"9r@流浪冒险者+diy[71,83,98,69,93,96,92,351]{"SklCharm":2,"SklShadow":16,"SklAssassinate":88,"SklDefend":14,"SklZombie":40}
+-Kuouji_alice fEhChpbSwh@🥒+diy[68,72,98,83,86,94,82,353]{"SklZombie": 10,"SklMerge": 13,"SklAbsorb": 3,"SklAssassinate": 98,"SklShield": 55}
+-00000040k0wLBzO@aaa+diy[81,93,84,73,86,97,84,314]{"SklZombie":11,"SklRevive":14,"SklAssassinate":90,"SklDefend":30,"SklShield":78}
+-🍊🍑🍆🥕🥑🥬🥜🍆🥕🍆🍅🍇🥒🍌🍒@🥒+diy[46,86,98,68,93,83,92,343]{"SklHide": 2,"SklDefend": 10,"SklShield": 13,"SklHeal": 2,"SklAssassinate": 88,"SklDisperse": 66}
+-糍粑姐 #06fJFRN2@爱+diy[42,94,98,60,90,95,92,328]{"SklMerge":16,"SklCharm":8,"SklCounter":9,"SklExchange":2,"SklAbsorb":3,"SklDisperse":19,"SklAssassinate":64,"SklClone":80}
+-Wakaba_mutsumi #ELilDYtGbU@🥒+diy[53,92,97,83,95,93,94,340]{"SklRevive":10,"SklUpgrade":21,"SklCharge":1,"SklDefend":26,"SklAssassinate":88,"SklCounter":14}
+diff --git a/crates/tswn_openbox_backend/assets/teammates/teammate_fs.toml b/crates/tswn_openbox_backend/assets/teammates/teammate_fs.toml
+deleted file mode 100644
+index ef3affc4..00000000
+--- a/crates/tswn_openbox_backend/assets/teammates/teammate_fs.toml
++++ /dev/null
+@@ -1,87 +0,0 @@
+-[[targets]]
+-factor = 0.98353640
+-players = ["ilem ?MJxj&<^@LuoTianyi"]
+-
+-[[targets]]
+-factor = 0.98989117
+-players = ["萨丽爱尔 IELUALOU@Squall"]
+-
+-[[targets]]
+-factor = 0.98647948
+-players = ["Accio #LD5MtqO8@Shabby_fish"]
+-
+-[[targets]]
+-factor = 0.98969283
+-players = ["luogu.com.cn/paste/q9h8sdzk@Shabby_fish"]
+-
+-[[targets]]
+-factor = 0.99483669
+-players = ["涵虚不等式 PFVKEUPBU@TigerStar"]
+-
+-[[targets]]
+-factor = 0.99585652
+-players = ["<ζε>-fhepgq2n@ReturnVoid"]
+-
+-[[targets]]
+-factor = 0.99647444
+-players = ["随之任之 #mDEGkQOkOd@🥒"]
+-
+-[[targets]]
+-factor = 0.99636094
+-players = ["<θτ>-unf9q559@ReturnVoid"]
+-
+-[[targets]]
+-factor = 0.99677090
+-players = ["Iridia_Noctiluca #6kb5skxS@Nexus_Mirabilis"]
+-
+-[[targets]]
+-factor = 0.99978655
+-players = ["Felix CQACSVGRXSAT@nan"]
+-
+-[[targets]]
+-factor = 0.99948128
+-players = ["莉莉霍瓦特 H9UEBBVD@Squall"]
+-
+-[[targets]]
+-factor = 1.00157506
+-players = ["↙️⬅️⤵️⬇️⬆️↩️⤵️➡️⬅️↩️↙️⤴️@新纪元"]
+-
+-[[targets]]
+-factor = 1.00055184
+-players = ["0000002UeTboJTR@aaa"]
+-
+-[[targets]]
+-factor = 0.99827376
+-players = ["慧剑 IZ2X35uT8wVt@Afterglow"]
+-
+-[[targets]]
+-factor = 1.00138752
+-players = ["力气 30#zxQ4y6@仙蛊屋"]
+-
+-[[targets]]
+-factor = 1.00220952
+-players = ["拟光 547334214552@Squall"]
+-
+-[[targets]]
+-factor = 1.00029252
+-players = ["糍粑姐 #06fJFRN2@爱"]
+-
+-[[targets]]
+-factor = 1.00129454
+-players = ["無名惰蛾衣肮@神之长子leo"]
+-
+-[[targets]]
+-factor = 1.00155161
+-players = ["CtC7gL9JNpvNpOl@新纪元"]
+-
+-[[targets]]
+-factor = 1.00310768
+-players = ["我没在炼你，我在ber你 #08DpCnEa@爱"]
+-
+-[[targets]]
+-factor = 1.00517601
+-players = ["Immutable ZYsdlabOOz@RbCl"]
+-
+-[[targets]]
+-factor = 1.00801915
+-players = ["syVS:et@Hell"]
+diff --git a/crates/tswn_openbox_backend/assets/teammates/teammate_fs.txt b/crates/tswn_openbox_backend/assets/teammates/teammate_fs.txt
+deleted file mode 100644
+index bb0381a7..00000000
+--- a/crates/tswn_openbox_backend/assets/teammates/teammate_fs.txt
++++ /dev/null
+@@ -1,18 +0,0 @@
+-Accio #LD5MtqO8@Shabby_fish+diy[49,81,95,84,57,93,95,313]{"SklRapid": 4,"SklZombie": 5,"SklRevive": 24,"SklUpgrade": 23,"SklCharge": 20,"SklClone": 66,"SklCharm": 80}
+-luogu.com.cn/paste/q9h8sdzk@Shabby_fish+diy[45,93,89,64,67,96,94,364]{"SklClone": 32,"SklRevive": 33,"SklProtect": 11,"SklUpgrade": 23,"SklFire": 6,"SklPoison": 2,"SklCharge": 20,"SklCharm": 84}
+-市之濑莉佳 $01GvZaj6@爱+diy[50,93,88,72,69,94,96,299]{"SklReraise":19,"SklRevive":37,"SklShield":9,"SklBerserk":7,"SklProtect":20,"SklClone":76,"SklCharm":66,"useless":0}
+-白夜零 r5ZEegF@无惨+diy[70,98,90,71,50,86,94,273]{"SklCounter": 8,"SklProtect": 32,"SklMerge": 1,"SklHide": 16,"SklRevive": 7,"SklShield": 4,"SklThunder": 8,"SklClone": 81,"SklCharm": 94}
+-0000006dolh406w@aaa+diy[85,71,97,66,45,99,95,320]{"SklHide": 10,"SklClone": 35,"SklDefend": 16,"SklUpgrade": 13,"SklCurse": 17,"SklSlow": 4,"SklProtect": 85,"SklCharm": 77}
+-ilem ?MJxj&<^@LuoTianyi+diy[89,95,94,62,48,93,92,293]{"SklExchange": 18,"SklRevive": 41,"SklUpgrade": 11,"SklRapid": 7,"SklClone": 68,"SklProtect": 19,"SklDefend": 12,"SklReraise": 71}
+-CtC7gL9JNpvNpOl@新纪元+diy[90,92,99,57,61,98,86,337]{"SklHide":1,"SklMerge":20,"SklUpgrade":28,"SklReflect":18,"SklProtect":15,"SklShadow":10,"SklClone":68,"SklReraise":79,"useless":0}
+-Felix CQACSVGRXSAT@nan+diy[43,83,89,62,94,86,95,306]{"SklRevive": 5,"SklZombie": 2,"SklReraise": 32,"SklClone": 94,"SklAssassinate": 88}
+-糍粑姐 #06fJFRN2@爱+diy[42,94,97,60,90,95,92,328]{"SklMerge": 16,"SklCharm": 8,"SklCounter": 9,"SklExchange": 2,"SklAbsorb": 3,"SklDisperse": 19,"SklAssassinate": 64,"SklClone": 80}
+-jJyRduWv7Wy7HEf@新纪元+diy[54,85,89,76,90,88,98,330]{"SklShield": 1,"SklProtect": 4,"SklRevive": 26,"SklSlow": 22,"SklAccumulate": 6,"SklReflect": 9,"SklDisperse": 12,"SklClone": 54,"SklAssassinate": 94}
+-莉莉霍瓦特 H9UEBBVD@Squall+diy[71,84,97,62,94,93,92,343]{"SklMerge": 14,"SklUpgrade": 25,"SklHide": 3,"SklSummon": 2,"SklProtect": 22,"SklClone": 30,"sklHalf": 56,"SklQuake": 82}
+-兴味萧然山鸡照影属垣有耳@昀澤+diy[65,85,89,57,74,96,94,317]{"SklClone":49,"SklCharm":34,"SklDisperse":5,"SklUpgrade":4,"SklAssassinate":3,"SklRevive":14,"SklSlow":98}
+-涵虚不等式 PFVKEUPBU@TigerStar+diy[89,85,88,77,48,96,97,327]{"SklClone": 13,"SklCharm": 7,"SklDefend": 10,"SklHeal": 5,"SklExchange": 3,"SklShadow": 92,"SklShield": 9,"SklReflect": 12}
+-<ζε>-fhepgq2n@ReturnVoid+diy[87,93,86,62,48,95,82,294]{"SklDefend": 15,"SklRevive": 19,"SklZombie": 18,"SklProtect": 4,"SklClone": 48,"SklReraise": 2,"SklShadow": 84,"SklUpgrade": 14}
+-↙️⬅️⤵️⬇️⬆️↩️⤵️➡️⬅️↩️↙️⤴️@新纪元+diy[45,92,82,74,63,90,91,332]{"SklExchange": 14,"SklClone": 30,"SklHaste": 10,"SklHide": 13,"SklReflect": 8,"SklShadow": 86,"SklZombie": 19,"SklReraise": 54}
+-<δι>-8c9kz0hn@ReturnVoid+diy[90,82,83,88,37,91,87,326]{"SklIce": 5,"SklProtect": 24,"SklMerge": 4,"SklZombie": 18,"SklClone": 22,"SklReraise": 13,"SklCounter": 27,"SklShadow": 100}
+-syVS:et@Hell+diy[65,89,77,73,47,99,95,358]{"SklReraise": 21,"SklClone": 38,"SklShadow": 80,"SklZombie": 8,"SklUpgrade": 2}
+-魂魄妖梦 AKG1OENX@Squall+diy[63,94,78,76,42,86,97,343]{"SklClone": 31,"SklHeal": 3,"SklThunder": 1,"SklShadow": 96,"SklHide": 3,"SklUpgrade": 18}
+\ No newline at end of file
+diff --git a/crates/tswn_openbox_backend/assets/teammates/teammate_fz.toml b/crates/tswn_openbox_backend/assets/teammates/teammate_fz.toml
+deleted file mode 100644
+index d08b7de1..00000000
+--- a/crates/tswn_openbox_backend/assets/teammates/teammate_fz.toml
++++ /dev/null
+@@ -1,75 +0,0 @@
+-[[targets]]
+-factor = 0.98070813
+-players = ["Tik_Tok #IBxWzGZtr@Shabby_fish"]
+-
+-[[targets]]
+-factor = 0.98099985
+-players = ["0000006NTVJWbvH@aaa"]
+-
+-[[targets]]
+-factor = 0.98405566
+-players = ["秋菊 mcrP7gX?shadow@魔"]
+-
+-[[targets]]
+-factor = 0.98731347
+-players = ["花语堂夜 #OHKFKDOOI@无惨"]
+-
+-[[targets]]
+-factor = 0.98712122
+-players = ["涂愿烄鮈鵢@四象柯"]
+-
+-[[targets]]
+-factor = 0.98679206
+-players = ["0000005WuxfrjJ0@aaa"]
+-
+-[[targets]]
+-factor = 0.98725438
+-players = ["竞唆芳杰@Hell"]
+-
+-[[targets]]
+-factor = 0.98742975
+-players = ["Straight_into_the_lights #VpdbCrcFJV@🥒"]
+-
+-[[targets]]
+-factor = 0.99110882
+-players = ["0000004zsX0ITJH@aaa"]
+-
+-[[targets]]
+-factor = 0.98951429
+-players = ["Estahv tB57MelvI@candle"]
+-
+-[[targets]]
+-factor = 0.99344004
+-players = ["milkΙлЯωΦПΞΣъЭ@lzk"]
+-
+-[[targets]]
+-factor = 0.99159033
+-players = ["血遁 65#inkQQX@仙蛊屋"]
+-
+-[[targets]]
+-factor = 0.99026671
+-players = ["<γρ>-xthyizh5@ReturnVoid"]
+-
+-[[targets]]
+-factor = 0.99453753
+-players = ["とツウヨゆプピリうくぱニのずぐぶちテろえウ@Squall"]
+-
+-[[targets]]
+-factor = 0.99545975
+-players = ["姬塔 #XZEICGHHO@暗黑突击"]
+-
+-[[targets]]
+-factor = 0.99471926
+-players = ["Obsession #EYNIZRX@Unbound"]
+-
+-[[targets]]
+-factor = 0.99519352
+-players = ["<ηψ>-bjdrswie@ReturnVoid"]
+-
+-[[targets]]
+-factor = 0.99565434
+-players = ["Iridia_Noctiluca #9qGjK1sq@Nexus_Mirabilis"]
+-
+-[[targets]]
+-factor = 0.99894834
+-players = ["土豆不等式 QPBPMQNW@Squall"]
+diff --git a/crates/tswn_openbox_backend/assets/teammates/teammate_fz.txt b/crates/tswn_openbox_backend/assets/teammates/teammate_fz.txt
+deleted file mode 100644
+index 267444d3..00000000
+--- a/crates/tswn_openbox_backend/assets/teammates/teammate_fz.txt
++++ /dev/null
+@@ -1,16 +0,0 @@
+-0000005WuxfrjJ0@aaa+diy[90,91,94,97,88,99,87,351]{"SklIron": 21,"SklCounter": 7,"SklIce": 14,"SklThunder": 9,"SklExchange": 26,"SklSummon": 7,"SklZombie": 16,"SklDisperse": 60}
+-0000004zsX0ITJH@aaa+diy[98,86,92,94,77,95,90,314]{"SklZombie": 12,"SklReflect": 19,"SklClone": 22,"SklSlow": 7,"SklProtect": 29,"SklAccumulate": 3,"SklDisperse": 1,"SklIron": 72,"SklReraise": 50}
+-竞唆芳杰@Hell+diy[89,91,95,95,86,98,94,350]{"SklCharge": 3,"SklShadow": 2,"SklIron": 5,"SklZombie": 27,"SklDisperse": 13,"SklRapid": 29,"SklSlow": 56,"SklReflect": 22,"SklDefend": 9,"SklReraise": 10,"SklProtect": 8}
+-秋菊 mcrP7gX?shadow@魔+diy[91,92,95,88,95,97,76,354]{"SklProtect": 17,"SklRapid": 5,"SklZombie": 26,"SklCounter": 27,"SklDisperse": 86,"SklUpgrade": 6}
+-月涌-菖项沉弦@涵虚+diy[79,78,96,85,99,98,92,343]{"SklCritical": 7,"SklZombie": 13,"SklProtect": 31,"SklDefend": 17,"SklHeal": 1,"SklIron": 74,"SklShield": 42}
+-milkΙлЯωΦПΞΣъЭ@lzk+diy[95,86,94,89,85,89,87,343]{"SklExchange": 14,"SklClone": 22,"SklSummon": 10,"SklCounter": 6,"SklSlow": 46,"SklReraise": 77}
+-土豆不等式 QPBPMQNW@Squall+diy[93,66,80,89,92,90,96,336]{"SklRapid": 2,"SklCurse": 2,"SklMerge": 5,"SklSlow": 44,"SklIron": 66,"SklShield": 3,"SklProtect": 52,"SklReraise": 60}
+-翼装绘想家.曬鷑艍@四象霄+diy[94,89,99,90,87,95,77,342]{"SklPoison": 13,"SklFire": 10,"SklSlow": 6,"SklDisperse": 14,"SklUpgrade": 2,"SklHide": 8,"SklIron": 68,"SklProtect": 65}
+-Obsession #EYNIZRX@Unbound+diy[95,86,92,97,79,88,87,363]{"SklShield": 17,"SklRapid": 24,"SklExchange": 8,"SklFire": 1,"SklCharge": 13,"SklHeal": 5,"SklIron": 76,"SklReraise": 22}
+-涂愿烄鮈鵢@四象柯+diy[90,72,89,88,80,96,92,373]{"SklRevive": 15,"SklBerserk": 22,"SklAssassinate": 4,"SklReflect": 13,"SklCounter": 18,"SklDisperse": 6,"SklHaste": 92,"SklZombie": 36}
+-とツウヨゆプピリうくぱニのずぐぶちテろえウ@Squall+diy[90,78,86,79,76,94,95,356]{"SklReraise": 11,"SklZombie": 16,"SklHide": 7,"SklClone": 22,"SklExchange": 17,"SklIron": 70,"SklCounter": 62,"SklUpgrade": 37}
+-恣瑶姬 EHCM8fE*@四象柯+diy[94,67,91,98,73,96,89,368]{"SklBerserk": 2,"SklClone": 4,"SklCritical": 3,"SklUpgrade": 11,"SklCounter": 37,"SklQuake": 17,"SklDisperse": 6,"SklHaste": 92}
+-0000002ssmLbpvY@aaa+diy[88,90,93,91,97,93,95,334]{"SklReraise": 12,"SklIce": 35,"SklSummon": 8,"SklIron": 12,"SklHeal": 23,"SklQuake": 72,"SklProtect": 38}
+-1f67~3l}@Hell+diy[97,93,85,86,79,92,90,362]{"SklHaste": 10,"SklExchange": 4,"SklSlow": 1,"SklIron": 9,"SklClone": 52,"SklCounter": 24,"SklReraise": 74}
+-非想天则 GPZKTT5U@Squall+diy[93,86,97,92,90,94,87,366]{"SklIce": 10,"SklDefend": 14,"SklThunder": 9,"SklHeal": 3,"SklDisperse": 62,"SklReflect": 22,"SklCounter": 12}
+-🟠🟢🟩🔴🟠🟧🔵🟣🟫🟧🔴🟨@新纪元+diy[93,92,97,85,83,95,85,332]{"SklMerge":22,"SklShield":12,"SklExchange":32,"SklReraise":25,"SklReflect":7,"SklDisperse":48,"SklIron":48}
+\ No newline at end of file
+diff --git a/crates/tswn_openbox_backend/assets/teammates/teammate_pj.toml b/crates/tswn_openbox_backend/assets/teammates/teammate_pj.toml
+deleted file mode 100644
+index fa576973..00000000
+--- a/crates/tswn_openbox_backend/assets/teammates/teammate_pj.toml
++++ /dev/null
+@@ -1,99 +0,0 @@
+-[[targets]]
+-factor = 0.98134210
+-players = ["银铃歌者.流花燕 \\!}G2F0Z/@四象柯"]
+-
+-[[targets]]
+-factor = 0.98989117
+-players = ["萨丽爱尔 IELUALOU@Squall"]
+-
+-[[targets]]
+-factor = 0.99110882
+-players = ["0000004zsX0ITJH@aaa"]
+-
+-[[targets]]
+-factor = 0.99344004
+-players = ["milkΙлЯωΦПΞΣъЭ@lzk"]
+-
+-[[targets]]
+-factor = 0.99552466
+-players = ["'Yz|AS}@Hell"]
+-
+-[[targets]]
+-factor = 0.99453753
+-players = ["とツウヨゆプピリうくぱニのずぐぶちテろえウ@Squall"]
+-
+-[[targets]]
+-factor = 0.99538568
+-players = ["前尘如梦 UYGMHRNX@LuoTianyi"]
+-
+-[[targets]]
+-factor = 0.99821688
+-players = ["リズと青い鳥 #GDatSLaSpu@🥒"]
+-
+-[[targets]]
+-factor = 0.99739797
+-players = ["平行線 #DyeDWKthAL@🥒"]
+-
+-[[targets]]
+-factor = 0.99820436
+-players = ["咒冲 557624508459@Squall"]
+-
+-[[targets]]
+-factor = 1.00024674
+-players = ["咲夜 oswFmWcG@Squall"]
+-
+-[[targets]]
+-factor = 1.00025686
+-players = ["该玩家已挂机，点此跳过他的回合 OQAf07JZxq@XJ联队"]
+-
+-[[targets]]
+-factor = 0.99731589
+-players = ["Soudelor VGDAEAHOJNQY@nan"]
+-
+-[[targets]]
+-factor = 0.99831256
+-players = ["Beijing_Beijing #buBfAkjNf@Shabby_fish"]
+-
+-[[targets]]
+-factor = 1.00045256
+-players = ["ΦAOwxwKTN@ssg"]
+-
+-[[targets]]
+-factor = 0.99680065
+-players = ["System_shutdown #vHatYzLOtM@🥒"]
+-
+-[[targets]]
+-factor = 1.00129760
+-players = ["0000003AeTw5YVJ@aaa"]
+-
+-[[targets]]
+-factor = 0.99834450
+-players = ["Kotori jVg4KQW5h@candle"]
+-
+-[[targets]]
+-factor = 1.00142898
+-players = ["烟烟罗 9EHPRV2T@Squall"]
+-
+-[[targets]]
+-factor = 1.00267285
+-players = ["あはらけぷまぬ@新纪元"]
+-
+-[[targets]]
+-factor = 1.00119073
+-players = ["五箭谏函哄@昀澤"]
+-
+-[[targets]]
+-factor = 1.00356124
+-players = ["百合IQ180 916973361557@Squall"]
+-
+-[[targets]]
+-factor = 1.00155161
+-players = ["CtC7gL9JNpvNpOl@新纪元"]
+-
+-[[targets]]
+-factor = 1.00507163
+-players = ["SIN_BA-NELRTUTMI4JNEBF@Squall"]
+-
+-[[targets]]
+-factor = 1.00420817
+-players = ["夏 rgPbhssrqs91@Afterglow"]
+diff --git a/crates/tswn_openbox_backend/assets/teammates/teammate_pj.txt b/crates/tswn_openbox_backend/assets/teammates/teammate_pj.txt
+deleted file mode 100644
+index 6aa7f85c..00000000
+--- a/crates/tswn_openbox_backend/assets/teammates/teammate_pj.txt
++++ /dev/null
+@@ -1,16 +0,0 @@
+-milkΙлЯωΦПΞΣъЭ@lzk+diy[95,86,94,89,85,89,87,343]{"SklExchange": 14,"SklClone": 22,"SklSummon": 10,"SklCounter": 6,"SklSlow": 46,"SklReraise": 77}
+-前尘如梦 UYGMHRNX@LuoTianyi+diy[90,90,97,95,91,88,71,337]{"SklRevive": 8,"SklHide": 6,"SklThunder": 5,"SklDefend": 1,"SklClone": 62,"SklReraise": 66,"SklUpgrade": 52}
+-Kotori jVg4KQW5h@candle+diy[95,76,90,85,81,86,93,331]{"SklRevive": 2,"SklSlow": 16,"SklCurse": 5,"SklClone": 62,"SklDefend": 2,"SklUpgrade": 22,"SklReraise": 78}
+-五箭谏函哄@昀澤+diy[96,66,90,87,86,92,92,289]{"SklSlow": 8,"SklUpgrade": 11,"SklExchange": 11,"SklRevive": 31,"SklClone": 70,"SklReraise": 78}
+-0000003AeTw5YVJ@aaa+diy[73,67,91,91,69,83,93,351]{"SklClone": 33,"SklAssassinate": 2,"SklCharm": 78,"SklDefend": 9,"SklReraise": 82}
+-\'Yz|AS}@Hell+diy[67,82,91,81,76,95,93,357]{"SklHide": 9,"SklClone": 25,"SklShield": 4,"SklUpgrade": 27,"SklReraise": 38,"SklSlow": 96}
+-咲夜 oswFmWcG@Squall+diy[85,70,90,84,75,99,95,321]{"SklIce": 1,"SklExchange": 4,"SklClone": 18,"SklCharm": 90,"SklReraise": 77}
+-rN #415997879987@新纪元+diy[83,72,90,90,97,82,80,329]{"SklHide": 5,"SklRevive": 4,"SklUpgrade": 18,"SklThunder": 3,"SklClone": 22,"SklCurse": 78,"SklReraise": 90}
+-光YLqKf5rv9EU9lnc@Squall+diy[87,82,92,70,77,97,90,381]{"SklShadow": 86,"SklShield": 6,"SklZombie": 1,"SklReflect": 8,"SklHide": 56}
+-aaa 瀭嬣嶹@名字竞技场+diy[64,70,81,80,82,95,91,346]{"SklFire": 2,"SklExchange": 39,"SklBerserk": 2,"SklClone": 90,"SklCounter": 10,"SklUpgrade": 12,"SklReraise": 72}
+-⑦ j9AUkzf@新纪元+diy[92,82,90,88,69,83,96,310]{"SklSlow": 24,"SklUpgrade": 4,"SklCharm": 14,"SklClone": 68,"SklReraise": 86}
+-0000004zsX0ITJH@aaa+diy[98,86,92,94,83,95,90,314]{"SklZombie": 12,"SklReflect": 19,"SklClone": 22,"SklSlow": 7,"SklProtect": 29,"SklAccumulate": 3,"SklDisperse": 1,"SklIron": 72,"SklReraise": 50}
+-とツウヨゆプピリうくぱニのずぐぶちテろえウ@Squall+diy[90,78,86,79,76,94,95,356]{"SklReraise": 11,"SklZombie": 16,"SklHide": 7,"SklClone": 22,"SklExchange": 15,"SklIron": 70,"SklCounter": 62,"SklUpgrade": 37}
+-蓝原椿 QUEUPRLAOFMS@Asunder+diy[96,80,91,58,75,94,88,313]{"SklCharm": 4,"SklIron": 8,"SklExchange": 19,"SklHeal": 27,"SklClone": 70,"SklReflect": 16,"SklReraise": 92}
+-Fengshen ONVWTGMPNCKV@nan+diy[73,89,99,93,76,95,86,327]{"SklClone": 17,"SklIron": 2,"SklShield": 4,"SklDisperse": 5,"SklDefend": 3,"SklExchange": 7,"SklSlow": 84,"SklReraise": 62}
+-Arlan8is 嗡反逸蕉@四象柯+diy[94,93,89,96,91,89,81,323]{"SklReflect": 26,"SklClone": 25,"SklUpgrade": 15,"SklCounter": 11,"SklIron": 7,"SklCharm": 27,"sklHalf": 24,"SklReraise": 76}
+\ No newline at end of file
+diff --git a/crates/tswn_openbox_backend/assets/teammates/teammate_wc.toml b/crates/tswn_openbox_backend/assets/teammates/teammate_wc.toml
+deleted file mode 100644
+index b71a37fc..00000000
+--- a/crates/tswn_openbox_backend/assets/teammates/teammate_wc.toml
++++ /dev/null
+@@ -1,143 +0,0 @@
+-[[targets]]
+-factor = 0.98070813
+-players = ["Tik_Tok #IBxWzGZtr@Shabby_fish"]
+-
+-[[targets]]
+-factor = 0.98099985
+-players = ["0000006NTVJWbvH@aaa"]
+-
+-[[targets]]
+-factor = 0.98405566
+-players = ["秋菊 mcrP7gX?shadow@魔"]
+-
+-[[targets]]
+-factor = 0.98731347
+-players = ["花语堂夜 #OHKFKDOOI@无惨"]
+-
+-[[targets]]
+-factor = 0.98602230
+-players = ["黎明叙事 677097391180@Squall"]
+-
+-[[targets]]
+-factor = 0.98793355
+-players = ["灀瑈篆狓鵃@四象柯"]
+-
+-[[targets]]
+-factor = 0.98712122
+-players = ["涂愿烄鮈鵢@四象柯"]
+-
+-[[targets]]
+-factor = 0.99246281
+-players = ["沓颊 LCI2QNZ5@Squall"]
+-
+-[[targets]]
+-factor = 0.99001968
+-players = ["<ημ>-nfw5ezna@ReturnVoid"]
+-
+-[[targets]]
+-factor = 0.99044987
+-players = ["九十九八桥 6G6GIGLI@Squall"]
+-
+-[[targets]]
+-factor = 0.99398390
+-players = ["雾山惟助 BAAOVADZ@TigerStar"]
+-
+-[[targets]]
+-factor = 0.99236352
+-players = ["三头区 #NYmDCMu3g@！？区猴猴区？！"]
+-
+-[[targets]]
+-factor = 0.99579975
+-players = ["七岔要塞 -A8PT6j3aIl-@新纪元"]
+-
+-[[targets]]
+-factor = 0.99443846
+-players = ["怚驵細驵阻岨䧃佃畑畑趄蛆@涵虚"]
+-
+-[[targets]]
+-factor = 0.99467978
+-players = ["тцчяёсюфъ@新纪元"]
+-
+-[[targets]]
+-factor = 0.99538568
+-players = ["前尘如梦 UYGMHRNX@LuoTianyi"]
+-
+-[[targets]]
+-factor = 0.99948128
+-players = ["莉莉霍瓦特 H9UEBBVD@Squall"]
+-
+-[[targets]]
+-factor = 0.99803457
+-players = ["青冈00397016962394@abruce"]
+-
+-[[targets]]
+-factor = 0.99994490
+-players = ["00000052qRHvFoy@aaa"]
+-
+-[[targets]]
+-factor = 0.99527040
+-players = ["静影WZBMCVWUF@涵虚"]
+-
+-[[targets]]
+-factor = 0.99964740
+-players = ["回天zy33FFARg@candle"]
+-
+-[[targets]]
+-factor = 0.99648918
+-players = ["五字神人 #02f5lSWo@爱"]
+-
+-[[targets]]
+-factor = 1.00017117
+-players = ["0000003FzAO7HhL@aaa"]
+-
+-[[targets]]
+-factor = 1.00053784
+-players = ["Antonio_Salieri #ytpPxakBZd@🥒"]
+-
+-[[targets]]
+-factor = 1.00185109
+-players = ["霨謹橵蚒孰@四象柯"]
+-
+-[[targets]]
+-factor = 1.00298428
+-players = ["Mira_Hacia_El_Cielo #gJEftkUaX@Shabby_fish"]
+-
+-[[targets]]
+-factor = 1.00037560
+-players = ["ernie-5.0-thinking-preview #CfmvP0rX0@Shabby_fish"]
+-
+-[[targets]]
+-factor = 1.00419612
+-players = ["0000001YcQMZjkz@aaa"]
+-
+-[[targets]]
+-factor = 1.00353746
+-players = ["栀之神力 🃎🃏🂥🃛🂨🃘🂱@四象柯"]
+-
+-[[targets]]
+-factor = 1.00291092
+-players = ["神玉 E4ILFVGO@Squall"]
+-
+-[[targets]]
+-factor = 1.00260479
+-players = ["席尔娜 nkkP4td@无惨"]
+-
+-[[targets]]
+-factor = 1.00106302
+-players = ["Arcueid LfsxCJYLuj@🥒"]
+-
+-[[targets]]
+-factor = 1.00777526
+-players = ["1h([HliV@Hell"]
+-
+-[[targets]]
+-factor = 1.00890023
+-players = ["insanity#lPJr7ajyBTz6NWXeuMiL@czr2012"]
+-
+-[[targets]]
+-factor = 1.00807405
+-players = ["神户旭 $06WqS73U@爱"]
+-
+-[[targets]]
+-factor = 1.00870474
+-players = ["緋色のDance #hUxfUgcfAp@🥒"]
+diff --git a/crates/tswn_openbox_backend/assets/teammates/teammate_wc.txt b/crates/tswn_openbox_backend/assets/teammates/teammate_wc.txt
+deleted file mode 100644
+index 4344b09a..00000000
+--- a/crates/tswn_openbox_backend/assets/teammates/teammate_wc.txt
++++ /dev/null
+@@ -1,24 +0,0 @@
+-0000006NTVJWbvH@aaa+diy[95,83,92,90,99,97,88,360]{"SklSummon": 2,"SklBerserk": 1,"SklUpgrade": 4,"SklReraise": 19,"SklDefend": 15,"SklDisperse": 82,"SklCounter": 16}
+-秋菊 mcrP7gX?shadow@魔+diy[91,92,95,88,95,97,76,354]{"SklProtect": 17,"SklRapid": 5,"SklZombie": 26,"SklCounter": 27,"SklDisperse": 86,"SklUpgrade": 6}
+-0000003FzAO7HhL@aaa+diy[46,72,93,81,92,95,97,355]{"SklCharge": 3,"sklHalf": 22,"SklReraise": 8,"SklHide": 2,"SklClone": 22,"SklIce": 12,"SklQuake": 90,"SklUpgrade": 16,"SklMerge": 34}
+-莉莉霍瓦特 H9UEBBVD@Squall+diy[71,84,97,62,94,93,92,343]{"SklMerge": 14,"SklUpgrade": 25,"SklHide": 3,"SklSummon": 2,"SklProtect": 22,"SklClone": 30,"sklHalf": 56,"SklQuake": 82}
+-00000052qRHvFoy@aaa+diy[80,85,90,99,95,92,91,357]{"SklThunder": 4,"SklIce": 9,"SklReraise": 20,"SklCharge": 16,"sklHalf": 52,"SklCounter": 77}
+-九十九八桥 6G6GIGLI@Squall+diy[59,84,92,88,95,98,89,342]{"SklCharm": 6,"SklAssassinate": 17,"SklThunder": 2,"SklExchange": 1,"SklPoison": 7,"SklHide": 8,"SklShadow": 6,"SklProtect": 7,"SklQuake": 94,"SklZombie": 44}
+-雾山惟助 BAAOVADZ@TigerStar+diy[72,95,94,81,98,85,92,353]{"SklDefend": 18,"SklSlow": 1,"SklReraise": 10,"SklCharge": 9,"SklQuake": 68,"SklDisperse": 80}
+-仙尊 $WVFmI7B@powerful+diy[83,97,95,92,98,87,96,351]{"SklDefend": 4,"SklAccumulate": 13,"SklUpgrade": 10,"SklIron": 7,"SklMerge": 16,"SklDisperse": 19,"SklQuake": 72}
+-牙四 xX4hHzW@fx+diy[68,92,91,81,97,97,91,352]{"SklAssassinate": 36,"SklDefend": 25,"SklPoison": 1,"SklZombie": 13,"SklCurse": 5,"SklBerserk": 29,"SklClone": 16,"SklQuake": 78}
+-刷屏托腮 FXLNIBHI@TigerStar+diy[76,88,88,92,90,98,98,354]{"SklFire": 2,"SklMerge": 19,"SklAccumulate": 10,"SklIce": 11,"SklQuake": 78,"SklDefend": 44}
+-0000000Pf9A4Rkz@aaa+diy[60,85,93,92,94,93,89,326]{"SklHide": 9,"SklUpgrade": 5,"SklClone": 11,"SklProtect": 2,"SklQuake": 98,"SklMerge": 50}
+-ⅱ 3ze5v8h@新纪元+diy[85,86,97,88,95,99,90,333]{"SklExchange": 10,"sklHalf": 92,"SklReraise": 13,"SklMerge": 17}
+-opWS>O76kKbeyzp@XJ联队+diy[73,85,97,91,95,98,90,335]{"SklBerserk": 5,"SklSummon": 2,"SklZombie": 5,"SklQuake": 88,"SklMerge": 28}
+-0000004oLzv1Inq@aaa+diy[97,81,94,91,89,95,90,347]{"sklHalf": 29,"SklThunder": 9,"SklIron": 8,"SklPoison": 7,"SklQuake": 82,"SklCounter": 21}
+-Mira_Hacia_El_Cielo #gJEftkUaX@Shabby_fish+diy[98,73,94,93,66,96,87,303]{"SklReflect": 17,"SklUpgrade": 12,"SklShadow": 2,"SklReraise": 3,"SklAccumulate": 13,"SklHide": 9,"SklBerserk": 5,"SklRapid": 88,"SklMerge": 64}
+-媳瞒己深@昀澤+diy[94,90,98,83,93,89,91,335]{"SklCritical": 20,"SklIce": 4,"SklDefend": 29,"SklHide": 11,"SklProtect": 17,"sklHalf": 96}
+-碧落-錈薅眯暯@涵虚+diy[88,91,96,91,99,94,97,332]{"SklCharm": 4,"SklDisperse": 6,"SklExchange": 8,"sklHalf": 82,"SklZombie": 26}
+-gaDUGvcLjf3adAl@XJ联队+diy[89,90,97,93,95,89,87,342]{"SklHeal": 12,"SklCharge": 11,"SklCurse": 18,"SklShield": 8,"SklIron": 80,"SklReraise": 52}
+-蔚黄鸟.狼刃 yJ0Ne*1js@四象柯+diy[98,92,95,96,90,90,88,360]{"SklHide": 6,"SklIron": 5,"SklZombie": 11,"SklSlow": 13,"SklDisperse": 7,"SklCharge": 25,"SklBerserk": 7,"SklRapid": 76}
+-u75hvWl7-ryx6EL@新纪元+diy[71,78,94,98,93,96,91,345]{"SklCurse": 8,"SklAccumulate": 19,"SklQuake": 80,"SklMerge": 11,"SklHide": 6,"SklZombie": 25,"SklProtect": 2,"SklReflect": 8}
+-珠洲岛有栖 SZZUXUIISDDH@Asunder+diy[81,87,95,95,94,84,86,351]{"SklRevive": 17,"SklZombie": 4,"SklUpgrade": 10,"SklAccumulate": 15,"SklHide": 19,"SklQuake": 92}
+-虚境-4xtrv36e@涵虚+diy[86,96,92,81,97,89,98,346]{"SklBerserk": 11,"sklHalf": 31,"SklRevive": 8,"SklFire": 6,"SklDisperse": 88,"SklMerge": 28}
+-0000001Ki24AVw0@aaa+diy[96,88,84,92,95,97,87,345]{"sklHalf": 70,"SklReflect": 7,"SklReraise": 48,"SklProtect": 48}
+-0000005HETaH4tB@aaa+diy[98,88,94,94,83,99,87,327]{"SklReraise": 7,"SklExchange": 3,"SklHide": 8,"SklCritical": 3,"SklMerge": 4,"SklHaste": 8,"sklHalf": 64,"SklCounter": 68}
+\ No newline at end of file
 diff --git a/crates/tswn_py/src/battle.rs b/crates/tswn_py/src/battle.rs
 index 89abf531..c3820bc7 100644
 --- a/crates/tswn_py/src/battle.rs
@@ -3717,11 +7386,533 @@ index eba270ed..db6337cd 100644
      id: int
      team_index: int
      input_team_index: int | None
+diff --git a/crates/tswn_test/cases/runtime_stress/1v1-0f92cb76cc37fdc5.txt b/crates/tswn_test/cases/runtime_stress/1v1-0f92cb76cc37fdc5.txt
+deleted file mode 100644
+index 18db9c15..00000000
+--- a/crates/tswn_test/cases/runtime_stress/1v1-0f92cb76cc37fdc5.txt
++++ /dev/null
+@@ -1,2 +0,0 @@
+-两个杰克 #at6f8SbIp@Shabby_fish
+-加密记忆 #7VVxbSUhY@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/2v2-554f4128af707167.txt b/crates/tswn_test/cases/runtime_stress/2v2-554f4128af707167.txt
+deleted file mode 100644
+index 133b2aaf..00000000
+--- a/crates/tswn_test/cases/runtime_stress/2v2-554f4128af707167.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-邻家女孩 #9Pktg8IZQ@Shabby_fish
+-荣誉属于帝国！ #sxiTPqCrQ@Shabby_fish
+-
+-两个杰克 #at6f8SbIp@Shabby_fish
+-加密记忆 #7VVxbSUhY@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/2v2-a47d6d806a77e593.txt b/crates/tswn_test/cases/runtime_stress/2v2-a47d6d806a77e593.txt
+deleted file mode 100644
+index bf6a151c..00000000
+--- a/crates/tswn_test/cases/runtime_stress/2v2-a47d6d806a77e593.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-统治吧！不列颠尼亚！ #vUZuBmifq@Shabby_fish
+-flag:0b714e89571699-13f108-e53f0f91c9-a71:@Shabby_fish
+-
+-Tik_Tok #QviaDu2jY@Shabby_fish
+-贝克街分队 #xEVwPMFTS@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-0ace5df17b84e26a.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-0ace5df17b84e26a.txt
+deleted file mode 100644
+index e881a4a6..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-0ace5df17b84e26a.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-ffifdyop #Y1gnQYxtV@Shabby_fish
+-Un_Momento #ThYQJAek2@Shabby_fish
+-脑珍炎荠莉@Shabby_fish
+-
+-Double_You #Q2JRUbsCP@Shabby_fish
+-flag:39ae70b-a91b591bafbc01d0c70d3ef4f6-7:@Shabby_fish
+-击沉俾斯麦号！ #OPLDYXjai@Shabby_fish
+-
+-看我的 #ARW3IFrs9@Shabby_fish
+-Wingardium_Leviosa tlkAsob_@Shabby_fish
+-消失的她 #3BwoUhBKF@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-0f20f33db97a2e10.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-0f20f33db97a2e10.txt
+deleted file mode 100644
+index e6ae26fc..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-0f20f33db97a2e10.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-Mobilicorbus #EixLEww0@Shabby_fish
+-Aparecium e{==eyuN@Shabby_fish
+-Riddikulus ;DTm'LHS@Shabby_fish
+-
+-luogu.com.cn/paste/f5ehcjca@Shabby_fish
+-废土 #tYHujog1a@Shabby_fish
+-战略重心 #0CE6D1IfE@Shabby_fish
+-
+-Un_Momento #WzaXVTh4I@Shabby_fish
+-Revelación #R3bhgfqtE@Shabby_fish
+-luogu.com.cn/paste/q9h8sdzk@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-35070658d93637e1.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-35070658d93637e1.txt
+deleted file mode 100644
+index 7313dc5c..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-35070658d93637e1.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-HELL #fISkOvWgk@Shabby_fish
+-Accio #LD5MtqO8@Shabby_fish
+-太阳帝国 #qwMY8ojpq@Shabby_fish
+-
+-Woke #Iakt0mOca@Shabby_fish
+-Fish Hc='^hxt@Shabby_fish
+-Deletrius #IaqKFJMD@Shabby_fish
+-
+-可畏号 #AnokZ2in4@Shabby_fish
+-轰炸机黑手党 #SFFjOYuBS@Shabby_fish
+-菲奇号 #Tdnymt2F9@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-3d4a0f9a1de8fa32.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-3d4a0f9a1de8fa32.txt
+deleted file mode 100644
+index 0ea9b4d8..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-3d4a0f9a1de8fa32.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-Blind_Spot #GaShqtnW4@Shabby_fish
+-flag{e2ee-5c7fa7369ee3d707142-149e55e232d}@Shabby_fish
+-后勤在干嘛？ #8DgFmLWv8@Shabby_fish
+-
+-Expecto_Patronum kz=YD-l-@Shabby_fish
+-Riddikulus tOXS!taR@Shabby_fish
+-11 #CxersT6Za@Shabby_fish
+-
+-军姿定型 #ULPRmn17Z@Shabby_fish
+-Letters_to_Heaven #a10wVOoF3@Shabby_fish
+-触 xV-!yKp,@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-42186ce5db28b886.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-42186ce5db28b886.txt
+deleted file mode 100644
+index 68ad3d05..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-42186ce5db28b886.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-蒙哥马利 #m0dl9SVbi@Shabby_fish
+-给我看点新花样 #SO2RA252o@Shabby_fish
+-芝麻·开门 #rxnhNMigN@Shabby_fish
+-
+-Wingardium_Leviosa [hxW=!^Y@Shabby_fish
+-启示路 #0sqh4AoAj@Shabby_fish
+-此战值得铭记 #kUhd2Spy3@Shabby_fish
+-
+-PASSION #4bH9nGSpf@Shabby_fish
+-Rightfully_Wrong #JUFmsNEIe@Shabby_fish
+-Don't_Force_It #28vDpDJlp@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-59f9ed82b34e7760.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-59f9ed82b34e7760.txt
+deleted file mode 100644
+index c97f28a0..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-59f9ed82b34e7760.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-唤丰昨维秦@Shabby_fish
+-Fish Hc='^hxt@Shabby_fish
+-天皇表示赞同 #ZkdwdhY2u@Shabby_fish
+-
+-Superpower #ZgtgUOzJ6@Shabby_fish
+-消失的她 #Ctp5yEVfo@Shabby_fish
+-机器学习 #fNB7p6DJP@Shabby_fish
+-
+-草莓 #Y`(iMfN@Shabby_fish
+-以里！！可分以里？六六诶吃里这@Shabby_fish
+-废土 #tYHujog1a@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-5e1dd340fc7876ac.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-5e1dd340fc7876ac.txt
+deleted file mode 100644
+index 917f9e38..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-5e1dd340fc7876ac.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-Selfless #9OAxgFfL4@Shabby_fish
+-Full_Stop #S6kejDYgc@Shabby_fish
+-地毯式轰炸 #B1oW37gyK@Shabby_fish
+-
+-Me_&_You #pRmukbEFW@Shabby_fish
+-逢敌 #qRW1CekLV@Shabby_fish
+-皇家研发 #LdrP7BlyL@Shabby_fish
+-
+-ONE_MINUTE #7Vwcfp1fk@Shabby_fish
+-Expelliarmus~-=====~~-~===~-=~---=~~==~~-=Avada_Kedavra@Shabby_fish
+-白色死神 #auszBaVuC@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-6c9aabe2aa79d92f.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-6c9aabe2aa79d92f.txt
+deleted file mode 100644
+index 35813a96..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-6c9aabe2aa79d92f.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-Un_Momento #efxMbEOc5@Shabby_fish
+-Mythic lQQlaswW@Shabby_fish
+-Mama #URxHg7pKZ@Shabby_fish
+-
+-赤城号 #qdiZKZ0j7@Shabby_fish
+-左慈发动化身，获得了偏宠极奢断发血诏举义@Shabby_fish
+-布莱切利庄园 #r5u66r6He@Shabby_fish
+-
+-W'wTs;C]@Shabby_fish
+-F=mω²r #EW0sNBGrl@Shabby_fish
+-Unreachable #Q3NX8UwnW@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-711d7e09df7b7da3.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-711d7e09df7b7da3.txt
+deleted file mode 100644
+index ad3b4874..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-711d7e09df7b7da3.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-雷达 #pYAjWilZL@Shabby_fish
+-酱夯妹着哄@Shabby_fish
+-防空 #CCHmn6NjU@Shabby_fish
+-
+-后勤在干嘛？ #CnKpKcHGS@Shabby_fish
+-王鱼 5XLlUQRT@Shabby_fish
+-你是个可敬的对手 #3Kw9ivis7@Shabby_fish
+-
+-第227号命令 #YF5TFgtO1@Shabby_fish
+-战争迷雾 #0wDtkg6sp@Shabby_fish
+-Goodbye #YZ67algtS@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-7dfb2a54a1cd12d7.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-7dfb2a54a1cd12d7.txt
+deleted file mode 100644
+index 1431885a..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-7dfb2a54a1cd12d7.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-波斯走廊 #yQMlUAkl2@Shabby_fish
+-XXI级U型潜艇 #vcAVjHLo1@Shabby_fish
+-军姿定型 #AHRcEDXe5@Shabby_fish
+-
+-One_Way_Road #I2da2JllO@Shabby_fish
+-Love_Finds_a_Way #rUjt5KVW5@Shabby_fish
+-武装抵抗 #1QZ0NWrSl@Shabby_fish
+-
+-Grey_Wolf #TMEdGblge@Shabby_fish
+-虹膜 f&;PiItM@Shabby_fish
+-决策，决策！ #ClqNPN7Uv@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-908ecb326213b7aa.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-908ecb326213b7aa.txt
+deleted file mode 100644
+index 73f745db..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-908ecb326213b7aa.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-使腿勇腋二@Shabby_fish
+-Light_Years_Away #XgTW5RYlF@Shabby_fish
+-给我看点新花样 #mucbrjtJe@Shabby_fish
+-
+-Expelliarmus=----===-==---~=-==~-=-~~-~~~-Avada_Kedavra@Shabby_fish
+-清楚明白 #ltbpRp9tG@Shabby_fish
+-Avada_Kedavra #wJzaN9in@Shabby_fish
+-
+-前进观察团 #8uGHaeqOk@Shabby_fish
+-Boundless_Ocean,Vast_Skies #l6RZxopUn@Shabby_fish
+-地狱之轮 #mW88BamWo@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-947fbfff2b995a89.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-947fbfff2b995a89.txt
+deleted file mode 100644
+index d87e9cc4..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-947fbfff2b995a89.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-Li_Xianglan #xNQDauqkw@Shabby_fish
+-初次对话 #4xPqq83ls@Shabby_fish
+-破茧 #I7OAUpXP5@Shabby_fish
+-
+-Best_of_You #40wz4gIBj@Shabby_fish
+-Li_Xianglan #XQ5Y5ABqX@Shabby_fish
+-Chuck_Close #jkfSP31te@Shabby_fish
+-
+-加密记忆 #ng5AUh11d@Shabby_fish
+-Morsmordre #7e2dck8j@Shabby_fish
+-City_Zoo #AgeldZAnJ@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-d6dc36b3d836cf28.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-d6dc36b3d836cf28.txt
+deleted file mode 100644
+index 8b9ed8e0..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-d6dc36b3d836cf28.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-幕性挣寄掰@Shabby_fish
+-El_Joven_y_El_Mar #VwwszyQV7@Shabby_fish
+-WHY #zDhRXIWLZ@Shabby_fish
+-
+-Mira_Hacia_El_Cielo #0ivwqd6Mu@Shabby_fish
+-憔掸诫剪巨@Shabby_fish
+-三维一体 #8dHgJuECh@Shabby_fish
+-
+-落膜楞绘绣@Shabby_fish
+-海军服役 #9d8SwteHC@Shabby_fish
+-募北怎誊角@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-db3944e8cf92d8d9.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-db3944e8cf92d8d9.txt
+deleted file mode 100644
+index 7643ce3a..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-db3944e8cf92d8d9.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-最光辉的时刻 #ThTMOMhEI@Shabby_fish
+-QwQ ([IaPM!&@Shabby_fish
+-不可能 #q3agGjHBl@Shabby_fish
+-
+-终焉之行 #rnxQdGYNj@Shabby_fish
+-肤动枣纵舷@Shabby_fish
+-Parallel #yNVhujlqY@Shabby_fish
+-
+-Lumos jH[-rOVN@Shabby_fish
+-后勤在干嘛？ #8DgFmLWv8@Shabby_fish
+-Mythic MRk!V#W!@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-e1541883a7613633.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-e1541883a7613633.txt
+deleted file mode 100644
+index a20ce123..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-e1541883a7613633.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-现实 #ZBh52FRtd@Shabby_fish
+-天空没有极限 #fgI1unV6I@Shabby_fish
+-前线与家乡 #TViCvwT4n@Shabby_fish
+-
+-来日再会 #ysKNqZlKC@Shabby_fish
+-耳语 #EmduYGo46@Shabby_fish
+-Superpower #W5VArXwe3@Shabby_fish
+-
+-I'll_Be_Missing_You #42oe7riow@Shabby_fish
+-Blind_Spot #GaShqtnW4@Shabby_fish
+-贝克街分队 #b8kqp71BL@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/3v3v3-ea03011602664398.txt b/crates/tswn_test/cases/runtime_stress/3v3v3-ea03011602664398.txt
+deleted file mode 100644
+index 12a402e1..00000000
+--- a/crates/tswn_test/cases/runtime_stress/3v3v3-ea03011602664398.txt
++++ /dev/null
+@@ -1,11 +0,0 @@
+-徐进弹幕 #5sxu0zPnt@Shabby_fish
+-11 #CxersT6Za@Shabby_fish
+-剥好的橙子 #yERkOO4Fl@Shabby_fish
+-
+-Don't_Force_It #f4fMecHe1@Shabby_fish
+-大规模攻击 #HghVo7QFD@Shabby_fish
+-11 #CE7p8CpkF@Shabby_fish
+-
+-趣虎呢揽泪@Shabby_fish
+-初次对话 #xSsmrpgIu@Shabby_fish
+-时间而已 #a26XB65cd@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/cqd-p06-t26-r0135.txt b/crates/tswn_test/cases/runtime_stress/cqd-p06-t26-r0135.txt
+deleted file mode 100644
+index 2c90fb67..00000000
+--- a/crates/tswn_test/cases/runtime_stress/cqd-p06-t26-r0135.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-Parma KKMJDZDJPYBW@nan
+-Saomai BFFVJMEIFRCK@nan
+-
+-𝛝𝟖𝛌𝟑𝛒𝛙𝛙@昀澤
+-𝚭𝚯𝚰𝟗𝚽𝟓𝚹𝚮@昀澤
+-seed:33554566@!
+diff --git a/crates/tswn_test/cases/runtime_stress/cqd-p19-t26-r0336.txt b/crates/tswn_test/cases/runtime_stress/cqd-p19-t26-r0336.txt
+deleted file mode 100644
+index b4b0f3be..00000000
+--- a/crates/tswn_test/cases/runtime_stress/cqd-p19-t26-r0336.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-druzewang1bbK7f5jCmvdAnq3cPHp@X_m_X
+-jzp1025 TFZsebhCFYj11fAFX@X_m_X
+-
+-𝛝𝟖𝛌𝟑𝛒𝛙𝛙@昀澤
+-𝚭𝚯𝚰𝟗𝚽𝟓𝚹𝚮@昀澤
+-seed:33554767@!
+diff --git a/crates/tswn_test/cases/runtime_stress/cqd-p21-t31-r5997-guard.txt b/crates/tswn_test/cases/runtime_stress/cqd-p21-t31-r5997-guard.txt
+deleted file mode 100644
+index 6249e33b..00000000
+--- a/crates/tswn_test/cases/runtime_stress/cqd-p21-t31-r5997-guard.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-My_Generation lrSP5W8@芒萁
+-Unbound v7mEDujiDSLN@芒萁
+-
+-锋利Ⅴ EGZPVQMY@TigerStar
+-雾山惟助 BAAOVADZ@TigerStar
+-seed:33560428@!
+diff --git a/crates/tswn_test/cases/runtime_stress/cqd-p21-t39-r0107.txt b/crates/tswn_test/cases/runtime_stress/cqd-p21-t39-r0107.txt
+deleted file mode 100644
+index ff9ab6fe..00000000
+--- a/crates/tswn_test/cases/runtime_stress/cqd-p21-t39-r0107.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-My_Generation lrSP5W8@芒萁
+-Unbound v7mEDujiDSLN@芒萁
+-
+-潮汐-糖藷愠颏@涵虚
+-风驰-xtxxgwcb@涵虚
+-seed:33554538@!
+diff --git a/crates/tswn_test/cases/runtime_stress/cqd-p28-t26-r0447.txt b/crates/tswn_test/cases/runtime_stress/cqd-p28-t26-r0447.txt
+deleted file mode 100644
+index 47f0e918..00000000
+--- a/crates/tswn_test/cases/runtime_stress/cqd-p28-t26-r0447.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-Fengshen ONVWTGMPNCKV@nan
+-Nepartak XJZBUIDVDDCX@nan
+-
+-𝛝𝟖𝛌𝟑𝛒𝛙𝛙@昀澤
+-𝚭𝚯𝚰𝟗𝚽𝟓𝚹𝚮@昀澤
+-seed:33554878@!
+diff --git a/crates/tswn_test/cases/runtime_stress/ffa_4-37fc802e0ef650a3.txt b/crates/tswn_test/cases/runtime_stress/ffa_4-37fc802e0ef650a3.txt
+deleted file mode 100644
+index fec4b884..00000000
+--- a/crates/tswn_test/cases/runtime_stress/ffa_4-37fc802e0ef650a3.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-Unexpectedly #KroIrZkDf@Shabby_fish
+-它活了！ #YNOQMiEBa@Shabby_fish
+-Mythic meSeM-{#@Shabby_fish
+-Double_Me #AWy38qJzG@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/ffa_4-4cdab500cdcdd9bf.txt b/crates/tswn_test/cases/runtime_stress/ffa_4-4cdab500cdcdd9bf.txt
+deleted file mode 100644
+index c7e1426d..00000000
+--- a/crates/tswn_test/cases/runtime_stress/ffa_4-4cdab500cdcdd9bf.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-Hell #bXaozXOhB@Shabby_fish
+-El_Hombre_que_Ríe #wnyYvAHgu@Shabby_fish
+-flag{bf754ca2887be3614d-e457-5e-fc0-e5848}@Shabby_fish
+-钢铁之躯 #eAtIHALeb@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/ffa_4-b9ba9b639670ceb3.txt b/crates/tswn_test/cases/runtime_stress/ffa_4-b9ba9b639670ceb3.txt
+deleted file mode 100644
+index 510cceb4..00000000
+--- a/crates/tswn_test/cases/runtime_stress/ffa_4-b9ba9b639670ceb3.txt
++++ /dev/null
+@@ -1,4 +0,0 @@
+-灵活似蛇，应变自如 #hG2L8cOXp@Shabby_fish
+-剥好的橙子 #yERkOO4Fl@Shabby_fish
+-道成肉身 #zcbZH4Fhz@Shabby_fish
+-太阳帝国 #qsYznFpp5@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/ffa_6-3ae9dd4b7b788849.txt b/crates/tswn_test/cases/runtime_stress/ffa_6-3ae9dd4b7b788849.txt
+deleted file mode 100644
+index a695d0ef..00000000
+--- a/crates/tswn_test/cases/runtime_stress/ffa_6-3ae9dd4b7b788849.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-终焉之行 #rnxQdGYNj@Shabby_fish
+-肤动枣纵舷@Shabby_fish
+-Parallel #yNVhujlqY@Shabby_fish
+-Lumos jH[-rOVN@Shabby_fish
+-后勤在干嘛？ #8DgFmLWv8@Shabby_fish
+-Mythic MRk!V#W!@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/ffa_6-9af1d802c0fc1ad4.txt b/crates/tswn_test/cases/runtime_stress/ffa_6-9af1d802c0fc1ad4.txt
+deleted file mode 100644
+index b364f396..00000000
+--- a/crates/tswn_test/cases/runtime_stress/ffa_6-9af1d802c0fc1ad4.txt
++++ /dev/null
+@@ -1,6 +0,0 @@
+-机器学习 #280eSHFZS@Shabby_fish
+-WC"XO?@Shabby_fish
+-消失的记忆 #WK7eNCAFV@Shabby_fish
+-小国成员 #50ufJCdzG@Shabby_fish
+-左慈发动化身，获得了潜袭札符先辅父魂伺攻@Shabby_fish
+-Hell #yQhYR3ZK6@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/ffa_8-16d11de1ebe1df41.txt b/crates/tswn_test/cases/runtime_stress/ffa_8-16d11de1ebe1df41.txt
+deleted file mode 100644
+index 578d2d92..00000000
+--- a/crates/tswn_test/cases/runtime_stress/ffa_8-16d11de1ebe1df41.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-Boundless_Ocean,Vast_Skies #l6RZxopUn@Shabby_fish
+-地狱之轮 #mW88BamWo@Shabby_fish
+-机器学习 #fNB7p6DJP@Shabby_fish
+-Therefore #Mp126Mk5n@Shabby_fish
+-OLD_MAN_&_SEA #fimQdnaa9@Shabby_fish
+-Fly_Away #4D6i0uPzI@Shabby_fish
+-骚乱 #yoi6X6KYZ@Shabby_fish
+-Reparo #q14edyTj@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/ffa_8-3d155c15a9d6ec4b.txt b/crates/tswn_test/cases/runtime_stress/ffa_8-3d155c15a9d6ec4b.txt
+deleted file mode 100644
+index ad5f8604..00000000
+--- a/crates/tswn_test/cases/runtime_stress/ffa_8-3d155c15a9d6ec4b.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-耳语 #oMhe9h1NX@Shabby_fish
+-抵忙止状督@Shabby_fish
+-破茧 #cLNTW1Ayl@Shabby_fish
+-后勤在干嘛？ #EkOd89CSC@Shabby_fish
+-Parallel #6EJuYolCe@Shabby_fish
+-转变攻击 #6mnxL243K@Shabby_fish
+-错位真相 #qIjY0jT14@Shabby_fish
+-邻家女孩 #QygsNvr16@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/ffa_8-76f0580bd07d1405.txt b/crates/tswn_test/cases/runtime_stress/ffa_8-76f0580bd07d1405.txt
+deleted file mode 100644
+index 2e992d6d..00000000
+--- a/crates/tswn_test/cases/runtime_stress/ffa_8-76f0580bd07d1405.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-瘸栈鸠充瘪@Shabby_fish
+-Un_Momento #S1mou1kWC@Shabby_fish
+-摧枯拉朽 #nNWmyFgQM@Shabby_fish
+-汰袍彼贮荚@Shabby_fish
+-拖拉机厂 #lTXCXqSiV@Shabby_fish
+-Rictusempra imFvOjuu@Shabby_fish
+-Superpower #4REHxQOj5@Shabby_fish
+-Best_of_You #CpBFulycE@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/ffa_8-b9a9c7882f4f1f99.txt b/crates/tswn_test/cases/runtime_stress/ffa_8-b9a9c7882f4f1f99.txt
+deleted file mode 100644
+index 4b352722..00000000
+--- a/crates/tswn_test/cases/runtime_stress/ffa_8-b9a9c7882f4f1f99.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-赎回时间 #iCdzkALTR@Shabby_fish
+-消失的记忆 #2TvAOb5bB@Shabby_fish
+-秋风扫落叶 #qz1qR7osY@Shabby_fish
+-flag{fbd141b-854-cc6fff8c-d-b5fe2f1d44e69}@Shabby_fish
+-Don't_Force_It #DlwGCk0gl@Shabby_fish
+-歌莉雅 #nFwMwujgX@Shabby_fish
+-HeartBeat #FkhF6Vs1d@Shabby_fish
+-提尔皮茨号 #0O4ITxy7j@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/ffa_8-cce83cebc69761de.txt b/crates/tswn_test/cases/runtime_stress/ffa_8-cce83cebc69761de.txt
+deleted file mode 100644
+index 7bb262d7..00000000
+--- a/crates/tswn_test/cases/runtime_stress/ffa_8-cce83cebc69761de.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-蝴蝶效应 #u152ihxj8@Shabby_fish
+-前线与家乡 #GjH9TUNrM@Shabby_fish
+-时间而已 #gmtVdUvia@Shabby_fish
+-flag{03596ccc1703990ed3fa2ed76988134855ff}@Shabby_fish
+-少年与海 #opkgbbXC6@Shabby_fish
+-ONE_MINUTE #hpCyJ0caG@Shabby_fish
+-太阳帝国 #qsYznFpp5@Shabby_fish
+-Best_of_You #P9AT9kYNa@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/ffa_8-fee2c41a2508ad16.txt b/crates/tswn_test/cases/runtime_stress/ffa_8-fee2c41a2508ad16.txt
+deleted file mode 100644
+index 3282264b..00000000
+--- a/crates/tswn_test/cases/runtime_stress/ffa_8-fee2c41a2508ad16.txt
++++ /dev/null
+@@ -1,8 +0,0 @@
+-FIND_YOU #xgGuWChSb@Shabby_fish
+-青霉素 #3uaTxr6ha@Shabby_fish
+-Wingardium_Leviosa _E#Xzv;l@Shabby_fish
+-flag{a3f-1f974c0ee11acf495550467ff6220afe}@Shabby_fish
+-方面军 #gzLpqL0m6@Shabby_fish
+-My_Fairytale #kNtgszEDj@Shabby_fish
+-Ultra o=g,{sr[@Shabby_fish
+-军姿定型 #XxLR9L5hv@Shabby_fish
+diff --git a/crates/tswn_test/cases/runtime_stress/score-mario-r11350.txt b/crates/tswn_test/cases/runtime_stress/score-mario-r11350.txt
+deleted file mode 100644
+index f627c4b4..00000000
+--- a/crates/tswn_test/cases/runtime_stress/score-mario-r11350.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-mario
+-33588481@\x02
+-
+-33588482@\x02
+-33588483@\x02
+diff --git a/crates/tswn_test/cases/runtime_stress/score_round_7.txt b/crates/tswn_test/cases/runtime_stress/score_round_7.txt
+deleted file mode 100644
+index 18e8d221..00000000
+--- a/crates/tswn_test/cases/runtime_stress/score_round_7.txt
++++ /dev/null
+@@ -1,5 +0,0 @@
+-mario
+-33554452@!
+-
+-33554453@!
+-33554454@!
 diff --git a/crates/tswn_wasm/src/battle.rs b/crates/tswn_wasm/src/battle.rs
-index dac231be..c8b15511 100644
+index dac231be..0c5ed081 100644
 --- a/crates/tswn_wasm/src/battle.rs
 +++ b/crates/tswn_wasm/src/battle.rs
-@@ -52,6 +52,28 @@ impl BattleSession {
+@@ -52,6 +52,42 @@ impl BattleSession {
      /// 同步推进至下一可见帧；正常结束或截断后返回 JS null，可重复调用。
      /// Runtime 失败会保留 sticky error 并重复抛错，应停止推进并释放会话。
      pub fn next_frame(&mut self) -> WasmResult<JsValue> { dto_to_js(&self.inner.next_frame().map_err(cli_api_error)?) }
@@ -3743,6 +7934,20 @@ index dac231be..c8b15511 100644
 +    }
 +    /// 当前等待指令的实体；暂停不是终局。
 +    pub fn paused_actor(&self) -> Option<u32> { self.inner.paused_actor() }
++    /// 服药直接进入真实运行时，属性预饮在首次行动开始应用。
++    pub fn use_potion(&mut self, actor: u32, code: u32) -> WasmResult<()> {
++        self.inner.use_potion(actor, code).map_err(cli_api_error)
++    }
++    /// 地图回复的资源同步使用有符号 MP，保留负能量语义。
++    pub fn set_field_resources(&mut self, packet: Vec<i32>) -> WasmResult<()> {
++        self.inner.set_field_resources(&packet).map_err(cli_api_error)
++    }
++    /// 逃跑清理指定方向的状态并返回可存档的遭遇快照。
++    pub fn escape(&mut self) -> WasmResult<String> { self.inner.escape().map_err(cli_api_error) }
++    pub fn encounter_snapshot(&self) -> WasmResult<String> { self.inner.encounter_snapshot().map_err(cli_api_error) }
++    pub fn restore_encounter(&mut self, json: String) -> WasmResult<()> {
++        self.inner.restore_encounter(&json).map_err(cli_api_error)
++    }
 +    /// 为暂停实体提交与批量接口相同的指令，再调用 next_frame 继续。
 +    pub fn submit_action(&mut self, actor: u32, skill: u32, packed_mp: u32) -> WasmResult<()> {
 +        self.inner.submit_action(actor, skill, packed_mp).map_err(cli_api_error)
@@ -3919,3 +8124,62 @@ index 677714ae..82d422fe 100644
          options
      }
  }
+diff --git a/tools/test-forced.mjs b/tools/test-forced.mjs
+new file mode 100644
+index 00000000..250a2e4d
+--- /dev/null
++++ b/tools/test-forced.mjs
+@@ -0,0 +1,53 @@
++// 验证 battle_replay_forced：玩家指定技能后，日志里应当出现对应技能。
++import { readFileSync } from 'node:fs';
++import * as path from 'node:path';
++import { pathToFileURL } from 'node:url';
++
++const dir = process.argv[2];
++const mod = await import(pathToFileURL(path.join(dir, 'tswn_wasm.js')).href);
++mod.initSync({ module: readFileSync(path.join(dir, 'tswn_wasm_bg.wasm')) });
++
++const NAME = '半城烟沙@青';
++const NAMES = {
++  0: '火球术', 1: '冰冻术', 2: '雷击术', 3: '地裂术', 4: '吸血', 5: '投毒', 6: '连击',
++  7: '会心一击', 8: '瘟疫', 9: '生命之轮', 10: '狂暴术', 11: '魅惑', 12: '加速术',
++  13: '减速术', 14: '诅咒', 15: '治愈魔法', 16: '苏生术', 17: '净化', 18: '铁壁',
++  19: '蓄力', 20: '聚气', 21: '潜行', 22: '血祭', 23: '分身', 24: '幻术', 25: '防御',
++  26: '守护', 27: '伤害反弹', 28: '护身符', 29: '蓄盾', 30: '反击', 31: '吞噬',
++  32: '召唤亡灵', 33: '垂死抗争', 34: '隐匿',
++};
++
++const diy = mod.to_diy(NAME);
++const ol = JSON.parse(diy.slice(diy.indexOf('ol:') + 3));
++const skills = Object.entries(ol.skills || {}).filter(([, v]) => {
++  const n = typeof v === 'number' ? v : String(v).includes('*') ? v.split('*').map(Number).reduce((a, b) => a * b, 1) : v.split('+').map(Number).reduce((a, b) => a + b, 0);
++  return n > 0;
++});
++console.log('玩家技能', skills.map(([k, v]) => `${k}:${v}`).join(', '));
++
++const input = `${NAME}\n\n木桩@test\nseed:forced-demo@!`;
++const lines = (rep) => {
++  const out = [];
++  for (const f of rep.frames) for (const row of f.rows) for (const clip of row.clips) out.push(clip.parts.map((p) => p.text).join('').trim());
++  return out;
++};
++
++const base = lines(mod.battle_replay(input, { max_rounds: 20000 }));
++console.log('\n--- 基线（自动）前 12 行 ---');
++console.log(base.slice(0, 12).join('\n'));
++
++const target = skills.find(([k]) => k === 'sklfire') || skills[0];
++const id = Number(target[0].replace('skl', '').length ? Object.entries(NAMES).find(([, n]) => n === (NAMES[0] && ''))?.[0] ?? 0 : 0);
++// 直接从名字表反查技能 id
++const idOf = (key) => {
++  const map = { sklfire: 0, sklice: 1, sklthunder: 2, sklquake: 3, sklabsorb: 4, sklpoison: 5, sklrapid: 6, sklcritical: 7, sklhalf: 8, sklexchange: 9, sklberserk: 10, sklcharm: 11, sklhaste: 12, sklslow: 13, sklcurse: 14, sklheal: 15, sklrevive: 16, skldisperse: 17, skliron: 18, sklcharge: 19, sklaccumulate: 20, sklassassinate: 21, sklsummon: 22, sklclone: 23, sklshadow: 24, skldefend: 25, sklprotect: 26, sklreflect: 27, sklreraise: 28, sklshield: 29, sklcounter: 30, sklmerge: 31, sklzombie: 32, sklupgrade: 33, sklhide: 34 };
++  return map[key];
++};
++const skillId = idOf(target[0]);
++console.log(`\n强制技能：${target[0]} (id=${skillId}, ${NAMES[skillId]})，连续 8 次`);
++const forced = mod.battle_replay_forced(input, Array(8).fill(skillId), 0, { max_rounds: 20000 });
++const fl = lines(forced);
++console.log('--- 强制后前 16 行 ---');
++console.log(fl.slice(0, 16).join('\n'));
++const used = fl.filter((l) => l.includes(`使用【${NAMES[skillId]}】`)).length;
++console.log(`\n出现「使用【${NAMES[skillId]}】」${used} 次；函数存在：${typeof mod.battle_replay_forced === 'function'}`);

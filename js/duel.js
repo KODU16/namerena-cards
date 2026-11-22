@@ -6,7 +6,7 @@ import {playerSkillLevel} from './rare-skills.js';
 import { el, sleep, handCardEl } from './ui.js';
 import { emojiImg } from './emoji.js';
 import { skillMeta, effectiveSkillLevel } from './skills.js';
-import { potionPreview } from './game.js';
+import { potionPreview, escapeChance } from './game.js';
 import { playSkillFX } from './fx.js';
 import { battleDisplayStats } from './engine.js';
 
@@ -89,7 +89,7 @@ export class Duel {
   }
 
   // simulate 保留原调用名；仅在新指令提交后，从当前会话继续取新增战报。
-  simulate() {
+  simulate(initialOnly = false) {
     if (this.replay && !this.needsAdvance) return this.replay;
     if (this.disposed) throw new Error('战斗会话已释放');
     try {
@@ -117,8 +117,11 @@ export class Duel {
           start_hp_pct: this.startHpPct || undefined,
         });
         this.session.set_abilities(abilityPacket(this.abilities));
+        // 外部资源只允许在首帧前注入；重新开战不重复开场回血或药效。
+        this.configureSession?.(this.session);
         this.initialStates = this.session.initial_states();
       }
+      if (initialOnly) return this.session;
       for (let frame; (frame = this.session.next_frame()) != null;) this.frames.push(frame);
       const result = this.session.result();
       this.replay = {
@@ -415,6 +418,7 @@ export class DuelView {
     else node.classList.remove('is-dead');
   }
   renderFrame(frame) {
+    this.refreshEscapeButton(frame.states||[]);
     if (frame.round_index !== this.roundShown) {
       this.roundShown = frame.round_index;
       this.roundEl.textContent = `第 ${frame.round_index + 1} 回合`;
@@ -600,6 +604,7 @@ export class DuelView {
 
   async start() {
     this.current = this.duel.simulate();
+    this.refreshEscapeButton(this.current.initial_states);
     for (const s of this.current.initial_states) {
       this.ensureUnit(s);
       this.patchUnit(s);
@@ -608,11 +613,12 @@ export class DuelView {
   }
 
   async step() {
+    if (this.done) return;
     const decision = this.duel.nextDecision();
     this.current = decision.replay;
     await this.play(this.shownFrames, decision.index);
     if (decision.unit) {
-      const before = this.unitBefore(decision.index, decision.unit.id) || decision.unit;
+      const before = decision.unit;
       this.askCard(decision, before);
       return;
     }
@@ -658,6 +664,7 @@ export class DuelView {
     const next = potionPreview(meta, state);
     this.patchUnit(next);
     this.waitingState = next;
+    this.refreshEscapeButton((this.current.final_states||[]).map(s=>s.id===next.id?next:s));
     if (meta.id === 'mp' && this.handEl) {
       // 回复 MP 后刷新原手牌的锁定状态，不重抽牌或重新掷费用。
       for (const card of this.handEl.querySelectorAll('.hcard')) {
@@ -674,6 +681,8 @@ export class DuelView {
   }
 
   askCard(decision, state) {
+    this.potionUsed=false;
+    this.refreshEscapeButton(decision.replay.final_states);
     if (this.berserkTimer) { clearTimeout(this.berserkTimer); this.berserkTimer = null; }
     this.waitingState = state;
     this.activeMpUnit = state.id;
@@ -792,6 +801,14 @@ export class DuelView {
       this.handEl.replaceChildren();
       this.step();
     }
+  }
+  // 与逃跑判定共享函数；显示的是当前双方存活本体的外显智敏比例。
+  refreshEscapeButton(states=[]){
+    const button=this.root.querySelector('#battle-escape');
+    if(!button)return;
+    const chance=escapeChance(states.filter(s=>s.input_team_index===0),states.filter(s=>s.input_team_index!==0));
+    button.textContent='逃跑 '+(Math.round(chance*10000)/100)+'%';
+    button.title='存活非召唤物角色的外显智敏总和：我方 ÷ 敌方，上限 100%';
   }
   renderEnergy(energy) {
     if (!this.energyEl) return;

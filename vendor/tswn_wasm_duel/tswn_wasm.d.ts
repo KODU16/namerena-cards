@@ -479,6 +479,11 @@ export class BattleSession {
      * 返回当前边界的规范玩家快照数组。
      */
     current_states(): BattlePlayerState[];
+    encounter_snapshot(): string;
+    /**
+     * 逃跑清理指定方向的状态并返回可存档的遭遇快照。
+     */
+    escape(): string;
     frames_emitted(): number;
     /**
      * 返回创建时的规范玩家快照数组。
@@ -505,6 +510,7 @@ export class BattleSession {
      * 当前等待指令的实体；暂停不是终局。
      */
     paused_actor(): number | undefined;
+    restore_encounter(json: string): void;
     /**
      * 读取正常 terminal 结果，运行中或失败时返回 JS null。
      */
@@ -519,6 +525,10 @@ export class BattleSession {
      */
     set_auto_actors(roots: Uint32Array): void;
     /**
+     * 地图回复的资源同步使用有符号 MP，保留负能量语义。
+     */
+    set_field_resources(packet: Int32Array): void;
+    /**
      * 大逃杀在开局设置各角色当前 HP，最大 HP 保持原始构建值。
      */
     set_initial_hp(packet: Uint32Array): void;
@@ -532,6 +542,10 @@ export class BattleSession {
      * 单人混沌程序由运行时直接解释；不由浏览器修改战斗数值。
      */
     submit_chaos_action(actor: number, program: string, packed: number): void;
+    /**
+     * 服药直接进入真实运行时，属性预饮在首次行动开始应用。
+     */
+    use_potion(actor: number, code: number): void;
 }
 
 /**
@@ -711,6 +725,8 @@ export interface InitOutput {
     readonly battle_replay: (a: number, b: number, c: number, d: number) => void;
     readonly battle_replay_forced: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
     readonly battlesession_current_states: (a: number, b: number) => void;
+    readonly battlesession_encounter_snapshot: (a: number, b: number) => void;
+    readonly battlesession_escape: (a: number, b: number) => void;
     readonly battlesession_frames_emitted: (a: number) => number;
     readonly battlesession_initial_states: (a: number, b: number) => void;
     readonly battlesession_is_done: (a: number) => number;
@@ -720,15 +736,18 @@ export interface InitOutput {
     readonly battlesession_new: (a: number, b: number, c: number, d: number) => void;
     readonly battlesession_next_frame: (a: number, b: number) => void;
     readonly battlesession_paused_actor: (a: number) => number;
+    readonly battlesession_restore_encounter: (a: number, b: number, c: number, d: number) => void;
     readonly battlesession_result: (a: number, b: number) => void;
     readonly battlesession_rounds_advanced: (a: number) => number;
     readonly battlesession_set_abilities: (a: number, b: number, c: number, d: number) => void;
     readonly battlesession_set_auto_actors: (a: number, b: number, c: number, d: number) => void;
+    readonly battlesession_set_field_resources: (a: number, b: number, c: number, d: number) => void;
     readonly battlesession_set_initial_hp: (a: number, b: number, c: number, d: number) => void;
     readonly battlesession_status: (a: number, b: number) => void;
     readonly battlesession_stop_reason: (a: number, b: number) => void;
     readonly battlesession_submit_action: (a: number, b: number, c: number, d: number, e: number) => void;
     readonly battlesession_submit_chaos_action: (a: number, b: number, c: number, d: number, e: number, f: number) => void;
+    readonly battlesession_use_potion: (a: number, b: number, c: number, d: number) => void;
     readonly core_version: (a: number) => void;
     readonly default_custom_runtime_normalized_run: (a: number, b: number, c: number, d: number) => void;
     readonly default_eval_rq: () => number;

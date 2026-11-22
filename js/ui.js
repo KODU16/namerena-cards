@@ -8,7 +8,7 @@ import {hasHonor} from './run-honor.js';
 // 界面渲染与战斗动画。没有框架，全部用原生 DOM。
 import { CAT, SKILLS, skillMeta, effectiveSkillLevel } from './skills.js';
 import { burstAt } from './fx.js';
-import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote, scaleTactic, constructQuote, attributeForgeSummary } from './game.js';
+import { potionById, currentOpponent, ladderStandings, potionDescription, rewardSummary, weaponQuote, scaleTactic, constructQuote, attributeForgeSummary, fieldDebuffs } from './game.js';
 import { makeCard, cardDisplayStats, displayEightSum, iconFor } from './engine.js';
 import { emojiImg, mapIconSvg } from './emoji.js';
 // 生成和绘制共用尺寸，保持节点半径和几何约束一致。
@@ -311,7 +311,7 @@ export function renderPrep(root, state, h) {
           el('h3', { class: 'col-title' }, `你的出战队伍 ${team.length}/${run.teamSize}`),
           el('div', { class: 'roster-grid' }, team.length
             ? team.map((c) => el('div', { class: 'team-slot' },
-              charRowEl(c, { bonus: h.cardBonus ? h.cardBonus(c) : null }),
+              charRowEl(c, { state, bonus: h.cardBonus ? h.cardBonus(c) : null }),
               (() => {
                 // 同一把已装备武器仍列出，但仅以灰色禁用选项提示装备者。
                 const occupied = state.collection.filter(owner=>owner.weapon).map(owner=>({id:owner.weaponItem?.id||'equipped-'+owner.id,name:owner.weapon,owner:owner.name}));
@@ -348,7 +348,7 @@ export function renderPrep(root, state, h) {
             const downed = (run.downed || []).includes(c.id);
             const foreign = !!run.clan && c.clan !== run.clan;
             const bonus = h.bonusOf ? h.bonusOf(c) : null;
-            const node = charRowEl(c, { bonus, dim: downed || foreign, selected: (run.teamIds || []).includes(c.id), onClick: () => (h.forgeSelected ? h.onPickChampion(c.id) : h.onToggleTeam(c.id)) });
+            const node = charRowEl(c, { state,bonus, dim: downed || foreign, selected: (run.teamIds || []).includes(c.id), onClick: () => (h.forgeSelected ? h.onPickChampion(c.id) : h.onToggleTeam(c.id)) });
             if (downed) node.title = (node.title || '') + '\n已倒下：本局不能再出战';
             if (foreign) node.title = (node.title || '') + '\n战队不同（@' + c.clan + '）：本局只能用 @' + run.clan + ' 的角色';
             if (h.forgeSelected && h.onForgeHover) {
@@ -391,6 +391,8 @@ export function battleShellEl(h) {
         [0.5, 1, 1.5, 2, 3, 4].map((x) => el('button', { class: `speed${x === 1 ? ' is-active' : ''}`, type: 'button', 'data-speed': x, disabled: h.readOnly || undefined, onclick: () => h.onSpeed(x) }, `${x}×`)),
         el('button', { class: 'speed', type: 'button', 'data-speed': 'manual', disabled: h.readOnly || undefined, onclick: () => h.onSpeed('manual') }, '手动'),
         el('button', { class: 'ghost', type: 'button', disabled: h.readOnly || undefined, onclick: h.onSkip }, '跳过'),
+        // 单人尖塔支持逃跑；联机只读外壳不显示此入口。
+        h.onEscape ? el('button', { id:'battle-escape',class: 'escape-button', type: 'button', onclick: h.onEscape }, '逃跑') : null,
       ),
     ),
     el('div', { class: 'arena' },
@@ -821,7 +823,10 @@ export function renderReward(root, state, offers, h) {
         el('p', { class: 'muted' }, '技能卡进锻造，战术卡直接生效，角色卡进卡组。'),
       ),
       el('div', { class: 'reward__grid' }, offers.map((o) =>
-        o.kind === 'tactic'
+        el('div',{class:'reward-stack'},o.kind!=='card'?el('b',{class:'reward-count'},'×'+(o.quantity||o.potion?.n||1)):null,
+        o.kind === 'relic' || o.kind === 'ability'
+          ? el('div',{class:'offer'},rewardReceipt(o),el('button',{class:'primary',type:'button',onclick:()=>h.onPickOffer(o)},'选择'))
+        : o.kind === 'tactic'
           ? el('div', { class: 'offer offer--tactic' },
             el('div', { class: 'offer__tag' }, '战术卡'),
             el('div', { class: 'tactic__glyph big-glyph' }, emojiImg(o.tactic.id, 'emoji emoji--xxl')),
@@ -844,7 +849,7 @@ export function renderReward(root, state, offers, h) {
             el('div', { class: 'offer__tag' }, '药水 · 立即见效'),
             el('div', { class: 'tactic__glyph big-glyph' }, potionIcon(potionById(o.potion.id) || { color: '#8a93a0' }, 40)),
             el('b', {}, (potionById(o.potion.id) || {}).name || '药水'),
-            el('p', { class: 'muted small' }, '放进物品栏，战斗中使用时立刻结算'),
+            el('p', { class: 'muted small' }, '地图、备战和战斗中均可使用；属性药水预饮后于开战生效'),
             el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
           )
           : o.kind === 'score'
@@ -867,7 +872,7 @@ export function renderReward(root, state, offers, h) {
             el('div', { class: 'offer__tag' }, `角色卡 · 费用 ${o.card.cost ?? '—'}`),
             charRowEl(o.card, { bonus: h.cardBonus ? h.cardBonus(o.card) : null }),
             el('button', { class: 'primary', type: 'button', onclick: () => h.onPickOffer(o) }, '选择'),
-          ),
+          )),
       )),
     ),
   );
@@ -1273,6 +1278,9 @@ export function renderMap(root, state, h) {
           el('span', { class: 'map-legend map-legend--chest' }, '诅咒商人'),
           el('span', { class: 'map-legend map-legend--chest' }, '构造商人'),
           el('span', { class: 'map-legend map-legend--end' }, '终点'))),
+      // 地图状态条只显示当前出战角色；替补的状态仍在物品栏角色卡上保留。
+      el('div',{class:'map__party'},(run.teamIds||[]).map(id=>state.collection.find(c=>c.id===id)).filter(Boolean).map(card=>
+        el('div',{class:'map__party-character','data-char-id':card.id},el('b',{},card.name),fieldDebuffTags(state,card)))),
       el('div', { class: 'map__row' },
         el('div', { class: 'map__body' }),
         (() => {
@@ -1402,8 +1410,8 @@ export function gradeIcon(card) {
 }
 
 // 可交互的完整角色行（点击/置灰/选中）
-export function charRowEl(card, { onClick = null, dim = false, selected = false, bonus = null } = {}) {
-  const row = fullCharRow(card, bonus);
+export function charRowEl(card, { onClick = null, dim = false, selected = false, bonus = null, state = null } = {}) {
+  const row = fullCharRow(card, bonus, state);
   const node = onClick
     ? el('button', { class: 'fullrow-btn', type: 'button', onclick: onClick }, row)
     : el('div', { class: 'fullrow-btn' }, row);
@@ -1414,14 +1422,16 @@ export function charRowEl(card, { onClick = null, dim = false, selected = false,
 
 
 // 角色库里的完整角色行：仿战斗中单位行，全文字、不用图标
-export function fullCharRow(card) {
+export function fullCharRow(card, bonusMap = {}, state = null) {
   const s = card.stats || {};
   const disp = dispStats(s);
   const hp = Math.max(1, Math.round(s.hp || 1));
-  const mp = Math.round(card.maxMp || 100);
+  const resources=state?.run?.fieldStates?.[card.id]?.[1];
+  const currentHp=resources?.hp??hp;
+  const mp = Math.round(resources?.magic_point??card.maxMp??100);
   const shield = Math.round(card.shield || 0);
   // 战术/武器带来的加成用更小一号的蓝字标出（由调用方传入 bonusMap）
-  const bonusMap = arguments[1] || {};
+  bonusMap ||= {};
   const totalMult = (key) => Math.round(((card.bossMult || card.eliteMult || 1) * (card.difficultyMult?.[key] || 1)) * 100) / 100;
   const line = (label, key, v) => {
     const delta = key ? Math.round(bonusMap[key] || 0) : 0;
@@ -1439,16 +1449,28 @@ export function fullCharRow(card) {
       el('b', {}, (card.name || '') + '@' + (card.clan || '')),
       card.weapon ? el('span', { class: 'fullrow__weapon' }, '+' + card.weapon) : null,
       gradeIcon(card)),
-    bar('fullrow__bar--hp', '血量 ' + hp, 100),
+    bar('fullrow__bar--hp', '血量 ' + hp, currentHp/hp*100),
+    resources ? el('span',{class:'field-resources'},'HP '+currentHp+'/'+hp+' · MP '+mp+'/100') : null,
     bar('fullrow__bar--mp', '魔力 ' + mp, mp),
     shield > 0 ? bar('fullrow__bar--shield', '护盾 ' + shield, (shield / hp) * 100) : null,
     el('div', { class: 'fullrow__stats' },
       line('攻', 'atk', disp.atk), line('防', 'def', disp.def), line('速', 'spd', disp.spd), line('敏', 'agi', disp.agi),
       line('魔', 'mag', disp.mag), line('抗', 'res', disp.res), line('智', 'wis', disp.wis)),
+    fieldDebuffTags(state,card),
     el('div', { class: 'fullrow__skills' }, (card.skillList || []).length
       ? (card.skillList || []).map((sk) => el('span', { class: 'fullrow__skill', title: cardSkillMeta(sk).desc,'data-tip':cardSkillMeta(sk).name,'data-tip-desc':cardSkillMeta(sk).desc }, cardSkillMeta(sk).name + ' ', el('b', { 'data-skill': sk.id }, shownSkillLevel(sk))))
       : el('span', { class: 'muted small' }, '无技能')),
     el('div', { class: 'fullrow__sum', title: '外显七围 + 体力 / 3' }, '八围 ', el('b', {}, eightSumOf(card))));
+}
+
+// 场外不推进状态计数，标记直接读取该角色保存的剩余载荷。
+export function fieldDebuffTags(state,card){
+  const list=fieldDebuffs(state,card.id);
+  // 预饮增益跟随具体角色显示；场外等待不消耗其战斗持续时间。
+  const drinks=state?.run?.preBattlePotions?.[card.id]||[];
+  return list.length||drinks.length?el('div',{class:'field-debuffs','aria-label':card.name+'携带的状态'},
+    list.map(item=>el('span',{class:'field-debuff',title:'保留到此角色下次进战后继续计时'},item.label)),
+    drinks.map(id=>el('span',{class:'field-buff',title:'下次开战首回合生效，持续时间不变'},(potionById(id)?.name||id)+' · 待生效'))):null;
 }
 
 // 换装浮字使用最终外显属性与有效熟练度，分别提示增加和减少。
@@ -1633,7 +1655,7 @@ export function inventorySheet(state, h = {}) {
         el('div', { class: 'inv__chars' }, (state.collection || []).map((card) => {
           const inTeam = (run.teamIds || []).includes(card.id);
           return el('div', { class: 'inv__char' },
-            fullCharRow(card, h.cardBonus ? h.cardBonus(card) : null),
+            fullCharRow(card, h.cardBonus ? h.cardBonus(card) : null,state),
             el('div', { class: 'inv__ops' },
               card.weapon ? el('span', { class: 'inv__weapon' }, '⚔ ' + card.weapon) : null,
               card.weaponInfo ? el('div', { class: 'inv__wd' },
@@ -1672,7 +1694,7 @@ export function inventorySheet(state, h = {}) {
         ? el('div', { class: 'inv__grid' }, ids.map((tid) => {
           const t = pool.find((x) => x.id === tid);
           const power = (state.tacticPower || {})[tid] || 1;
-          return el('div', { class: 'inv__item' }, el('b', {}, t?.name || tid), el('small', {}, t ? scaleTactic(t, power).desc : ''), del('tactic', tid, t?.name || tid));
+          return el('div', { class: 'inv__item' }, el('b', {}, (t?.name || tid)+' ×'+(run.tacticCopies?.[tid]||1)), el('small', {}, t ? scaleTactic(t, power).desc : ''), del('tactic', tid, t?.name || tid));
         }))
         : el('p', { class: 'muted' }, '还没有战术卡'));
     } else if(id==='chaos'){
@@ -1683,12 +1705,12 @@ export function inventorySheet(state, h = {}) {
         ...state.collection.map(character=>el('section',{class:'chaos-library-character',ondragover:event=>{if(!locked)event.preventDefault();},ondrop:event=>drop(event,character.id)},el('h3',{},character.name+'@'+character.clan),el('div',{class:'chaos-library-grid'},character.skillList.map(skill=>el('article',{class:'chaos-library-card',draggable:!locked,ondragstart:event=>event.dataTransfer.setData('application/x-namerena-chaos',JSON.stringify({character:character.id,skill:skill.id}))},emojiImg(skill.chaos?.icon||skill.id,'emoji emoji--lg'),el('b',{},skill.chaos?.name||(skill.chaos?.name||skillMeta(skill.id).name)),el('small',{},'熟练度 '+effectiveSkillLevel(skill.lv)),el('p',{},skill.chaos?chaosDescription(skill.chaos,skill.lv):(skill.chaos?chaosDescription(skill.chaos,skill.lv):skillMeta(skill.id).desc))))))));
     } else if (id === 'abilities') {
       body.replaceChildren(el('p',{class:'muted small'},'获得即生效，拥有期间永久作用于出战角色；完全相同效果仅保留高值，销毁即失效。'),
-        (state.abilities || []).length ? el('div',{class:'inv__grid'},state.abilities.map(a=>el('div',{class:'inv__item ability-card'},qualityBadge('blue'),abilityIcon(a),el('b',{},a.name),el('p',{},abilityDescription(a)),del('ability',abilityKey(a),a.name)))) : el('p',{class:'muted'},'还没有能力卡，可通过补给和商店获得。'));
+        (state.abilities || []).length ? el('div',{class:'inv__grid'},state.abilities.map(a=>el('div',{class:'inv__item ability-card'},qualityBadge('blue'),abilityIcon(a),el('b',{},a.name+' ×'+(a.n||1)),el('p',{},abilityDescription(a)),del('ability',abilityKey(a),a.name)))) : el('p',{class:'muted'},'还没有能力卡，可通过补给和商店获得。'));
     } else if (id === 'relics') {
       body.replaceChildren((state.relics || []).length
-        ? el('div', { class: 'inv__grid' }, state.relics.map((relicId) => {
+        ? el('div', { class: 'inv__grid' }, [...new Set(state.relics)].map((relicId) => {
           const relic = relicById(relicId);
-          return relic ? el('div', { class: 'inv__item relic-card shop-item--' + relic.rarity, tabindex: '0' }, relicIcon(relicId), qualityBadge(relic.rarity), el('b', {}, relic.name), el('div', {class:'relic-card__text' + (relic.description.length + relic.flavor.length > 90 ? ' is-long' : '')}, el('p', {}, relic.description), el('em', {}, relic.flavor)), relicTooltip(relicId), el('div', {class:'relic-card__actions'}, del('relic', relicId, relic.name))) : null;
+          return relic ? el('div', { class: 'inv__item relic-card shop-item--' + relic.rarity, tabindex: '0' }, relicIcon(relicId), qualityBadge(relic.rarity), el('b', {}, relic.name+' ×'+state.relics.filter(id=>id===relicId).length), el('div', {class:'relic-card__text' + (relic.description.length + relic.flavor.length > 90 ? ' is-long' : '')}, el('p', {}, relic.description), el('em', {}, relic.flavor)), relicTooltip(relicId), el('div', {class:'relic-card__actions'}, del('relic', relicId, relic.name))) : null;
         })) : el('p', { class: 'muted' }, '还没有遗物，可从宝箱、事件或商店获得。'));
     } else if (id === 'potions') {
       const list = (run.potions || []).filter((p) => p.n > 0);

@@ -626,6 +626,19 @@ button.big { font-size: 16px; padding: 9px 22px; }
 .reward__head { text-align: center; margin-bottom: 24px; }
 .reward__head h1 { font-size: 40px; margin: 6px 0 8px; letter-spacing: .1em; }
 .reward__grid { display: flex; gap: 22px; justify-content: center; flex-wrap: wrap; }
+/* 掉落数量常驻卡面右上角；逃跑入口保持独立红色。 */
+.reward-stack { position: relative; display: flex; }
+.reward-count { position: absolute; z-index: 2; right: 10px; top: -12px; padding: 4px 10px; border-radius: 12px; color: white; background: #246c99; font-size: 18px; }
+.escape-button { background: #bb302f; color: white; border: 1px solid #9c2524; border-radius: 8px; padding: 7px 13px; font-weight: 700; }
+.escape-button:hover { background: #9d2525; }
+/* 场外负面状态与角色绑定，长名称和多种状态可以自然换行。 */
+.field-debuffs { display:flex; flex-wrap:wrap; gap:5px; margin:6px 0; }
+/* 预饮增益与携带的负面状态分色显示。 */
+.field-buff { color:#226b40; background:#e7f7eb; border:1px solid #91bfa0; border-radius:6px; padding:3px 7px; font-size:13px; font-weight:600; }
+.field-debuff { color:#8e242b; background:#ffe6e8; border:1px solid #dd9ca2; border-radius:6px; padding:3px 7px; font-size:13px; font-weight:600; }
+.field-resources { font-size:12px; color:var(--ink-2); }
+.map__party { display:flex; flex-wrap:wrap; gap:10px; margin:8px 0 12px; }
+.map__party-character { min-width:100px; padding:7px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; }
 .offer {
   width: 268px;
   border: 1px solid var(--line);
@@ -1018,6 +1031,7 @@ a.ghost { text-decoration: none; display: inline-flex; align-items: center; gap:
   box-shadow: 0 10px 24px -16px rgba(18, 58, 84, .5);
 }
 #potion-dock:empty { display: none; }
+body #potion-dock.potion-dock--field { position:static; width:max-content; max-width:100%; flex-wrap:wrap; margin:0 0 14px; }
 .potion { display: inline-flex; align-items: center; gap: 4px; background: none; border: 0; padding: 2px 4px; cursor: pointer; border-radius: 10px; }
 .potion:hover { background: #eef6fb; }
 .potion-icon { display: inline-flex; }

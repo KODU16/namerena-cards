@@ -1,6 +1,14 @@
 # 卡牌引擎接口说明
 
-固定源码来自 KODU16/tswn-cards，提交 97c42bf536fac57b03bd5bae534da2c14909245b；完整构建与补丁基线见 BUILD.md。
+固定源码来自 KODU16/tswn-cards，提交 e43567b79ff596487ca01487889887289c3ad441；完整构建与补丁基线见 BUILD.md。
+
+## 逃跑与场外资源
+
+use_potion(actor, code) 在新会话或受控等待行动时立即用药；HP/MP 立刻变化，属性药水保护首次行动的完整持续时间。set_field_resources(Int32Array) 以 actor、HP、MP 三元组同步场外资源，不推进状态。
+
+escape() 在等待行动时清除己方增益和敌方负面状态，保留双方 HP、恢复模板 MP，并将所有分身的负面状态加总到各自本体。同类计数相加，负面状态不会转给其他角色。失败由 submit_action(actor, 256, 0) 跳过行动并优先让敌方行动。
+
+encounter_snapshot() 返回本体快照 JSON，包含姓名、运行资源、状态存储及输入阵营。restore_encounter(json) 仅供新会话使用，按姓名与输入阵营恢复资源和状态，同时按当前装备模板重新计算属性。前端按角色保存场外状态，经过地图节点不减少计数，只有该角色下次进战才继续计时。
 
 ## 构建
 

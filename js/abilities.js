@@ -16,7 +16,10 @@ export function normalizeAbilities(list) {
  for(const a of Array.isArray(list)?list:[]) {
   if(!a?.effect || !SKILLS[a.effect.skill] || !['mp','power'].includes(a.effect.kind) || !Number.isFinite(a.value) || (a.effect.kind==='mp' ? a.value<1||a.value>20||!Number.isInteger(a.value) : a.value<=1||a.value>2))continue;
   const key=abilityKey(a),old=result.get(key);
-  if(!old || a.value>old.value)result.set(key,{...a,rarity:'blue',effect:{...a.effect}});
+  // 合并持有数量，同时沿用同类效果取最高值的规则。
+  const n=Math.max(1,Math.trunc(a.n||1));
+  if(!old)result.set(key,{...a,n,rarity:'blue',effect:{...a.effect}});
+  else result.set(key,{...(a.value>old.value?a:old),n:old.n+n,rarity:'blue',effect:{...a.effect}});
  }
  return [...result.values()];
 }

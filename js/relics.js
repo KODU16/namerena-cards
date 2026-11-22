@@ -48,5 +48,5 @@ export function rollRelic(rng, owned = []) {
   return tier.relics[Math.floor(rng() * tier.relics.length)];
 }
 
-// 旧存档或外部存档只接受已定义遗物，同种遗物只保留一件。
-export const normalizeRelics = (list) => [...new Set((Array.isArray(list) ? list : []).map((item) => typeof item === 'string' ? item : item?.id))].filter(relicById);
+// 存档只接受已定义遗物；同名允许多份，效果仍按“是否持有”判定。
+export const normalizeRelics = (list) => (Array.isArray(list) ? list : []).map((item) => typeof item === 'string' ? item : item?.id).filter(relicById);

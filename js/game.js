@@ -68,7 +68,7 @@ export function randomWeapon(rng) {
 // 描述与实际 tswn 药水槽位一致；“魔力”属性和施法能量 MP 分开说明。
 export function potionDescription(meta) {
   if (!meta) return '';
-  const timing = '作用于当前行动角色，不额外占用行动；选择后随本次出牌结算。';
+  const timing = '战斗中作用于当前行动角色，不额外占用行动；战斗外可选择出战角色，HP/MP 立即回复，属性药水从下一场开战起生效。';
   if (meta.id === 'mp') return meta.name + '：回复 40 点 MP，上限 100；不是提高魔力属性。' + timing;
   if (meta.id === 'hp') return meta.name + '：回复最大体力的 25%（向下取整，至少 10 点），不超过最大体力。' + timing;
   const label = meta.id === 'mag' ? '魔力属性（法术强度，不是 MP）' : meta.stat;
@@ -79,8 +79,8 @@ export function potionDescription(meta) {
 export function potionPreview(meta, state) {
   if (!meta || !state) return state;
   const next = { ...state };
-  if (meta.id === 'hp') next.hp = Math.min(state.max_hp, state.hp + Math.max(10, Math.floor(state.max_hp / 4)));
-  else if (meta.id === 'mp') next.magic_point = Math.min(100, (state.magic_point || 0) + 40);
+  if (meta.id === 'hp') next.hp = Math.max(state.hp,Math.min(state.max_hp, state.hp + Math.max(10, Math.floor(state.max_hp / 4))));
+  else if (meta.id === 'mp') next.magic_point = Math.max(state.magic_point||0,Math.min(100, (state.magic_point || 0) + 40));
   else {
     const field = ['attack', 'defense', 'speed', 'agility', 'magic', 'resistance', 'wisdom'][meta.field];
     if(field){const cap=field==='speed'?379:219;next[field]=Math.min(cap,state[field]+Math.max(8,Math.trunc(state[field]/4)));}
@@ -628,7 +628,42 @@ export function clearNode(state) {
 }
 
 // 奖励摘要覆盖完整奖池，供补给和宝箱回执显示真实所得与存放位置。
+// 数量统一投影到所有奖励回执；角色卡始终只有一张。
 export function rewardSummary(offer) {
+  const summary = rewardSummaryOne(offer), n = rewardQuantity(offer);
+  return {...summary,label:summary.label + (offer.kind !== 'card' && offer.kind !== 'potion' ? ' ×' + n : '')};
+}
+export function rewardQuantity(offer) {
+  return offer?.kind === 'card' ? 1 : Math.max(1, Math.min(10, Math.trunc(offer?.quantity || offer?.potion?.n || 1)));
+}
+export function rollDropQuantity(rng, elite = false) {
+  return elite ? 5 + Math.floor(rng() * 6) : 1 + Math.floor(rng() * 5);
+}
+// 智、敏采用外显偏移；只统计存活本体，按双方总和之比封顶 100%。
+export function escapeChance(allies, enemies) {
+  const total=list=>list.filter(s=>s.alive!==false&&s.hp>0&&s.owner_id==null&&!s.minion_kind)
+    .reduce((sum,s)=>sum+Math.max(0,(s.wisdom||0)+36)+Math.max(0,(s.agility||0)+36),0);
+  const own=total(allies),foe=total(enemies);
+  return foe>0?Math.max(0,Math.min(1,own/foe)):1;
+}
+// 只消费当前出战角色的场外状态，替补的 debuff 和预饮药水继续随角色保存。
+export function consumeFieldResources(state,team){
+  for(const card of team){
+    if(state.run.fieldStates)delete state.run.fieldStates[card.id];
+    if(state.run.preBattlePotions)delete state.run.preBattlePotions[card.id];
+  }
+}
+export function fieldDebuffs(state,characterId){
+  const entries=state?.run?.fieldStates?.[characterId]?.[2]?.entries||[];
+  return entries.flatMap(({payload})=>{
+    const [kind,value]=Object.entries(payload||{})[0]||[];
+    const names={Slow:'迟缓',Berserk:'狂暴',Charm:'魅惑',Poison:'中毒',Ice:'冰冻',Curse:'诅咒',FireMagHalfSteps:'灼烧',CovidInfection:'感染',LazyInfection:'懒惰'};
+    if(!names[kind])return [];
+    const turns=kind==='Poison'?value.count:['Slow','Berserk','Charm'].includes(kind)?value.step:null;
+    return [{name:names[kind],turns,label:names[kind]+(turns!=null?' · '+turns+'回合':kind==='Ice'?' · '+value.frozen_step+'步':'')}];
+  });
+}
+function rewardSummaryOne(offer) {
   if (offer.kind === 'relic') return { label: '遗物「' + relicById(offer.relic)?.name + '」', detail: relicById(offer.relic)?.description || '', destination: '获得即生效，销毁后失效。' };
   if (offer.kind === 'ability') return { label: '能力卡「' + offer.ability.name + '」', detail: abilityDescription(offer.ability), destination: '获得即永久生效；完全相同效果只保留高值，可在物品栏销毁。' };
   if (offer.kind === 'skill'&&offer.skill?.chaos) return {label:'混沌锻造卡「'+offer.skill.chaos.name+'」',detail:offer.skill.description,destination:'沿用原有锻造概率与熟练度增量。'};
@@ -636,7 +671,7 @@ export function rewardSummary(offer) {
     ? { label: '属性锻造卡「' + offer.skill.name + '」', detail: attributeForgeSummary(offer.skill), destination: '已放入锻造卡栏，使用必定增加黑字基础属性。' }
     : { label: '技能卡「' + skillMeta(offer.skill.id).name + '」', detail: '熟练度 ' + effectiveSkillLevel(offer.skill.lv), destination: '已放入技能卡栏，可在锻造时使用。' };
   if (offer.kind === 'tactic') return { label: '战术卡「' + offer.tactic.name + '」', detail: scaleTactic(offer.tactic, offer.power || 1).desc, destination: '已加入战术卡栏，同名保留更强的一张。' };
-  if (offer.kind === 'potion') return { label: (potionById(offer.potion.id)?.name || '药水') + ' ×' + (offer.potion.n || 1), detail: potionDescription(potionById(offer.potion.id)), destination: '已放入物品栏，可在战斗中使用。' };
+  if (offer.kind === 'potion') return { label: (potionById(offer.potion.id)?.name || '药水') + ' ×' + rewardQuantity(offer), detail: potionDescription(potionById(offer.potion.id)), destination: '已放入物品栏，可在地图、备战或战斗中使用。' };
   if (offer.kind === 'weapon') return { label: '武器「' + offer.weapon.name + '」', detail: '装备后重新计算角色属性和技能。', destination: '已放入物品栏。' };
   if (offer.kind === 'score') return { label: '天梯分数 +' + offer.points, detail: '分数已计入本局天梯排名。', destination: '已到账。' };
   return { label: '角色卡「' + offer.card.name + '@' + offer.card.clan + '」', detail: '获得一名可出战角色。', destination: '已加入角色库。' };
@@ -669,8 +704,8 @@ export function maybeDropWeapon(state, node, rng) {
   if (!armed.length || rng() >= 0.5) return null;
   const pick = armed[Math.floor(rng() * armed.length)];
   state.weapons = state.weapons || [];
-  const item = { id: 'w-' + Date.now().toString(36) + '-' + Math.floor(rng() * 1e6).toString(36), name: pick.weapon };
-  state.weapons.push(item);
+  const item = { id: 'w-' + Date.now().toString(36) + '-' + Math.floor(rng() * 1e6).toString(36), name: pick.weapon, quantity: rollDropQuantity(rng) };
+  for (let i=0;i<item.quantity;i++) state.weapons.push({...item,id:item.id+'-'+i});
   persist(state);
   return item;
 }
@@ -958,8 +993,12 @@ export function toggleTeamMember(state, charId, replaceId = null) {
 export function destroyItem(state, kind, id) {
   if (kind === 'relic') {
     if (!(state.relics || []).includes(id)) return false;
-    state.relics = state.relics.filter((relic) => relic !== id);
+    // 多份永久物品逐份销毁，最后一份消失时才停止效果。
+    const index=state.relics.indexOf(id);
+    state.relics=state.relics.filter((_,i)=>i!==index);
   } else if (kind === 'ability') {
+    const item=state.abilities?.find(a=>abilityKey(a)===id);
+    if(item?.n>1){item.n--;persist(state);return true;}
     const before = (state.abilities || []).length;
     state.abilities = (state.abilities || []).filter((a) => abilityKey(a) !== id);
     if (state.abilities.length === before) return false;
@@ -969,6 +1008,9 @@ export function destroyItem(state, kind, id) {
     state.collection = state.collection.filter((c) => c.id !== id);
     if (state.collection.length === before) return false;
   } else if (kind === 'tactic') {
+    const copies=state.run?.tacticCopies;
+    if(copies?.[id]>1){copies[id]--;persist(state);return true;}
+    if(copies)delete copies[id];
     state.ownedTactics = (state.ownedTactics || []).filter((t) => t !== id);
     if (state.tacticPower) delete state.tacticPower[id];
     if (state.run) state.run.tacticIds = (state.run.tacticIds || []).filter((t) => t !== id);
@@ -1635,16 +1677,36 @@ export function rollRewards(state, seed, elite = false, guaranteeScore = false, 
   if (relic) pool.push({ kind: 'relic', rarity: relic.rarity, relic: relic.id });
   if(run.mode==='chaos')for(const offer of pool)if(offer.skill&&offer.skill.kind!=='attribute')offer.skill=chaosSkill(run,offer.skill);
   const candidates = pool.filter((offer) => offer.kind !== 'card' || offer.card);
-  const score = { kind: 'score', points: scorePoints };
+  // 普通掉落 1～5、精英 5～10；药水使用同一数量，不再额外相乘。
+  const withQuantity = offer => {
+    if (offer.kind === 'card') return offer;
+    const quantity = rollDropQuantity(r, elite);
+    return {...offer,quantity,...(offer.potion ? {potion:{...offer.potion,n:quantity}} : {})};
+  };
+  for (let i=0;i<candidates.length;i++) candidates[i]=withQuantity(candidates[i]);
+  const score = withQuantity({ kind: 'score', points: scorePoints });
   if (guaranteeScore && includeScore) return shuffle([score, ...shuffle(candidates, r).slice(0, 2)], r);
   if (!includeScore) return shuffle(candidates, r).slice(0, 3);
   // 补给和非试炼奖励保留原随机奖池，宝箱仍独立结算额外分数。
   candidates.push(score);
-  if (elite) candidates.push({ kind: 'score', points: Math.round(scorePoints * 0.6) });
+  if (elite) candidates.push(withQuantity({ kind: 'score', points: Math.round(scorePoints * 0.6) }));
   return shuffle(candidates, r).slice(0, 3);
 }
 export function applyReward(state, offer) {
   if (!state.run) return;
+  // 可消耗物逐份入库并分配独立 ID；永久效果保留原来的同名生效规则。
+  const quantity=rewardQuantity(offer);
+  if(quantity>1 && !offer._single){
+    for(let i=0;i<quantity;i++){
+      const one=structuredClone(offer);
+      one.quantity=1;one._single=true;
+      if(one.potion)one.potion.n=1;
+      if(one.skill)one.skill.uid=one.skill.uid+'-copy-'+i;
+      if(one.weapon)one.weapon.id=one.weapon.id+'-copy-'+i;
+      applyReward(state,one);
+    }
+    return;
+  }
   if(state.run.mode==='chaos'&&offer.skill&&offer.skill.kind!=='attribute')offer={...offer,skill:chaosSkill(state.run,offer.skill)};
   if (offer.kind === 'relic' && relicById(offer.relic)) {
     state.relics = normalizeRelics([...(state.relics || []), offer.relic]);
@@ -1655,6 +1717,8 @@ export function applyReward(state, offer) {
     state.run.skillCards.push(offer.skill);
   } else if (offer.kind === 'tactic' && offer.tactic) {
     const id = offer.tactic.id;
+    state.run.tacticCopies ||= {};
+    state.run.tacticCopies[id]=(state.run.tacticCopies[id] || ((state.ownedTactics||[]).includes(id)?1:0))+1;
     state.tacticPower = state.tacticPower || {};
     const cur = state.tacticPower[id] || ((state.ownedTactics || []).includes(id) ? 1 : 0);
     if ((offer.power || 1) > cur) {

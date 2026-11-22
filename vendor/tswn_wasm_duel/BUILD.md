@@ -2,7 +2,7 @@
 
 源码仓库：https://github.com/KODU16/tswn-cards
 
-固定源码提交：97c42bf536fac57b03bd5bae534da2c14909245b
+固定源码提交：e43567b79ff596487ca01487889887289c3ad441
 
 本目录的 JS、标准 WASM 和类型声明由该提交构建，网站与多人运行时复用同一份 WASM。
 
@@ -11,7 +11,7 @@
 使用与 Cargo.lock 相匹配的 wasm-bindgen-cli（本版 0.2.129），并安装 wasm32-unknown-unknown target：
 
 ~~~powershell
-git checkout 97c42bf536fac57b03bd5bae534da2c14909245b
+git checkout e43567b79ff596487ca01487889887289c3ad441
 cargo build -p tswn_wasm --target wasm32-unknown-unknown --release
 wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/release/tswn_wasm.wasm
 ~~~
@@ -23,6 +23,8 @@ wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/release/t
 Rust：cargo test -p tswn_core -p tswn_wasm；cargo +nightly fmt --check。
 
 Cards：node tools/verify-engine.mjs vendor/tswn_wasm_duel、node tools/verify-relics.mjs、node tools/verify-abilities.mjs、node tools/verify-clone.mjs、node tools/verify-progression.mjs、node tools/verify-rare-boss-honor.mjs、node tools/verify-new-run.mjs、node tools/verify-construct.mjs。
+
+逃跑、掉落数量、场外药水与遭遇恢复：node tools/verify-escape-drops.mjs。分身负面状态加总另有 Rust 实际召唤回归；地图横向分布由 node tools/verify-growth-map.mjs 验证。
 
 发布构建：npm run build:site。构建结果使用内容指纹引用 JS 和 WASM，遗物独立图标随构建发布。
 

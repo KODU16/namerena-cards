@@ -37,6 +37,9 @@ function downloadLog() {
 const state = G.createState();
 let current = 'home';
 let duelView = null;
+// 暂停会话按遭遇保存，回到同一敌人时保留召唤物和完整机制状态。
+const escapedDuels = new Map();
+let fieldPreview = null;
 let arenaView = null;
 let forgeSel = null;
 let draft = null;
@@ -57,9 +60,16 @@ function nav(screen, render) {
   document.body.dataset.screen = screen;
   render();
   paintTopbar();
-  // 药水只在战斗里显示
+  // 地图与备战可预饮药水；奖励、首页和联机不展示此快捷入口。
   const dock = document.getElementById('potion-dock');
-  if (dock) dock.style.display = screen === 'battle' ? 'flex' : 'none';
+  if (['map','prep','battle'].includes(screen)) {
+    UI.renderPotionDock(state,usePotion);
+    const nextDock=document.getElementById('potion-dock');
+    nextDock?.classList.toggle('potion-dock--field',screen!=='battle');
+    // 场外内联放在内容区顶部，避免固定药水栏遮挡备战标题。
+    if(nextDock){if(screen==='battle')UI.mountUtility(nextDock);else root.querySelector('section')?.prepend(nextDock);}
+  }
+  else if (dock) dock.style.display = 'none';
   UI.renderScoreBadge(state, screen === 'map' || screen === 'battle');
 }
 
@@ -85,6 +95,7 @@ function shopSheet(kind, ...kids) {
 }
 
 function closeSheet() {
+  fieldPreview?.dispose();fieldPreview=null;
   overlay.classList.add('hidden');
   overlay.replaceChildren();
 }
@@ -551,7 +562,27 @@ async function fight() {
   const battleTeam = team.map((c) => ({ ...c, battleBase: G.curseBaseStats(c) }));
   // 遗物只在创建本场战斗时注入，引擎直接管理一回合状态及到期清除。
   if(run.mode==='chaos'){run.chaosBattleActive=true;G.persist(state);}
-  const duel = new Duel({ wasm, iconFor }, { chaosRun:run.mode==='chaos'?run:null,input, playerTeam: me.team_index, champion: team[0], team: battleTeam, enemies: opp.cards, abilities: state.abilities, relics: state.relics || [] });
+  const encounterKey=run.seed+':'+run.layer+':'+run.selectedId;
+  const savedDuel=escapedDuels.get(encounterKey);
+  const sameTeam=savedDuel&&!savedDuel.disposed&&team.every(c=>run.fieldStates?.[c.id])
+    &&savedDuel.team.map(c=>c.id).join('|')===team.map(c=>c.id).join('|')
+    &&savedDuel.input.split('\nseed:')[0]===input.split('\nseed:')[0]
+    &&JSON.stringify(savedDuel.relics)===JSON.stringify(state.relics||[]);
+  if(savedDuel&&!sameTeam)savedDuel.dispose();
+  const duel = sameTeam ? savedDuel : new Duel({ wasm, iconFor }, { chaosRun:run.mode==='chaos'?run:null,input, playerTeam: me.team_index, champion: team[0], team: battleTeam, enemies: opp.cards, abilities: state.abilities, relics: state.relics || [] });
+  duel.configureSession = session => restoreFieldResources(session,run.selectedId,team,true);
+  if(sameTeam){
+    // 暂停期间服用的药水直接同步回原会话；属性预饮随恢复后的当前行动生效。
+    for(const card of team){
+      const actor=duel.session.current_states().find(s=>s.input_team_index===0&&s.id_key_name===fieldName(card)&&s.owner_id==null);
+      for(const id of run.preBattlePotions?.[card.id]||[])duel.session.use_potion(actor.id,potionCode(id));
+    }
+    // 原会话保留完整状态；地图上的生命/能量回复通过资源同步接口写回。
+    syncFieldResources(duel,team);
+    duel.frames=[];duel.initialStates=duel.session.current_states();duel.replay=null;duel.needsAdvance=true;
+  }
+  if(sameTeam)consumeFieldResources(team);
+  escapedDuels.delete(encounterKey);
   nav('battle', () => {
     renderBattleShell(root, state, null, {
       onSpeed: (x) => {
@@ -562,6 +593,7 @@ async function fight() {
         document.querySelectorAll('.speed').forEach((b) => b.classList.toggle('is-active', b.dataset.speed === String(x)));
       },
       onSkip: () => { if (duelView) duelView.skip = true; },
+      onEscape: escapeBattle,
     });
     duelView = new DuelView(root, duel, {
       seed: G.battleSeed(run),
@@ -579,18 +611,123 @@ function potionCode(id) {
   return meta ? meta.field + 1 : 0;
 }
 
+// 原始身份与角色卡一一对应，地图回复和逃跑存档共用引擎快照。
+const fieldName = card => card.name+'@'+card.clan;
+function restoreFieldResources(session,nodeId,team,consume){
+  const run=state.run;
+  const rows=JSON.parse(session.encounter_snapshot());
+  const saved=[...(run.encounters?.[nodeId]||[]),...Object.values(run.fieldStates||{})];
+  for(let i=0;i<rows.length;i++){
+    const previous=saved.find(row=>row[0]===rows[i][0]&&row[3]===rows[i][3]);
+    if(previous)rows[i]=previous;
+  }
+  if(saved.length)session.restore_encounter(JSON.stringify(rows));
+  if(consume){
+    for(const card of team){
+      const actor=session.current_states().find(s=>s.input_team_index===0&&s.id_key_name===fieldName(card)&&s.owner_id==null);
+      if(!actor?.alive)continue;
+      for(const id of run.preBattlePotions?.[card.id]||[])session.use_potion(actor.id,potionCode(id));
+    }
+    consumeFieldResources(team);
+    G.persist(state);
+  }
+}
+// 只消费实际出战者的状态；替补角色的 debuff 和预饮药水必须继续保留。
+function consumeFieldResources(team){
+  G.consumeFieldResources(state,team);
+}
+function syncFieldResources(duel,team){
+  const packet=[];
+  for(const card of team){
+    const saved=state.run.fieldStates?.[card.id];
+    const actor=duel.session.current_states().find(s=>s.input_team_index===0&&s.id_key_name===fieldName(card)&&s.owner_id==null);
+    if(saved&&actor?.alive)packet.push(actor.id,saved[1].hp,saved[1].magic_point);
+  }
+  if(packet.length)duel.session.set_field_resources(new Int32Array(packet));
+}
+function useFieldPotion(id){
+  const run=state.run,item=run.potions?.find(p=>p.id===id&&p.n>0),meta=G.potionById(id);
+  if(!item||!meta)return;
+  const team=(run.teamIds||[]).map(id=>state.collection.find(c=>c.id===id)).filter(Boolean);
+  if(!team.length)return toast('请先选择出战角色');
+  // 使用完整构建和难度起始体力，预览与真正开战采用相同的资源基线。
+  const tactics=G.tacticsByIds(state,run.tacticIds);
+  const lines=team.map(card=>buildLine(G.applyRelicBattleBonuses(applyTactics(G.prepareBattleCard(state,card),tactics),state.relics||[])));
+  const input=[...lines,'',buildLine(makeCard('药水预览','青')),'seed:'+G.battleSeed(run)+'@!'].join('\n');
+  const probe=new (engineWasm().BattleSession)(input,{include_icons:false});
+  const playerTeam=probe.initial_states().find(s=>s.input_team_index===0).team_index;probe.free();
+  const duel=new Duel({wasm:engineWasm(),iconFor},{input,playerTeam,champion:team[0],team,abilities:state.abilities,relics:state.relics||[]});
+  duel.startHpPct=run.difficulty>=14?(run.restBuff?.9:.75):(run.restBuff?1.25:0);
+  duel.configureSession=session=>restoreFieldResources(session,null,team,false);
+  const session=duel.simulate(true);
+  fieldPreview?.dispose();fieldPreview=duel;
+  const choose=card=>{
+    const live=run.potions?.find(p=>p.id===id&&p.n>0);
+    if(!live)return;
+    const actor=session.current_states().find(s=>s.input_team_index===0&&s.id_key_name===fieldName(card)&&s.owner_id==null);
+    if(!actor?.alive||actor.hp<=0)return toast('倒下的角色不能服药');
+    if(id==='hp'||id==='mp'){
+      session.use_potion(actor.id,potionCode(id));
+      const row=JSON.parse(session.encounter_snapshot()).find(row=>row[3]===0&&row[0]===fieldName(card));
+      run.fieldStates||={};run.fieldStates[card.id]=row;
+    }else{
+      run.preBattlePotions||={};(run.preBattlePotions[card.id]||=[]).push(id);
+    }
+    live.n--;G.persist(state);
+    const after=session.current_states().find(s=>s.id===actor.id);
+    duel.dispose();closeSheet();UI.renderPotionDock(state,usePotion);
+    toast(card.name+'：'+(id==='hp'?'HP '+after.hp+'/'+after.max_hp:id==='mp'?'MP '+after.magic_point+'/100':'已预饮，开战首回合生效'),3000);
+  };
+  // 弹窗关闭也释放临时会话，正式战斗与它完全独立。
+  sheet(el('h2',{},'使用'+meta.name),...team.map(card=>{
+    const actor=session.current_states().find(s=>s.input_team_index===0&&s.id_key_name===fieldName(card)&&s.owner_id==null);
+    return el('button',{class:'secondary',type:'button',disabled:!actor?.alive,onclick:()=>choose(card)},card.name+' · HP '+actor?.hp+'/'+actor?.max_hp+' · MP '+actor?.magic_point);
+  }),el('button',{class:'ghost',type:'button',onclick:()=>{duel.dispose();closeSheet();}},'取消'));
+}
+function escapeBattle(){
+  const view=duelView,run=state.run;
+  if(!view||view.done||!view.interactive||!view.waitingState)return toast('请在自己的行动回合逃跑');
+  const actor=view.duel.session.current_states().find(s=>s.id===view.waitingState.id);
+  const enemies=view.duel.session.current_states().filter(s=>s.input_team_index!==0&&s.alive);
+  const allies=view.duel.session.current_states().filter(s=>s.input_team_index===0);
+  const chance=G.escapeChance(allies,enemies);
+  // 按原始阵营比较存活本体的智敏外显值；连续尝试消耗独立随机结果。
+  view.interactive=false;
+  if(view.rng()>=chance){
+    view.potionUsed=false;view.pendingPotion=0;view.clearWaiting();view.handEl.replaceChildren();
+    view.duel.queue(actor.id,256,0,0);
+    toast('逃跑失败（成功率 '+Math.round(chance*100)+'%），进入敌方回合');
+    view.step();return;
+  }
+  const snapshot=JSON.parse(view.duel.session.escape());
+  run.encounters||={};
+  run.encounters[run.selectedId]=snapshot.filter(row=>row[3]!==0);
+  run.fieldStates||={};
+  for(const card of view.duel.team){
+    const row=snapshot.find(row=>row[3]===0&&row[0]===fieldName(card));
+    if(row)run.fieldStates[card.id]=row;
+  }
+  escapedDuels.set(run.seed+':'+run.layer+':'+run.selectedId,view.duel);
+  view.done=true;view.clearWaiting();clearTimeout(view.berserkTimer);
+  duelView=null;run.selectedId=null;run.chaosBattleActive=false;G.persist(state);
+  toast('逃跑成功，双方血量保留，MP 已恢复默认值',3000);mapScreen();
+}
+
 function usePotion(id) {
   const run = state.run;
-  if (!run || !duelView || duelView.done || !duelView.interactive || !duelView.waitingState) return;
+  if(!run)return;
+  if(current==='map'||current==='prep')return useFieldPotion(id);
+  if (!duelView || duelView.done || !duelView.interactive || !duelView.waitingState) return;
   const item = (run.potions || []).find((p) => p.id === id && p.n > 0);
   if (!item) return;
-  if (duelView.pendingPotion) return toast('这回合已经喝过药水了');
+  if (duelView.potionUsed) return toast('这回合已经喝过药水了');
   item.n -= 1;
-  duelView.duel.pendingPotion = potionCode(id);
-  // 立刻在界面上结算（血条/蓝条），引擎会在这一手出牌时应用同一数值
+  // 回复直接写入真实会话；逃跑前喝下的药水也不会丢失或重复结算。
+  duelView.duel.session.use_potion(duelView.waitingState.id,potionCode(id));
+  // 界面同步同一药效，实际数值已写入引擎，不再随出牌重复提交。
   const metaNow = G.potionById(id);
   if (metaNow) duelView.previewPotion(metaNow, duelView.waitingState);
-  duelView.pendingPotion = potionCode(id);
+  duelView.potionUsed = true;
   G.persist(state);
   UI.renderPotionDock(state, usePotion);
   const meta = G.potionById(id);
@@ -628,6 +765,9 @@ async function finishDuel(won, replay) {
   );
 }
 function afterBattle(won) {
+  // 正常胜负结算结束当前遭遇，不把上一战的场外资源带入下一节点。
+  delete state.run.encounters?.[state.run.selectedId];
+  consumeFieldResources(duelView?.duel.team||[]);
   if(state.run?.mode==='chaos'){state.run.chaosBattleActive=false;G.persist(state);}
   duelView = null;
   if (!won) {
@@ -660,7 +800,7 @@ function afterBattle(won) {
   if (node) {
     const dropRng = G.mulberry32((state.run.seed ^ (state.run.index * 7919)) >>> 0);
     const dropped = G.maybeDropWeapon(state, node, dropRng);
-    if (dropped) toast('掉落武器「' + dropped.name + '」，已放进物品栏', 2400);
+    if (dropped) toast('掉落武器「' + dropped.name + '」×'+dropped.quantity+'，已放进物品栏', 2400);
   }
   if (node && node.kind === 'end') {
     const finished = G.advanceLayer(state);

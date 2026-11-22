@@ -240,6 +240,9 @@ export function buildLayerGraph({ entries, layer, teamSize, rng, makeFiller, mak
     const at = Math.floor(rng() * (groups[d].length + 1));
     groups[d].splice(at, 0, node);
   }
+  // 特殊节点插入结束后再统一打散整行，消除 push 顺序造成的持续右偏。
+  // 使用相同的全局规则处理所有行，不指定路线或改变各类节点配额。
+  for(let d=1;d<=depths;d++)groups[d]=shuffle(groups[d],rng);
   // 目标已预留到每行容量内；一节点行也可形成合法的单路线。
   // 随机布局失败时重排；最后使用经过相同几何检查的均匀布局。
   const placeNodes = (randomize) => {
