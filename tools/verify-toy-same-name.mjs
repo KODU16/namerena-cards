@@ -1,0 +1,24 @@
+// 使用真实 WASM 验证同名队友各自恢复生命和负面状态，并保持卡牌归属。
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+globalThis.window={};globalThis.document={addEventListener(){},getElementById(){}};
+globalThis.fetch=async url=>new Response(readFileSync(new URL(url)),{headers:{'Content-Type':'application/wasm'}});
+const E=await import('../js/engine.js');await E.loadEngine();
+const {Duel}=await import('../js/duel.js'),w=E.engineWasm();
+const name='同名玩家',card=E.makeCard(name,name),team=[card,{...card,id:card.id+'#starter-1'}];
+const input=team.map(E.buildLine).join('\n')+'\n\n敌人@敌队\nseed:same-name@!';
+const session=new w.BattleSession(input,{});
+const rows=JSON.parse(session.encounter_snapshot());
+rows[0][1].hp=11;rows[1][1].hp=27;
+rows[1][2].entries=[{legacy_order_key:222,extension_state_id:null,hook_mask:4,priority:0,registration_order:0,payload:{Slow:{step:3}}}];
+rows[1][2].runtime_registration_orders=[0];rows[1][2].next_runtime_registration_order=1;
+const restored=new w.BattleSession(input,{});restored.restore_encounter(JSON.stringify(rows));
+assert.deepEqual(restored.initial_states().filter(s=>s.input_team_index===0).map(s=>s.hp),[11,27]);
+const saved=JSON.parse(restored.encounter_snapshot());
+assert.equal(saved[0][2].entries.length,0);assert.equal(saved[1][2].entries[0].payload.Slow.step,3);
+const duel=new Duel({wasm:w,iconFor:E.iconFor},{input,playerTeam:0,champion:team[0],team});
+duel.session=restored;const states=restored.initial_states();
+assert.equal(duel.cardFor(states[0],states).id,team[0].id);
+assert.equal(duel.cardFor(states[1],states).id,team[1].id);
+duel.dispose();session.free();
+console.log(JSON.stringify({sameNameHp:[11,27],distinctCardOwnership:true,realWasm:true}));

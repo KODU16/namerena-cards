@@ -1,0 +1,25 @@
+// 验证实际平台适配行为：仅通关上报、去重、错误重试、限流与分数边界。
+import assert from 'node:assert/strict';
+import {build} from 'esbuild';
+const result=await build({entryPoints:['js/toy.js'],bundle:true,write:false,format:'esm',define:{__CARDS_TOY__:'true'}});
+const T=await import('data:text/javascript;base64,'+Buffer.from(result.outputFiles[0].text).toString('base64'));
+let calls=[],writes=0,release;
+globalThis.toy={getUserProfile:async()=>({nickname:'玩家甲'}),submitScore:p=>{calls.push(p);return new Promise(r=>release=r);},getRankList:async p=>[{rank:1,nickname:'玩家甲',score:789}],getMyRank:async()=>({rank:1,score:789})};
+assert.equal((await T.toyProfile()).nickname,'玩家甲');
+for(const status of ['active','lost'])await T.submitVictory({status,score:789},()=>writes++);
+assert.equal(calls.length,0);
+const run={status:'won',score:789};
+const a=T.submitVictory(run,()=>writes++),b=T.submitVictory(run,()=>writes++);
+assert.equal(a,b);await new Promise(r=>setTimeout(r,0));assert.deepEqual(calls,[{board:1,score:789}]);
+release({score:1000});await a;assert.equal(writes,1);await T.submitVictory(run,()=>writes++);assert.equal(calls.length,1);
+assert.equal((await T.toyRanks())[0][0].nickname,'玩家甲');
+globalThis.toy.submitScore=async()=>{throw Object.assign(Error('限流'),{code:307044});};
+const failed={status:'won',score:800};
+await assert.rejects(T.submitVictory(failed,()=>writes++),/限流/);
+assert.equal(failed.toyRank.status,'failed');assert.ok(failed.toyRank.retryAt>Date.now()+50000);
+await assert.rejects(T.submitVictory(failed,()=>writes++),/频繁/);
+failed.toyRank.retryAt=0;
+globalThis.toy.submitScore=async p=>{calls.push(p);return {score:p.score};};
+await T.submitVictory(failed,()=>writes++);assert.equal(failed.toyRank.status,'sent');
+for(const score of [2**24,-(2**24)-1,1.5,NaN])await assert.rejects(T.submitVictory({status:'won',score},()=>writes++),/范围/);
+console.log(JSON.stringify({onlyVictory:true,finalScore:789,deduplicated:true,retry:true,rateLimitBackoff:true,exactScoreRange:true}));

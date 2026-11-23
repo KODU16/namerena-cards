@@ -170,6 +170,47 @@ index c03d74e5..29b4c621 100644
  toml = "1.1.8"
  
  # wasm32-unknown-unknown 上 std::time::Instant 未实现，`src/time.rs` 改用 js-sys 的
+diff --git a/crates/tswn_core/src/bin/tswn_cli/icon.rs b/crates/tswn_core/src/bin/tswn_cli/icon.rs
+index 3dca2db9..2ac866d0 100644
+--- a/crates/tswn_core/src/bin/tswn_cli/icon.rs
++++ b/crates/tswn_core/src/bin/tswn_cli/icon.rs
+@@ -7,10 +7,10 @@ use std::fs;
+ use std::path::Path;
+ 
+ use tswn_core::namerena::icon::icon_from_raw_name;
+-use tswn_core::namerena::icon_render::render_icon_vec_from_name;
++use tswn_core::namerena::icon_render::{has_boss_icon, render_icon_vec_from_name};
+ 
+ #[cfg(feature = "png_render")]
+-use tswn_core::namerena::icon_render::{render_icon_b64_from_name, render_icon_png};
++use tswn_core::namerena::icon_render::{render_icon_b64_from_name, render_icon_png_from_name};
+ 
+ pub fn print_icons(names: &[String]) {
+     for name in names {
+@@ -48,8 +48,7 @@ pub fn save_icons(dir: &Path, names: &[String]) -> Result<(), String> {
+         fs::create_dir_all(dir).map_err(|err| format!("创建目录失败: {err}"))?;
+         for name in names {
+             let path = dir.join(format!("{name}.png"));
+-            let icon = icon_from_raw_name(name);
+-            let png = render_icon_png(&icon);
++            let png = render_icon_png_from_name(name);
+             fs::write(&path, &png).map_err(|err| format!("写入 {} 失败: {err}", path.display()))?;
+             println!("已保存: {}", path.display());
+         }
+@@ -67,6 +66,13 @@ pub fn save_icons(dir: &Path, names: &[String]) -> Result<(), String> {
+ }
+ 
+ fn print_icon(name: &str) {
++    if has_boss_icon(name) {
++        println!("=== Icon: {name} ===");
++        println!("原版 Boss 固定徽章");
++        render_pixels_to_terminal(&render_icon_vec_from_name(name));
++        println!();
++        return;
++    }
+     let icon = icon_from_raw_name(name);
+     let [br, bg, bb] = icon.bg_color;
+ 
 diff --git a/crates/tswn_core/src/cli_api/battle/driver.rs b/crates/tswn_core/src/cli_api/battle/driver.rs
 index c5a769ff..eb03e9ee 100644
 --- a/crates/tswn_core/src/cli_api/battle/driver.rs
@@ -497,16 +538,38 @@ index 2ccdaefa..d6e0722d 100644
  mod tests {
      use super::*;
 diff --git a/crates/tswn_core/src/cli_api/battle/session.rs b/crates/tswn_core/src/cli_api/battle/session.rs
-index fefc009d..12ed89e5 100644
+index fefc009d..c77ba9b3 100644
 --- a/crates/tswn_core/src/cli_api/battle/session.rs
 +++ b/crates/tswn_core/src/cli_api/battle/session.rs
-@@ -1,5 +1,91 @@
+@@ -1,5 +1,113 @@
  use std::collections::HashMap;
  
 +// 逃跑汇总走真实分身生成和状态存储，防止换角色或重进战斗时重复计算。
 +#[cfg(test)]
 +mod escape_regressions {
 +    use super::*;
++    #[cfg(feature = "png_render")]
++    #[test]
++    fn special_battle_icon_keys_match_the_original_display_groups() {
++        let options = BattleOptions {
++            include_icons: true,
++            ..Default::default()
++        };
++        let session = BattleSession::new("mario@!\nAlice@plain\n\na@!\nb@!\nc@green\n\nmario", options.clone()).unwrap();
++        let by_name: HashMap<_, _> = session.initial_states().iter().map(|state| (state.id_key_name.as_str(), state)).collect();
++        for (name, icon) in [
++            ("mario@!", "mario@!"),
++            ("Alice@plain", "mario@!"),
++            ("a@!", "a"),
++            ("b@!", "b"),
++            ("c@green", "a"),
++            ("mario", "mario"),
++        ] {
++            let state = by_name[name];
++            assert_eq!(state.icon_key, icon, "{name}");
++            assert_eq!(state.icon_png_base64.as_ref(), Some(&render_icon_b64_from_name(icon)));
++        }
++    }
 +    use crate::runtime::{EntityIdx, RunUpdates, StateEntry, StatePayload};
 +    fn slow(step: i32) -> StateEntry {
 +        let mut entry = StateEntry::legacy(8222);
@@ -592,7 +655,7 @@ index fefc009d..12ed89e5 100644
  #[cfg(feature = "png_render")]
  use crate::namerena::icon_render::render_icon_b64_from_name;
  use crate::replay_view::{
-@@ -34,6 +120,7 @@ pub struct BattleSession {
+@@ -34,6 +142,7 @@ pub struct BattleSession {
      initial_states: Vec<BattlePlayerState>,
      current_states: Vec<BattlePlayerState>,
      icon_cache: HashMap<String, String>,
@@ -600,7 +663,7 @@ index fefc009d..12ed89e5 100644
  }
  
  impl BattleSession {
-@@ -57,6 +144,7 @@ impl BattleSession {
+@@ -57,6 +166,7 @@ impl BattleSession {
              current_states: initial_states.clone(),
              initial_states,
              icon_cache,
@@ -608,7 +671,7 @@ index fefc009d..12ed89e5 100644
          })
      }
  
-@@ -85,7 +173,9 @@ impl BattleSession {
+@@ -85,7 +195,9 @@ impl BattleSession {
          }
      }
      /// 正常终止原因；运行中及 Runtime 失败后均为 `None`。
@@ -619,7 +682,7 @@ index fefc009d..12ed89e5 100644
      /// 是否已产生正常 terminal BattleResult；Runtime failure 不属于正常终止。
      pub fn is_done(&self) -> bool { self.driver.stop_reason.is_some() }
      /// Runtime error 后为 true；后续推进返回相同错误，调用方应停止推进并释放会话。
-@@ -107,11 +197,12 @@ impl BattleSession {
+@@ -107,11 +219,12 @@ impl BattleSession {
          if let Some(error) = &self.driver.failure {
              return Err(error.clone());
          }
@@ -633,7 +696,7 @@ index fefc009d..12ed89e5 100644
                  return Ok(None);
              };
              let round_index = step.round_index;
-@@ -125,12 +216,363 @@ impl BattleSession {
+@@ -125,12 +238,365 @@ impl BattleSession {
                  frame
              });
              self.current_states = states;
@@ -848,13 +911,15 @@ index fefc009d..12ed89e5 100644
 +        let input_groups = self.driver.runner.input_groups.clone();
 +        let runtime = self.driver.runner.runtime_mut();
 +        let ids: Vec<_> = runtime.entities.iter().map(|(id, _)| id).collect();
++        // 同阵营同名输入按出现顺序逐条消费存档，不能复用首位队友的状态。
++        let mut used_rows = std::collections::HashSet::new();
 +        for id in ids {
 +            let entity = runtime.entities.get_mut(id).unwrap();
 +            let group = input_groups.iter().position(|g| g.contains(&id)).unwrap_or(usize::MAX);
-+            if let Some((_, saved, states, _)) = rows
-+                .iter()
-+                .find(|(name, _, _, side)| *name == entity.template.id_key_name && *side == group)
-+            {
++            if let Some((row_index, (_, saved, states, _))) = rows.iter().enumerate().find(|(index, (name, _, _, side))| {
++                !used_rows.contains(index) && *name == entity.template.id_key_name && *side == group
++            }) {
++                used_rows.insert(row_index);
 +                entity.runtime = saved.clone();
 +                entity.runtime.owner = id;
 +                entity.runtime.root_owner = id;
@@ -998,10 +1063,19 @@ index fefc009d..12ed89e5 100644
      /// 正常终止后返回拥有最终快照的结果；运行中或粘性失败时为 `None`。
      ///
      /// 重复查询不推进战斗，但每次都会复制最终快照及其字符串。需要多次使用结果时
-@@ -168,6 +610,27 @@ pub(super) fn states_from_runner(
+@@ -163,11 +629,36 @@ pub(super) fn states_from_runner(
+     include_icons: bool,
+     icon_cache: &mut HashMap<String, String>,
+ ) -> Vec<BattlePlayerState> {
++    let special_group_icons = special_group_icons(runner);
+     runner
+         .player_snapshots()
          .into_iter()
          .map(|snapshot| {
              let mut state = state_from_snapshot(snapshot, false);
++            if let Some(key) = battle_icon_key(runner, &state, &special_group_icons) {
++                state.icon_key = key.to_owned();
++            }
 +            state.skills = runner
 +                .runtime()
 +                .entities
@@ -1026,7 +1100,62 @@ index fefc009d..12ed89e5 100644
              if include_icons {
                  state.icon_png_base64 = Some(match icon_cache.get(&state.icon_key) {
                      Some(icon) => icon.clone(),
-@@ -187,6 +650,7 @@ fn state_from_snapshot(snapshot: RuntimePlayerSnapshot, include_icons: bool) ->
+@@ -183,10 +674,62 @@ pub(super) fn states_from_runner(
+         .collect()
+ }
+ 
++/// 含特殊身份的输入组，普通同伴使用原版首成员的徽章。
++fn special_group_icons(runner: &RuntimeRunner) -> Vec<Option<&str>> {
++    let entities = &runner.runtime().entities;
++    if !entities.iter().any(|(_, entity)| entity.template.clan_name == "!") {
++        return Vec::new();
++    }
++    runner
++        .input_groups
++        .iter()
++        .map(|group| {
++            if !group
++                .iter()
++                .filter_map(|&id| entities.get(id))
++                .any(|entity| entity.template.clan_name == "!")
++            {
++                return None;
++            }
++            // 场上顺序会按 seed 洗牌；初始实体 ID 按原始输入顺序分配。
++            let first = entities.get(*group.iter().min()?)?;
++            if first.template.clan_name == "!" && !first.runtime.flags.contains(crate::runtime::PlayerKindFlags::BOSS) {
++                Some(first.template.name.as_str())
++            } else {
++                Some(first.template.id_key_name.as_str())
++            }
++        })
++        .collect()
++}
++
++/// 解析玩家应使用的固定徽章 key：召唤物回溯到源实体，特殊组名优先。
++fn battle_icon_key<'a>(runner: &'a RuntimeRunner, state: &BattlePlayerState, groups: &[Option<&'a str>]) -> Option<&'a str> {
++    if groups.is_empty() {
++        return None;
++    }
++    let entities = &runner.runtime().entities;
++    let entity = entities.get(crate::runtime::EntityIdx(state.id.try_into().ok()?))?;
++    // 本分支的召唤物沿 root_owner 继承 Boss 固定徽章。
++    let root = if state.minion_kind.is_some() {
++        entities.get(entity.runtime.root_owner)?
++    } else {
++        entity
++    };
++    if root.template.clan_name == "!" {
++        return Some(if root.runtime.flags.contains(crate::runtime::PlayerKindFlags::BOSS) {
++            &root.template.id_key_name
++        } else {
++            &root.template.name
++        });
++    }
++    state.input_team_index.and_then(|team| groups.get(team).copied().flatten())
++}
++
+ fn state_from_snapshot(snapshot: RuntimePlayerSnapshot, include_icons: bool) -> BattlePlayerState {
      let icon_key = snapshot.id_key_name.clone();
      let icon_png_base64 = include_icons.then(|| render_icon_b64_from_name(&icon_key));
      BattlePlayerState {
@@ -1034,7 +1163,7 @@ index fefc009d..12ed89e5 100644
          id: snapshot.id,
          team_index: snapshot.team_index,
          input_team_index: snapshot.input_team_index,
-@@ -689,7 +1153,11 @@ seed:7@!"#;
+@@ -689,7 +1232,11 @@ seed:7@!"#;
              without_icon.icon_png_base64 = None;
              assert_eq!(&without_icon, plain);
          }
@@ -1047,7 +1176,7 @@ index fefc009d..12ed89e5 100644
          let filled_cache = cache.clone();
          assert_eq!(states_from_runner(&runner, true, &mut cache), with_icons);
          assert_eq!(cache, filled_cache);
-@@ -817,3 +1285,435 @@ seed:7@!"#;
+@@ -817,3 +1364,435 @@ seed:7@!"#;
          }
      }
  }
@@ -1483,6 +1612,224 @@ index fefc009d..12ed89e5 100644
 +        assert!(another.paused_actor().is_some());
 +    }
 +}
+diff --git a/crates/tswn_core/src/namerena/icon.rs b/crates/tswn_core/src/namerena/icon.rs
+index 66e8071e..d49b573f 100644
+--- a/crates/tswn_core/src/namerena/icon.rs
++++ b/crates/tswn_core/src/namerena/icon.rs
+@@ -146,29 +146,23 @@ pub fn icon_from_name(name: &str) -> IconResult {
+     icon_from_colors(&colors)
+ }
+ 
+-/// 从原始名称解析 sglname（用于生成 icon 的名称）。
+-///
+-/// 根据 JS 源码逻辑：
+-/// - `name@team` → 返回 `team`
+-/// - `name` → 返回 `name`
+-///
+-/// 这意味着同一队伍的玩家会有相同的 icon。
++/// 从独立的玩家名称解析程序徽章使用的键。
++/// 未登记的 `name@!` 是感叹号玩家，使用自己的基名；普通公会仍使用公会名。
+ pub fn parse_sglname(raw_name: &str) -> &str {
+-    if let Some((_, team)) = raw_name.split_once('@') {
+-        team
++    if let Some((name, team)) = raw_name.split_once('@') {
++        if team.split(['@', '+']).next() == Some("!") {
++            name
++        } else {
++            team
++        }
+     } else {
+         raw_name
+     }
+ }
+ 
+-/// 从原始名称生成图标颜色选择。
+-///
+-/// 会自动解析 `name@team` 格式，使用队伍名生成 icon。
+-/// 如果没有队伍名，则使用玩家名。
+-pub fn icon_from_raw_name(raw_name: &str) -> IconResult {
+-    let sglname = parse_sglname(raw_name);
+-    icon_from_name(sglname)
+-}
++/// 仅生成程序徽章的调色板资料，不描述固定像素的 Boss 图标。
++/// 按名称实际渲染时请使用 [`crate::namerena::icon_render`] 的 `_from_name` 入口。
++pub fn icon_from_raw_name(raw_name: &str) -> IconResult { icon_from_name(parse_sglname(raw_name)) }
+ 
+ /// 从转换后的颜色数组生成图标（复现 Sgl.create()）。
+ fn icon_from_colors(colors: &[u8]) -> IconResult {
+diff --git a/crates/tswn_core/src/namerena/icon_render.rs b/crates/tswn_core/src/namerena/icon_render.rs
+index 9daf568b..f0056f5f 100644
+--- a/crates/tswn_core/src/namerena/icon_render.rs
++++ b/crates/tswn_core/src/namerena/icon_render.rs
+@@ -58,11 +58,30 @@
+ //! - Base64 编码器为标准 RFC 4648 实现，避免额外依赖
+ //! - 混合算法复现 HTML Canvas `source-over` 混合模式
+ 
+-use super::icon::{IconResult, icon_from_raw_name};
++use super::icon::{IconResult, icon_from_name, parse_sglname};
+ 
+ mod sprite_data;
+ use sprite_data::{BORDERS_DARK, BORDERS_OPACITY, SHAPES};
+ 
++// 原版 Vite（rinick.github.io 的 2ab0f562）的单帧 16×16 GIF，经浏览器 Canvas 解码后按名字排序保存 RGBA；
++// Rust 的 PNG 与无 png_render 的像素接口共享这份数据，不需要运行时 GIF 解码。
++const BOSS_ICONS: [&str; 13] = [
++    "aokiji", "conan", "covid", "ikaruga", "lazy", "mario", "mosquito", "saitama", "slime", "sonic", "thanos", "wheel", "yuri",
++];
++const BOSS_RGBA: &[u8; BOSS_ICONS.len() * 1024] = include_bytes!("icon_render/boss_rgba.bin");
++
++fn boss_icon(raw_name: &str) -> Option<&'static [u8]> {
++    let (name, modifiers) = raw_name.split_once('@')?;
++    if modifiers.split(['@', '+']).next()? != "!" {
++        return None;
++    }
++    let index = BOSS_ICONS.binary_search(&name).ok()?;
++    Some(&BOSS_RGBA[index * 1024..(index + 1) * 1024])
++}
++
++/// 此独立名字会使用原版固定像素而非生成调色板。
++pub fn has_boss_icon(raw_name: &str) -> bool { boss_icon(raw_name).is_some() }
++
+ // ── 合成 ───────────────────────────────────────────────────────────────
+ 
+ /// HTML Canvas `source-over` 混合: 将纯色像素合成到 `dst` 上。
+@@ -140,15 +159,17 @@ pub fn render_icon_vec(icon: &IconResult) -> Vec<u8> {
+ 
+ /// 将 `IconResult` 渲染为 16×16 RGBA PNG (以原始字节返回)。
+ #[cfg(feature = "png_render")]
+-pub fn render_icon_png(icon: &IconResult) -> Vec<u8> {
+-    let flat = render_icon_vec(icon);
++pub fn render_icon_png(icon: &IconResult) -> Vec<u8> { encode_rgba_png(&render_icon_vec(icon)) }
++
++#[cfg(feature = "png_render")]
++fn encode_rgba_png(flat: &[u8]) -> Vec<u8> {
+     let mut out = Vec::new();
+     let mut encoder = png::Encoder::new(&mut out, 16, 16);
+     encoder.set_color(png::ColorType::Rgba);
+     encoder.set_depth(png::BitDepth::Eight);
+     encoder
+         .write_header()
+-        .and_then(|mut w| w.write_image_data(&flat))
++        .and_then(|mut w| w.write_image_data(flat))
+         .expect("PNG encoding should never fail for a valid image");
+     out
+ }
+@@ -165,14 +186,18 @@ pub fn render_icon_b64(icon: &IconResult) -> String {
+ 
+ /// 便捷包装器: 通过玩家名称渲染 → PNG 字节。
+ #[cfg(feature = "png_render")]
+-pub fn render_icon_png_from_name(name: &str) -> Vec<u8> { render_icon_png(&icon_from_raw_name(name)) }
++pub fn render_icon_png_from_name(name: &str) -> Vec<u8> { encode_rgba_png(&render_icon_vec_from_name(name)) }
+ 
+ /// 便捷包装器: 通过玩家名称渲染 → base64 data URL。
+ #[cfg(feature = "png_render")]
+-pub fn render_icon_b64_from_name(name: &str) -> String { render_icon_b64(&icon_from_raw_name(name)) }
++pub fn render_icon_b64_from_name(name: &str) -> String {
++    format!("data:image/png;base64,{}", base64_encode(&render_icon_png_from_name(name)))
++}
+ 
+ /// 便捷包装器: 通过玩家名称渲染 → RGBA 像素数据 (1024 字节)。
+-pub fn render_icon_vec_from_name(name: &str) -> Vec<u8> { render_icon_vec(&icon_from_raw_name(name)) }
++pub fn render_icon_vec_from_name(name: &str) -> Vec<u8> {
++    boss_icon(name).map_or_else(|| render_icon_vec(&icon_from_name(parse_sglname(name))), <[_]>::to_vec)
++}
+ 
+ // ── 内部辅助函数 ──────────────────────────────────────────────────────────
+ 
+diff --git a/crates/tswn_core/src/namerena/icon_render/boss_rgba.bin b/crates/tswn_core/src/namerena/icon_render/boss_rgba.bin
+new file mode 100644
+index 0000000000000000000000000000000000000000..b8462b53029c2ddada92963b57f1f8ef96c0506b
+GIT binary patch
+literal 13312
+zcmb`JPw1vq6~|wrm;q~%Q6v-<(NIAsL?FS0(I3YNDqUz)hJnjLY9mN4!lWQq2~vw9
+z`bQx$n-&s;v}vG4*sgRUw-OW#ge@Am-S2tt=f2<PJokCt=N-Io=iGbF_wzmHx$h5g
+zw_9ALR(vlCQ=v1Zt&KjNyYrD!v{~F2d?uWj$A1NRh~(szd=8?<N}KyDhX(*Yu2qeB
+z(d9cDc<$))edI3<yy|&o_wuuAUoT$%OEa$3ynmk2{dD#_p774{JGowG@~(v^!sOps
+z3^{4gw^&20o|gtMvD~YwYZ@~OT_aX&BbU8S<+A?Reb#S3?eTxx_ssYY-~Xqhur!J1
+zUQ}E2px*e-{pFqS>u1$Q9?CiAjLvK{`9sK~b6&NjJlu+=mZm)3crMiiwl(R0A|LNU
+zFWBlkc`x0UG^6|}@0WX?`ui~}e;-Rcb@VOP5G%eHjeB^mDtVWNO~TCM1QsLwmm<1j
+zam1g*lq<W!uAuzZR`ip;iuyVJ4lGA)V6^Wg!1VvT_*(Z9>$T+3dy2^$Hq9f8iNEgN
+zGy4qsPu>VtI<(4ZQOi9;+v;dCul%ScuaTA>a2{hAdt<bUuHzhfo8S9YMr-)?aEkIm
+zmtyd|fuid4_DHSq;#j?ZP4qtAGy4Nt?3_FX`u=;i9)`}2{WnQ7(_;pt1UipNvVJ{t
+z=1lRuu0B+q;rH|0K{-9S1}?`+^qHpgZYSQ?SDr3K`?tF{#`c=D&eK~OI7Jp7idyLL
+z@ZMW^JjCOr+=x|PYiWj2?>#a97Y{1lTRHku&vA)ohRo~Eo5{<0dh-VK5~GEeGwvnc
+z-#^cgdH3<&?y>K@|2Okq^WM(m>smikAMtBGTR3>4Gi&|OZ;bxm6V4makoj|L;nDPX
+z_Uzg4P^^yHYirg|i3*ej9?u?gKR1+5YVPIm81(DjBmTsG(cZo#`pegIt<R)ytM3%G
+znKKUUAAG2L4X)Rodv4-SPp_A%>ARZY(Q{s}=TqzSRFtRld<(T)AI;$WYF!VLW>>27
+zN9xk$1xsA2*YAnnP~YWSoN8@NYBd+LQ5?jXUd%w3Q=R+U2Y2QA_3N>9Zagt_x<^e~
+zw)5oBC4*q4M+Zyv{J<kPw8x^nnuo@i%neIFV$Q=UqEVF2?|#lTJk~U8wan)koz*$l
+z;mLbkVqKGY?#Ch?Bc0cl&WWqn{cng~Q915@rq-Am`s#YPrC161=QZhhgdOqn3y%#k
+z_dbQC2Oiw_|B0$I#3Jg#xy3x+Ub3Hk!b-ou&X{PEJm6E`=wW)z!(z7RYkbc)A@>@!
+z;tiHOmg+$s{+W3&gLoER2dtlhM;o!t?>U{@u3@sGMa@v(zrEd6(`uRtOwH;uKHwET
+zd(=kZk@LFOofmUOn_8Uo_qkNdaOe-Sg;)Kj_is%1UgEt^<^w+T$QJvaO%(H3|HMi=
+zTH#R($Kr^c<oN#%;-t88L9bZ;@T1tCTS8p}m!oU4kN3+QZx^x7B(3xK&bT&z<jn*<
+z9;?0G!_Lfr*J^L$(81kE@7Kd)(!ajVrAwD$<GmESt}^ndZ)h)j@IjZOi^Z~)_p|P>
+zI%|2IvtoJS{@CQWcYdLs^>D<@lPALa4AhQAW9#wo4xD*gekbxN*6U#1RQ*PKAf2R)
+z`PwrVitmZv1ZtPYIx{+VpX^cjtpD9>&&+btgopEk-eTEe?tAJpea~h{z2Q7MuXCTl
+zdb`Hi+`se2jx_R6epFMA?^x4N8^z3zG;6snyuXRg?sqDm-xOZaeV5Mgs&`g@M*|+M
+zNB0e$zrpl7x^8ry^iCeV);t&Qa0`+DZV(q_vow0e_k6y@_S_6;3D>~o=$h=~{lu}d
+zhwjokk1twSB6%WuJiIqdj<7^#z>9q5xKk&>d2ebkMDjV}k@LE<Mm2KqqZ!cTC|~7Z
+z^@dw`=6U6obDj71KjtCMS?S?NGobg#w`3MxdFF5~_Z{)ff(JhSR%;wQ(S43_Z@B5r
+z#kV~CuJf_nf3Lk%u0DB7x%}|nOZWf0_-NnqP;U3&<%sS-Vy`{>rE>cZ?k?}R=X`nc
+zV|SF7e{oOD7#^Sde)!;#`~Lf<ca`t_^-{U^>MP~x7rt8F|M=Y#56!Tv9?mnL*t>pq
+zZ?Nzm_{L|;Th4u`Jay+s%ZpE33=W=m(OjCDzOd?l>jR%C@A~@1@X)vX`O#1BJ=!~q
+zef8=S<>SA(*!%wE<%eQ+v5#H3FSg!-IW!CN|L<SFj(7gZ_dZp`IV(@SBX2q4)my)n
+zJmJ+#vy0c6E&k^h?g*{=^ZoqR@}L*|t@mDtxnUoE?`^a1mzO;BzVE*MT)dgSTm9kH
+z7xtyIZ|&dz{1<-Q|EA=j_f;>whkpCqSMTk-?(+EI`EP}%JbwSpJty{;Up(}MbzZD*
+zzD0iz`n%O{t{kl5<u~2j=U0vXnt?f<fAEt<TXpr*7UwMQFO6@{`#Eb=^Yyly-(J?X
+zYx5cI%YS^Nj5hVm=}v9Lc@CX>kh}i(??&I-9($nVz2+fatoGG!pPzj{UfILvhJ|N7
+zX3HMrmwLl{4|y<y&Uob6o#l*n3ok94N9B+4e1G=v{=5Y_=Fe~F9y)t(|9;ihJm@1n
+z_ty7O*X-_-&+zE;+bF;0;WInS8DDvfHg)u)h-N7c82#2ax@A}Xapvk|Z^?O2@mHR`
+z5?g2ZEjfJfxB<Re?7u<%*7%W5a9w@o%yZw%=6zZ|Jfuah=<{sht7a2V59ymPVU3U4
+z3M-HPcO;!_^PPqZankEVHs%;G%(l>SlAg>yscgGAzm1rxm^J@CQ`Pbfep%5f{|Eh&
+BCMN&@
+
+literal 0
+HcmV?d00001
+
+diff --git a/crates/tswn_core/src/namerena/icon_render/test.rs b/crates/tswn_core/src/namerena/icon_render/test.rs
+index 77127f89..ed4e201e 100644
+--- a/crates/tswn_core/src/namerena/icon_render/test.rs
++++ b/crates/tswn_core/src/namerena/icon_render/test.rs
+@@ -35,6 +35,38 @@ fn test_icon_render_digits_0_to_9() {
+     }
+ }
+ 
++#[test]
++fn boss_png_and_rgba_match_the_original_gif_pixels() {
++    // 从浏览器实际解码 13 个原版 GIF，已归零透明像素的 RGB。
++    for (name, expected) in BOSS_ICONS.into_iter().zip([
++        0xcbd1a555, 0xdefb9cfd, 0xc087682d, 0xf8d7eaa8, 0x2d9539a9, 0xbf2868e5, 0x2fd47b9d, 0xdcbb40a9, 0x0270bf74, 0x9932e1a,
++        0x1341ec83, 0x9d86a9a1, 0x0472fcad,
++    ]) {
++        let key = format!("{name}@!");
++        let pixels = render_icon_vec_from_name(&key);
++        let fingerprint = pixels
++            .iter()
++            .fold(2166136261_u32, |hash, &b| (hash ^ u32::from(b)).wrapping_mul(16777619));
++        assert_eq!(fingerprint, expected, "{key}");
++        assert_eq!(png_to_rgba(&render_icon_png_from_name(&key)), pixels);
++        assert_ne!(render_icon_vec_from_name(name), pixels);
++    }
++}
++
++#[test]
++fn non_boss_ex_players_use_their_base_name_instead_of_the_bang_badge() {
++    for name in ["a", "b", "Mario", "田一人", "seed0", "ma!rio"] {
++        assert_eq!(render_icon_vec_from_name(&format!("{name}@!")), render_icon_vec_from_name(name));
++    }
++    assert_ne!(render_icon_vec_from_name("a@!"), render_icon_vec_from_name("b@!"));
++    assert_ne!(render_icon_vec_from_name("a@!"), render_icon_vec_from_name("!"));
++    assert!(!has_boss_icon("mario@!!"));
++    assert!(!has_boss_icon("mario!"));
++    assert!(!has_boss_icon("seed@!"), "原版种子不属于战斗角色");
++    assert_eq!(render_icon_vec_from_name("mario@!+x"), render_icon_vec_from_name("mario@!"));
++    assert_eq!(render_icon_vec_from_name("a@!x"), render_icon_vec_from_name("!x"));
++}
++
+ // ── 预期像素数据 (16x16 RGBA, 从 Rust 渲染器输出捕获) ──
+ 
+ #[rustfmt::skip]
 diff --git a/crates/tswn_core/src/runtime/chaos.rs b/crates/tswn_core/src/runtime/chaos.rs
 new file mode 100644
 index 00000000..8b332590

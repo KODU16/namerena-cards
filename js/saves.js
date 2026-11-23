@@ -1,14 +1,17 @@
 ﻿// 单账号多存档：优先存到 shenjack 账号（/api/cards/saves），
 // 后端不可用（本地 / GitHub Pages / 接口没上线）时自动退回 localStorage 的 10 个槽位。
 
+import {TOY} from './platform.js';
 const API = '/api/cards/saves';
-const LOCAL_KEY = 'namerena-cards/saves';
+// Toy 只保留自己的本机槽位，不读取主站自定义角色存档。
+const LOCAL_KEY = TOY ? 'namerena-cards-toy/saves' : 'namerena-cards/saves';
 export const MAX_SLOTS = 10;
 
 let csrf = '';
 let serverOk = null; // null=未知, true/false
 
 function sameOrigin() {
+  if (TOY) return false;
   return /(^|\.)shenjack\.top$/i.test(location.hostname);
 }
 

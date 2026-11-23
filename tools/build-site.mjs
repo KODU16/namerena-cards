@@ -9,10 +9,12 @@ import { gzipSync } from 'node:zlib';
 import './build-icons.mjs';
 import './build-fortunes.mjs';
 // 多人模式后端与网页一同构建，服务器拉取后即可使用同版本引擎。
-import './build-arena.mjs';
+const toy = process.argv.includes('--toy');
+if (!toy) await import('./build-arena.mjs');
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const out = join(root, 'dist');
+// Toy 产物放在独立目录，普通站点 dist 的发布结构保持不变。
+const out = toy ? resolve(root, '../exports/cards-toy/site') : join(root, 'dist');
 const hash = (data) => createHash('sha256').update(data).digest('hex').slice(0, 12);
 const read = (path) => readFile(join(root, path));
 const emit = async (path, data) => {
@@ -49,7 +51,16 @@ await emit('vendor/tswn_wasm_duel/' + vendorName, vendor);
 const bundled = await build({
   absWorkingDir: root, entryPoints: ['js/main.js'], bundle: true, write: false,
   minify: true, format: 'esm', target: 'es2020', legalComments: 'none',
+  define: { __CARDS_TOY__: JSON.stringify(toy) },
   plugins: [{ name: 'external-wasm-glue', setup(builder) {
+    // Toy 不包含抽签实现、联机表单或主站工坊登录请求。
+    if (toy) builder.onLoad({filter:/js[\\/](fortune|arena|coop|workshop)\.js$/}, ({path}) => ({
+      contents: path.endsWith('fortune.js') ? 'export function installFortune() {}'
+        : path.endsWith('arena.js') ? 'export class ArenaView {}'
+        : path.endsWith('coop.js') ? 'export class CoopView {}'
+        : 'export async function workshopAccount(){return {allowed:false,teams:[]}};export function workshopNameValid(){return false}',
+      loader:'js',
+    }));
     // 保持 wasm 加载器的相对地址有效，并独立缓存体积最大的引擎。
     builder.onResolve({ filter: /vendor\/tswn_wasm_duel\/tswn_wasm\.js$/ }, () => ({
       path: '../vendor/tswn_wasm_duel/' + vendorName, external: true,
@@ -88,10 +99,12 @@ for (const name of (await readdir(join(root, 'assets/icons32'))).filter(n => n.s
   appSource = appSource.replaceAll('assets/icons32/' + name, target);
 }
 // 签库按打开界面时才请求，带内容指纹避免更新后命中旧词库。
-const fortunes = await read('data/fortunes.json');
-const fortunePath = 'data/fortunes-' + hash(fortunes) + '.json';
-await emit(fortunePath, fortunes);
-appSource = appSource.replaceAll('data/fortunes.json', fortunePath);
+if (!toy) {
+  const fortunes = await read('data/fortunes.json');
+  const fortunePath = 'data/fortunes-' + hash(fortunes) + '.json';
+  await emit(fortunePath, fortunes);
+  appSource = appSource.replaceAll('data/fortunes.json', fortunePath);
+}
 const app = Buffer.from(appSource.replace(/assets\/grade-([123])\.png/g, (_, n) => gradePaths[n])
   .replaceAll('assets/icons-32.png', 'assets/' + iconSpriteName));
 const appName = 'main-' + hash(app) + '.js';
@@ -114,7 +127,7 @@ html = html.replace(/css\/style\.css\?v=\d+/g, 'css/' + cssName)
   .replace(/<!--[^]*?-->/g, '').replace(/>\s+</g, '><').trim();
 await emit('index.html', html);
 // 服务端兼容包随 dist 原子发布；客户端不请求此目录。
-for(const name of ['arena.py','arena-runtime.mjs','arena-wasm/tswn_wasm_bg.wasm','manifest.json'])await emit('arena-server/'+name,await read('server/generated/'+name));
+if (!toy) for(const name of ['arena.py','arena-runtime.mjs','arena-wasm/tswn_wasm_bg.wasm','manifest.json'])await emit('arena-server/'+name,await read('server/generated/'+name));
 await emit('.nojekyll', '');
 await emit('NOTICE.md', await read('NOTICE.md'));
 // 仅估算文本压缩；WASM 和 PNG 按原始字节计，不依赖服务器开启 gzip。

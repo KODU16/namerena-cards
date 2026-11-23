@@ -1,4 +1,6 @@
 import {createChaosPool,ensureChaosSkills} from './chaos.js';
+import {TOY} from './platform.js';
+import {toyProfile,submitVictory,toyRanks} from './toy.js';
 // 入口：加载数据 / 引擎 / 天梯，串起首页 → 开局 → 备战 → 战斗 → 奖励 → 结算。
 import { loadEngine, makeCard, hydrateCard, buildLine, applyTactics, applyRunBuff, runMultiplier, engineWasm, iconFor } from './engine.js';
 import { Duel, DuelView } from './duel.js';
@@ -134,7 +136,7 @@ function help() {
     el('h2', {}, '玩法'),
     el('ul', { class: 'help-list' },
       el('li', {}, el('b', {}, '名字即卡牌。'), ' 卡面上的八围、技能与头像全部由 tswn_core 从名字算出；同名同战队永远得到同一张卡。'),
-      el('li', {}, el('b', {}, '开局。'), ' 你只决定战队名（不能含 !）；自身名字随机，属性、技能和熟练度都是抽出来的。'),
+      el('li', {}, el('b', {}, '开局。'), TOY ? ' 角色名和战队名均使用 Bilibili 用户名，不提供重抽。' : ' 你只决定战队名（不能含 !）；自身名字随机，属性、技能和熟练度都是抽出来的。'),
       el('li', {}, el('b', {}, '稀有技能。'), ' 开局净化／幻术改为另一项等熟练度随机技能。幻术仅能从商店金卡或武器获得，有效熟练度最高 5，幻术战术禁用。'),
       el('li', {}, el('b', {}, '未存档皇冠。'), ' 同一位置第二次读档后皇冠永久消失；保留皇冠通关为金色胜利。'),
       el('li', {}, el('b', {}, '每回合。'), ' 从技能组里抽 3 张技能卡和一份能量；主动技点选打出，能量不足的牌会变灰。普通攻击 0 能量、永远可用。'),
@@ -180,6 +182,7 @@ function applySay(node, text) {
 
 // 地图副标题也用一句 Say（复用同一个缓存，1 分钟内不重复请求）
 async function loadSayInto(node) {
+  if (TOY) return;
   if (!node) return;
   if (sayCache.text) node.textContent = sayCache.text;
   if (sayCache.text && Date.now() - sayCache.at < SAY_TTL) return;
@@ -198,6 +201,7 @@ async function loadSayInto(node) {
 }
 
 async function loadSayTitle() {
+  if (TOY) return;
   const node = document.getElementById('home-title');
   if (!node) return;                      // 不在首页就不抽
   if (sayCache.text && Date.now() - sayCache.at < SAY_TTL) {
@@ -254,7 +258,7 @@ async function openSaves() {
             if (!got || !G.restoreSnapshot(state, got.payload)) return toast('读档失败', 2000);
             closeSheet();
             toast('已读取槽位 ' + slot, 2000);
-            if (state.run && state.run.status === 'active') mapScreen(); else home();
+            if (state.run?.status === 'active') mapScreen(); else if(TOY&&state.run?.status==='won')endScreen();else home();
           } }, '读取') : null,
           hasRun ? el('button', { class: 'ghost', type: 'button', onclick: async () => {
             const res = await Saves.save(slot, G.snapshot(state), runSummary(state));
@@ -262,7 +266,7 @@ async function openSaves() {
             toast('已存入槽位 ' + slot + (res.source === 'server' ? '（账号）' : '（本机）'), 2000);
             paint();
           } }, '存档') : null,
-          entry ? el('button', { class: 'ghost', type: 'button', onclick: async () => {
+          entry && !TOY ? el('button', { class: 'ghost', type: 'button', onclick: async () => {
             const got = await Saves.load(slot);
             if (!got) return toast('读档失败', 2000);
             const stamp = new Date().toISOString().slice(0, 10);
@@ -274,7 +278,7 @@ async function openSaves() {
             await Saves.remove(slot);
             paint();
           } }, '删除')
-            : el('button', { class: 'ghost', type: 'button', onclick: () => {
+            : !TOY && el('button', { class: 'ghost', type: 'button', onclick: () => {
               const pick = document.createElement('input');
               pick.type = 'file';
               pick.accept = '.txt,text/plain';
@@ -301,11 +305,13 @@ async function openSaves() {
 // 大逃杀返回首页只停止轮询，服务器中的参赛状态保留，可从大厅重连。
 // 合作模式复用多人界面生命周期，不覆盖单人存档。
 function coopScreen() {
+  if (TOY) return home();
   arenaView?.dispose();
   nav('arena',()=>{arenaView=new CoopView(root,{onHome:home});arenaView.open();});
 }
 
 function arenaScreen() {
+  if (TOY) return home();
   arenaView?.dispose();
   nav('arena',()=>{arenaView=new ArenaView(root,{onHome:home});arenaView.open();});
 }
@@ -319,6 +325,7 @@ function home() {
     versions: { wasm: state.wasm || '0.5.6', core: state.core || '0.7.0' },
     onArena: arenaScreen,
     onCoop: coopScreen,
+    onRanks: ranksScreen,
     onChaos:()=>{draft=null;newRunSetup('chaos');},
     onStats: statsScreen,
     onNewRun:()=>{newRunMode='standard';draft=null;newRunSetup();},
@@ -333,6 +340,31 @@ function home() {
 
 function safeCard(name, clan) {
   try { return makeCard(name, clan); } catch (e) { console.error(e); return null; }
+}
+
+// 排行榜仅在玩家打开时读取，不轮询；由平台绑定 Bilibili 身份。
+async function ranksScreen() {
+  const body=el('div',{},'正在读取排行榜…');
+  sheet(el('h2',{},'通关天梯总分榜'),body,el('button',{class:'ghost',onclick:closeSheet},'关闭'));
+  try{
+    const [list,my]=await toyRanks();
+    const rows=Array.isArray(list)?list:(list?.list||[]);
+    body.replaceChildren(el('p',{},my?.rank?'我的排名：'+my.rank+' · '+my.score+' 分':'尚无上榜记录'),
+      el('p',{class:'muted small'},'仅完整通关后上传最终天梯总分；保留历史最高成绩。'),
+      rows.length?el('ol',{},rows.map(row=>el('li',{},'#'+row.rank+' '+row.nickname+' · '+row.score+' 分'))):el('p',{},'暂无记录'));
+  }catch(error){body.replaceChildren(el('p',{},error.message),el('button',{class:'secondary',onclick:ranksScreen},'重试'));}
+}
+
+function endScreen() {
+  nav('end',()=>UI.renderEnd(root,state,{onNewRun:()=>{draft=null;newRunSetup();},onHome:home,onRanks:ranksScreen}));
+  if(!TOY||state.run?.status!=='won')return;
+  const run=state.run,notice=el('p',{'aria-live':'polite'},'正在上传通关总分…');
+  const upload=async()=>{
+    notice.replaceChildren('正在上传通关总分…');
+    try{await submitVictory(run,()=>G.persist(state));notice.replaceChildren('通关总分已上传：'+run.score+' 分');}
+    catch(error){notice.replaceChildren(el('span',{},error.message+' '),el('button',{class:'secondary',onclick:upload},'重试上传'));}
+  };
+  root.querySelector('.end').append(notice);upload();
 }
 
 function teamSizeOf(lane) { return Number(String(lane)[0]) || 1; }
@@ -354,9 +386,17 @@ function syncDraft() {
 }
 
 let newRunMode='standard';
-function newRunSetup(mode=null) {
+let toyIdentity=null;
+async function newRunSetup(mode=null) {
   if(typeof mode==='string')newRunMode=mode;
+  // 先确认平台身份，失败时提供重试，不回退到随机开局。
+  if(TOY&&!toyIdentity){
+    nav('newrun',()=>root.replaceChildren(el('section',{class:'setup'},el('h1',{},'正在读取 Bilibili 用户名…'))));
+    try{toyIdentity=await toyProfile();if(current!=='newrun')return;}
+    catch(error){if(current==='newrun')root.replaceChildren(el('section',{class:'setup'},el('h1',{},'暂时无法开始挑战'),el('p',{},error.message),el('button',{class:'primary',onclick:()=>newRunSetup()},'重试'),el('button',{class:'ghost',onclick:home},'返回首页')));return;}
+  }
   if (!draft) draft = { mode:newRunMode,seed:Date.now()>>>0, clan: '青', lane: '1A', difficulty: 0, nodeCount: 40, names: [], rerolls: 3 };
+  if(TOY){draft.clan=toyIdentity.nickname;draft.names=Array(teamSizeOf(draft.lane)).fill(toyIdentity.nickname);draft.rerolls=0;}
   syncDraft();
   nav('newrun', () => UI.renderNewRun(root, state, {
     draft,
@@ -376,6 +416,7 @@ function newRunSetup(mode=null) {
       newRunSetup();
     },
     onChangeClan: (clan) => {
+      if (TOY) return;
       const raw = String(clan || '').trim().slice(0, 18);
       // 「!」在 tswn 里是测试标记（@!），玩家不能用它当战队名
       const clean = raw.replace(/[!！]/g, '');
@@ -385,6 +426,7 @@ function newRunSetup(mode=null) {
       newRunSetup();
     },
     onRerollRow: (i) => {
+      if(TOY)return;
       if (draft.rerolls <= 0) return;
       draft.rerolls -= 1;
       draft.names[i] = G.randomName();
@@ -392,16 +434,19 @@ function newRunSetup(mode=null) {
       newRunSetup();
     },
     onRemoveName: (i) => {
+      if(TOY)return;
       draft.names[i] = '';
       syncDraft();
       newRunSetup();
     },
     onRefillName: (i) => {
+      if(TOY)return;
       draft.names[i] = G.randomName();
       syncDraft();
       newRunSetup();
     },
     onRerollAll: () => {
+      if(TOY)return;
       if (draft.rerolls <= 0) return;
       draft.rerolls -= 1;
       draft.names = draft.names.map(() => G.randomName());
@@ -574,7 +619,7 @@ async function fight() {
   if(sameTeam){
     // 暂停期间服用的药水直接同步回原会话；属性预饮随恢复后的当前行动生效。
     for(const card of team){
-      const actor=duel.session.current_states().find(s=>s.input_team_index===0&&s.id_key_name===fieldName(card)&&s.owner_id==null);
+      const actor=duel.session.current_states().find(s=>s.id===fieldActor(duel.session,team,card)?.id);
       for(const id of run.preBattlePotions?.[card.id]||[])duel.session.use_potion(actor.id,potionCode(id));
     }
     // 原会话保留完整状态；地图上的生命/能量回复通过资源同步接口写回。
@@ -612,19 +657,21 @@ function potionCode(id) {
 }
 
 // 原始身份与角色卡一一对应，地图回复和逃跑存档共用引擎快照。
-const fieldName = card => card.name+'@'+card.clan;
+// 同名卡按输入槽位映射本体，不用显示名字查找，避免服药或逃跑串到队友。
+const fieldActor = (session,team,card) => session.initial_states().filter(s=>s.input_team_index===0&&s.owner_id==null)[team.findIndex(c=>c.id===card.id)];
+const fieldRow = (session,team,card,rows) => rows.find(row=>row[3]===0&&row[1].root_owner===fieldActor(session,team,card)?.id);
 function restoreFieldResources(session,nodeId,team,consume){
   const run=state.run;
   const rows=JSON.parse(session.encounter_snapshot());
-  const saved=[...(run.encounters?.[nodeId]||[]),...Object.values(run.fieldStates||{})];
   for(let i=0;i<rows.length;i++){
-    const previous=saved.find(row=>row[0]===rows[i][0]&&row[3]===rows[i][3]);
-    if(previous)rows[i]=previous;
+    const card=team.find(c=>fieldActor(session,team,c)?.id===rows[i][1].root_owner);
+    const previous=rows[i][3]===0 ? run.fieldStates?.[card?.id] : (run.encounters?.[nodeId]||[]).find(row=>row[0]===rows[i][0]&&row[3]===rows[i][3]&&row[1].root_owner===rows[i][1].root_owner);
+    if(previous)rows[i]=[rows[i][0],previous[1],previous[2],rows[i][3]];
   }
-  if(saved.length)session.restore_encounter(JSON.stringify(rows));
+  if(run.encounters?.[nodeId]?.length||Object.keys(run.fieldStates||{}).length)session.restore_encounter(JSON.stringify(rows));
   if(consume){
     for(const card of team){
-      const actor=session.current_states().find(s=>s.input_team_index===0&&s.id_key_name===fieldName(card)&&s.owner_id==null);
+      const actor=session.current_states().find(s=>s.id===fieldActor(session,team,card)?.id);
       if(!actor?.alive)continue;
       for(const id of run.preBattlePotions?.[card.id]||[])session.use_potion(actor.id,potionCode(id));
     }
@@ -640,7 +687,7 @@ function syncFieldResources(duel,team){
   const packet=[];
   for(const card of team){
     const saved=state.run.fieldStates?.[card.id];
-    const actor=duel.session.current_states().find(s=>s.input_team_index===0&&s.id_key_name===fieldName(card)&&s.owner_id==null);
+    const actor=duel.session.current_states().find(s=>s.id===fieldActor(duel.session,team,card)?.id);
     if(saved&&actor?.alive)packet.push(actor.id,saved[1].hp,saved[1].magic_point);
   }
   if(packet.length)duel.session.set_field_resources(new Int32Array(packet));
@@ -664,11 +711,11 @@ function useFieldPotion(id){
   const choose=card=>{
     const live=run.potions?.find(p=>p.id===id&&p.n>0);
     if(!live)return;
-    const actor=session.current_states().find(s=>s.input_team_index===0&&s.id_key_name===fieldName(card)&&s.owner_id==null);
+    const actor=session.current_states().find(s=>s.id===fieldActor(session,team,card)?.id);
     if(!actor?.alive||actor.hp<=0)return toast('倒下的角色不能服药');
     if(id==='hp'||id==='mp'){
       session.use_potion(actor.id,potionCode(id));
-      const row=JSON.parse(session.encounter_snapshot()).find(row=>row[3]===0&&row[0]===fieldName(card));
+      const row=fieldRow(session,team,card,JSON.parse(session.encounter_snapshot()));
       run.fieldStates||={};run.fieldStates[card.id]=row;
     }else{
       run.preBattlePotions||={};(run.preBattlePotions[card.id]||=[]).push(id);
@@ -680,7 +727,7 @@ function useFieldPotion(id){
   };
   // 弹窗关闭也释放临时会话，正式战斗与它完全独立。
   sheet(el('h2',{},'使用'+meta.name),...team.map(card=>{
-    const actor=session.current_states().find(s=>s.input_team_index===0&&s.id_key_name===fieldName(card)&&s.owner_id==null);
+    const actor=session.current_states().find(s=>s.id===fieldActor(session,team,card)?.id);
     return el('button',{class:'secondary',type:'button',disabled:!actor?.alive,onclick:()=>choose(card)},card.name+' · HP '+actor?.hp+'/'+actor?.max_hp+' · MP '+actor?.magic_point);
   }),el('button',{class:'ghost',type:'button',onclick:()=>{duel.dispose();closeSheet();}},'取消'));
 }
@@ -704,7 +751,7 @@ function escapeBattle(){
   run.encounters[run.selectedId]=snapshot.filter(row=>row[3]!==0);
   run.fieldStates||={};
   for(const card of view.duel.team){
-    const row=snapshot.find(row=>row[3]===0&&row[0]===fieldName(card));
+    const row=fieldRow(view.duel.session,view.duel.team,card,snapshot);
     if(row)run.fieldStates[card.id]=row;
   }
   escapedDuels.set(run.seed+':'+run.layer+':'+run.selectedId,view.duel);
@@ -789,7 +836,7 @@ function afterBattle(won) {
     }
     G.advanceRun(state, false);
     Tracking.finishRun(state, false);
-    return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
+    return endScreen();
   }
   // 赢下这个节点：位置推进过去
   const node = G.clearNode(state);
@@ -806,7 +853,7 @@ function afterBattle(won) {
     const finished = G.advanceLayer(state);
     if (finished) {
       Tracking.finishRun(state, true);
-      return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
+      return endScreen();
     }
     toast(`第 ${state.run.layer - 1} 层通过，进入第 ${state.run.layer} 层`, 2600);
     return mapScreen();
@@ -893,7 +940,7 @@ function skillMetaName(id) { return state.run?.mode==='chaos'?(state.run.chaosPo
 function mapScreen() {
   G.refreshRunBuff(state);
   const run = state.run;
-  if (!run?.graph) return nav('end', () => UI.renderEnd(root, state, { onNewRun: newRunSetup, onHome: home }));
+  if (!run?.graph) return endScreen();
   nav('map', () => UI.renderMap(root, state, {
     onHome: home,
     say: sayCache.text,
@@ -904,7 +951,9 @@ function mapScreen() {
         G.enterCamp(state, nodeId);
         const cpu = node.payload;
         const openCpu = () => {
-          const prefixInput = el('input', { id: 'cpu-prefix', placeholder: '输入前缀，例如 123', maxlength: '8', autocomplete: 'off' });
+          // Toy 测号使用系统前缀，不能通过电脑节点自由起名。
+          const prefixInput = TOY ? el('span', {class:'muted'}, '随机前缀：' + G.randomName()) : el('input', { id: 'cpu-prefix', placeholder: '输入前缀，例如 123', maxlength: '8', autocomplete: 'off' });
+          if (TOY) prefixInput.value = prefixInput.textContent.slice(5);
           const out = el('div', { class: 'cpu-result' });
           const showResult = (res) => out.replaceChildren(
             el('div', { class: 'muted small' }, '扫描 ' + res.scanned + ' 个名字'),
@@ -1090,6 +1139,7 @@ function mapScreen() {
 let forgeAccount = { allowed: false, teams: [] };
 let forgeRequest = 0;
 async function forgeScreen() {
+  if (TOY) return home();
   const requestId = ++forgeRequest;
   forgeAccount = { allowed: false, teams: [] };
   const render = (loading = false) => UI.renderForge(root, state, {
@@ -1103,6 +1153,7 @@ async function forgeScreen() {
 }
 
 async function buildForgeCard(event) {
+  if (TOY) return;
   const nameEl = document.getElementById('forge-name');
   const clanEl = document.getElementById('forge-clan');
   const box = document.getElementById('forge-result');
@@ -1163,9 +1214,10 @@ async function boot() {
     const v = await loadEngine();
     state.wasm = v.wasm; state.core = v.core;
     G.loadSave(state);
-    state.ladder = null;
-    state.ladderSource = 'live';
-    home();
+    state.ladder = TOY ? await G.loadLadder() : null;
+    state.ladderSource = TOY ? 'snapshot' : 'live';
+    // 通关后刷新仍可查看上传结果或重试失败的分数提交。
+    if(TOY&&state.run?.status==='won')endScreen();else home();
     if(new URLSearchParams(location.hash.slice(1)).has('coop'))coopScreen();
     else if(new URLSearchParams(location.hash.slice(1)).has('arena'))arenaScreen();
     loadSayTitle();
@@ -1197,5 +1249,5 @@ document.addEventListener('keydown', (e) => {
 
 window.__nc = { state, get duel() { return duelView?.duel; }, get view() { return duelView; }, G, engineWasm, buildLine, applyTactics, drawHand: (s, r, n, e) => import('./duel.js').then((m) => m.drawHand(s, r, n, e)) };
 
-installFortune();
+if (!TOY) installFortune();
 boot();

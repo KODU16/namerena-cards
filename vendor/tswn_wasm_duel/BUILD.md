@@ -2,16 +2,18 @@
 
 源码仓库：https://github.com/KODU16/tswn-cards
 
-固定源码提交：e43567b79ff596487ca01487889887289c3ad441
+固定源码提交：49e8fa5b0584f0d7b056de559bbd5d0396d05f46
 
 本目录的 JS、标准 WASM 和类型声明由该提交构建，网站与多人运行时复用同一份 WASM。
+
+Boss 固定像素图与 namerena 原站对应；同阵营同名角色按输入顺序逐条恢复遭遇状态。实际验证见 verify-rare-boss-honor.mjs、verify-toy-same-name.mjs。
 
 ## 复现构建
 
 使用与 Cargo.lock 相匹配的 wasm-bindgen-cli（本版 0.2.129），并安装 wasm32-unknown-unknown target：
 
 ~~~powershell
-git checkout e43567b79ff596487ca01487889887289c3ad441
+git checkout 49e8fa5b0584f0d7b056de559bbd5d0396d05f46
 cargo build -p tswn_wasm --target wasm32-unknown-unknown --release
 wasm-bindgen --target web --out-dir dist target/wasm32-unknown-unknown/release/tswn_wasm.wasm
 ~~~

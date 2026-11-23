@@ -72,7 +72,9 @@ export class Duel {
   }
 
   baseFor(state) {
-    return this.baseStats ? this.baseStats.get(state.id_name) : null;
+    const states=this.session?.initial_states()||[];
+    const source=states.find(s=>s.id===(state.source_id??state.owner_id))||state;
+    return source.input_team_index===0 ? this.cardFor(source,states)?.battleBase||this.baseStats?.get(source.id_name) : this.baseStats?.get(state.id_name);
   }
 
   // 精英倍率保留在原卡上，战斗快照中的每项属性都可追溯到同一倍率。
@@ -84,6 +86,10 @@ export class Duel {
   // 本体和分身分别追溯原角色，防止第二位队友借用第一位的净化许可。
   cardFor(unit, states = []) {
     const source = states.find((s) => s.id === (unit.source_id ?? unit.owner_id)) || unit;
+    // 同名初始角色保留独立装备、技能来源与状态，按原始输入位置取卡。
+    const roots=(this.session?.initial_states()||states).filter(s=>s.input_team_index===0&&s.owner_id==null);
+    const slot=roots.findIndex(s=>s.id===source.id);
+    if(slot>=0)return this.team[slot]||this.champion;
     return this.team.find((card) => card.name === source.id_name)
       || this.team.find((card) => card.name === unit.id_name) || this.champion;
   }

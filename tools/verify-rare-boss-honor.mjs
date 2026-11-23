@@ -65,6 +65,12 @@ G.unequipWeapon(weaponState,q.id);assert.ok(!q.skillList.some(k=>k.id==='sklshad
 // 玩家战斗内为 5，天梯天然幻术保持原始技能强度。
 p.stats={...p.stats,hp:20000,spd:200};const enemy=E.makeCard('幻术目标','赤');enemy.stats={...enemy.stats,hp:20000,spd:20};enemy.skillList=[];
 const wasm=E.engineWasm(),input=E.buildLine(p)+'\n\n'+E.buildLine(enemy)+'\nseed:rare-shadow@!';
+// Boss 固定像素来自原站 GIF；卡面不能先剥掉 @! 而退回随机徽章。
+for(const [name,expected] of [['aokiji',0xcbd1a555],['conan',0xdefb9cfd],['covid',0xc087682d],['ikaruga',0xf8d7eaa8],['lazy',0x2d9539a9],['mario',0xbf2868e5],['mosquito',0x2fd47b9d],['saitama',0xdcbb40a9],['slime',0x0270bf74],['sonic',0x09932e1a],['yuri',0x0472fcad]]){
+ assert.equal(wasm.name_to_icon_rgba(name+'@!').reduce((hash,b)=>Math.imul(hash^b,16777619)>>>0,2166136261),expected);
+ assert.equal(E.iconFor(name,'!'),wasm.name_to_png_base64(name+'@!'));
+ assert.equal(E.iconFor(name+'@!'),E.iconFor(name,'!'));
+}
 const probe=new wasm.BattleSession(input,{}),team=probe.initial_states().find(k=>k.input_team_index===0).team_index;probe.free();
 const duel=new Duel({wasm,iconFor:E.iconFor},{input,playerTeam:team,champion:p,team:[p]});const decision=duel.nextDecision();
 assert.equal(decision.unit.skills.find(([name])=>name==='core.skill.shadow')[1],5);duel.queue(decision.unit.id,24,8);duel.nextDecision();duel.dispose();

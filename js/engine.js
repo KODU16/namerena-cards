@@ -23,10 +23,8 @@ export function engineVersions() { return versions; }
 const iconCache = new Map();
 
 export function iconFor(name, clan) {
-  // @! 是试炼标记，头像种子取标记前的名字。
-  if (clan === '!') clan = '';
-  if (String(name).endsWith('@!')) { name = name.slice(0, -2); clan = ''; }
-  const key = clan ? String(name) + '@' + clan : String(name);
+  // 保留 Boss 的 @! 身份交给引擎解析；普通试炼由引擎按基名生成徽章。
+  const key = String(name).endsWith('@!') ? String(name) : clan ? String(name) + '@' + clan : String(name);
   if (iconCache.has(key)) return iconCache.get(key);
   let url = '';
   try { url = wasm.name_to_png_base64(key); } catch { url = ''; }

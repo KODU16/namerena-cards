@@ -1,4 +1,5 @@
 import {cardArtFor} from './card-art.js';
+import {TOY} from './platform.js';
 import {chaosDescription} from './chaos.js';
 import { abilityDescription, abilityKey } from './abilities.js';
 import { RELICS, relicById } from './relics.js';
@@ -150,9 +151,9 @@ export function topbar(state, { screen, onHome, onHelp, onLog, onCodex }) {
       el('span', { class: `engine-badge engine-badge--${state.ladderSource}`, title: state.ladder?.meta?.fetchedAt || '' },
         emojiImg('ladder', 'emoji emoji--xs'),
         state.ladderSource === 'live' ? '天梯 · 实时' : state.ladderSource === 'cache' ? '天梯 · 缓存' : '天梯 · 快照'),
-      el('a', { class: 'ghost', href: 'https://shenjack.top:10007/', target: '_blank', rel: 'noopener noreferrer', title: '打开名字竞技场天梯' },
+      !TOY && el('a', { class: 'ghost', href: 'https://shenjack.top:10007/', target: '_blank', rel: 'noopener noreferrer', title: '打开名字竞技场天梯' },
         emojiImg('ladder', 'emoji emoji--xs'), ' 天梯'),
-      el('button', { class: 'ghost', type: 'button', onclick: onLog || (() => {}) }, '日志'),
+      !TOY && el('button', { class: 'ghost', type: 'button', onclick: onLog || (() => {}) }, '日志'),
       el('button', { class: 'ghost', type: 'button', onclick: onCodex || onHelp }, emojiImg('help', 'emoji emoji--xs'), ' 百科'),
       el('button', { class: 'ghost', type: 'button', onclick: onHelp }, ' 玩法'),
     ),
@@ -172,12 +173,13 @@ export function renderHome(root, state, h) {
         el('div', { class: 'home__actions' },
           el('button', { class: 'primary big', type: 'button', onclick: h.onNewRun }, hasRun ? '重新开始爬塔' : '开始爬塔'),
           el('button', { class: 'secondary big', type: 'button', onclick: h.onSaves }, hasRun ? `存档 · 第 ${state.run.index + 1} 战进行中` : '选择存档'),
-          el('button', { class: 'ghost big', type: 'button', onclick: h.onForge }, '名字工坊'),
+          !TOY && el('button', { class: 'ghost big', type: 'button', onclick: h.onForge }, '名字工坊'),
+          TOY && el('button',{class:'ghost big',type:'button',onclick:h.onRanks},'通关排行榜'),
           el('button', { class: 'ghost big', type: 'button', onclick: h.onHeroes }, '英雄角色'),
           el('button', { class: 'ghost big', type: 'button', disabled: !state.lastRun, onclick: h.onStats }, '统计'),
           // 多人模式有独立房间和存活进度，不覆盖单人存档。
-          el('button', { class: 'secondary big', type: 'button', onclick: h.onArena }, '多人 · 大逃杀'),
-          el('button', { class: 'secondary big', type: 'button', onclick: h.onCoop }, '联机 · 合作爬塔'),
+          !TOY && el('button', { class: 'secondary big', type: 'button', onclick: h.onArena }, '多人 · 大逃杀'),
+          !TOY && el('button', { class: 'secondary big', type: 'button', onclick: h.onCoop }, '联机 · 合作爬塔'),
           el('button', { class:'secondary big',type:'button',onclick:h.onChaos },'混沌爬塔'),
         ),
         el('div', { class: 'home__facts' },
@@ -194,7 +196,7 @@ export function renderHome(root, state, h) {
     el('div', { class: 'panel' },
       el('h3', {}, state.ladderSource === 'live' ? '实时抓取天梯' : '天梯快照'),
       el('p', { class: 'muted' },
-        state.ladderSource === 'live' ? '已从 shenjack.top 实时抓取天梯。' : '浏览器跨域被拦，使用仓库内快照；跑 tools/fetch-ladder.mjs 可更新。'),
+        TOY ? '本次挑战使用随游戏提供的天梯快照。' : state.ladderSource === 'live' ? '已从 shenjack.top 实时抓取天梯。' : '浏览器跨域被拦，使用仓库内快照；跑 tools/fetch-ladder.mjs 可更新。'),
       el('ol', { class: 'ladder-list' }, (state.ladder?.queue || []).slice(0, 8).map((q) =>
         el('li', {}, el('span', { class: 'rank' }, `#${q.rank ?? '?'}`), el('span', { class: 'who' }, q.name), el('span', { class: 'score' }, q.score)))),
     ),
@@ -232,12 +234,12 @@ export function renderNewRun(root, state, h) {
     el('section', { class: 'setup' },
       el('div', { class: 'setup__head' },
         el('div', { class: 'home__kicker' }, 'NEW RUN'),
-        el('h1', {}, d.mode==='chaos'?'混沌爬塔':'给战队起个名字'),
+        el('h1', {}, d.mode==='chaos'?'混沌爬塔':TOY?'你的出战角色':'给战队起个名字'),
       ),
       el('div', { class: 'setup__grid' },
         el('div', { class: 'setup__panel' },
           el('label', { class: 'field' }, el('span', {}, '战队名'),
-            el('input', {
+            TOY ? el('b', {}, d.clan) : el('input', {
               id: 'clan-input', maxlength: '18', autocomplete: 'off', value: d.clan, placeholder: '输入战队名',
               onchange: (e) => h.onChangeClan(e.target.value),
             }),
@@ -257,23 +259,23 @@ export function renderNewRun(root, state, h) {
               ? el('ol', {}, difficultyEffects(d.difficulty).map((entry) => el('li', {}, `A${entry.level}：${entry.text}`)))
               : el('p', { class: 'muted small' }, '标准难度：不附加 A 词条。')),
           el('div', { class: 'setup__names' },
-            el('span', { class: 'muted' }, '本次随机名字（每行一个，对应一名出战角色）'),
+            el('span', { class: 'muted' }, TOY?'角色与队伍均使用 Bilibili 用户名':'本次随机名字（每行一个，对应一名出战角色）'),
             ...(d.names || []).map((name, i) => el('div', { class: 'setup__name-row' + (name ? '' : ' is-empty') },
               el('span', { class: 'setup__name-idx' }, String(i + 1) + '.'),
               el('b', {}, name || '（空位）'),
-              name
+              !TOY && name
                 ? el('button', { class: 'ghost', type: 'button', disabled: d.rerolls <= 0, onclick: () => h.onRerollRow && h.onRerollRow(i) }, '换')
-                : el('button', { class: 'ghost', type: 'button', onclick: () => h.onRefillName && h.onRefillName(i) }, '随机填'),
-              name
+                : !TOY && el('button', { class: 'ghost', type: 'button', onclick: () => h.onRefillName && h.onRefillName(i) }, '随机填'),
+              name && !TOY
                 ? el('button', { class: 'ghost ghost--del', type: 'button', title: '删除这个角色', onclick: () => h.onRemoveName && h.onRemoveName(i) }, '删除')
                 : null)),
           ),
           el('div', { class: 'setup__actions' },
-            el('button', { class: 'secondary', type: 'button', disabled: d.rerolls <= 0, onclick: h.onReroll },
+            !TOY && el('button', { class: 'secondary', type: 'button', disabled: d.rerolls <= 0, onclick: h.onRerollAll || h.onReroll },
               d.rerolls > 0 ? `重抽名字（${d.rerolls}）` : '没有重抽机会了'),
             el('button', { class: 'primary big', type: 'button', onclick: h.onStart }, '带着这个名字出发'),
           ),
-          el('p', { class: 'muted small' }, '重抽只换名字，不换战队名。'),
+          el('p', { class: 'muted small' }, TOY?'初始名字：'+d.clan+'@'+d.clan:'重抽只换名字，不换战队名。'),
         ),
         el('div', { class: 'setup__preview' },
           ...(cards.length ? cards.map((c2) => charRowEl(c2, { bonus: h.cardBonus ? h.cardBonus(c2) : null })) : [el('div', { class: 'boot-error' }, '这些名字无法构建，换一个')]),
@@ -692,7 +694,7 @@ export function constructMerchantSheet(state, h) {
   // 构造商人可服务角色库中的任一存活角色，不受当前出战编队限制。
   const cards = state.collection.filter(c => !state.run.downed?.includes(c.id));
   const select = el('select', {}, cards.map(c => el('option', {value:c.id}, c.name + '@' + c.clan)));
-  const input = el('input', {type:'text', inputmode:'numeric', placeholder:'输入消耗的天梯分数', 'aria-label':'消耗的天梯分数', value:'1000'});
+  const input = el('input', {type:TOY?'number':'text', min:1, step:1, inputmode:'numeric', placeholder:'输入消耗的天梯分数', 'aria-label':'消耗的天梯分数', value:'1000'});
   const balance = el('p', {class:'merchant-heading'});
   const preview = el('p', {class:'muted small'});
   const result = el('div', {class:'construct-result', role:'status', 'aria-live':'polite'});
@@ -886,14 +888,16 @@ export function renderEnd(root, state, h) {
       el('div', { class: 'end__badge' }, gold?emojiImg('crown','emoji run-crown__icon'):null,gold?'金色胜利':won?'通关':'止步'),
       // 通关标题对应十层天梯，避免沿用旧版八战流程的文案。
       el('h1', {}, won ? '天梯登顶，游戏胜利' : `倒在第 ${run.index + 1} 战`),
-      el('p', { class: 'muted' }, won ? '你的名字走到了天梯顶端。' : '名字的强度，有时只差一次重抽。'),
+      el('p', { class: 'muted' }, won ? '你的名字走到了天梯顶端。' : TOY?'调整路线与战术，再次挑战。':'名字的强度，有时只差一次重抽。'),
       el('p', { class: 'muted' }, `本次挑战难度：${difficultyName(run.difficulty || 0)} · 每层节点数：${run.nodeCount || 40}`),
       el('div', { class: 'end__stats' },
+        el('div',{class:'fact'},el('b',{},String(run.score||0)),el('span',{},'天梯总分')),
         el('div', { class: 'fact' }, el('b', {}, `${run.wins}`), el('span', {}, '胜场')),
         el('div', { class: 'fact' }, el('b', {}, `${state.collection.length}`), el('span', {}, '卡组')),
         el('div', { class: 'fact' }, el('b', {}, `${state.best}`), el('span', {}, '最佳')),
       ),
       el('div', { class: 'end__actions' },
+        TOY && el('button',{class:'secondary big',type:'button',onclick:h.onRanks},'通关排行榜'),
         el('button', { class: 'primary big', type: 'button', onclick: h.onNewRun }, '再来一局'),
         el('button', { class: 'ghost big', type: 'button', onclick: h.onHome }, '回首页'),
       ),

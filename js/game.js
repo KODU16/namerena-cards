@@ -1,4 +1,5 @@
 import {capStats,attributeRoom} from './stat-limits.js';
+import {TOY} from './platform.js';
 import {createChaosPool,ensureChaosSkills,chaosSkill,moveChaosSkill} from './chaos.js';
 import { acquireAbility, normalizeAbilities, rollAbility, abilityDescription, abilityKey } from './abilities.js';
 import { RELIC_RARITIES, relicById, normalizeRelics, rollRelic } from './relics.js';
@@ -103,7 +104,8 @@ export function ladderStandings(run) {
 }
 export function potionById(id) { return POTIONS.find((p) => p.id === id) || null; }
 
-const SAVE_KEY = 'namerena-cards/v1';
+// Toy 存档独立隔离，不继承普通站点工坊生成的角色。
+const SAVE_KEY = TOY ? 'namerena-cards-toy/v1' : 'namerena-cards/v1';
 const MAX_ENCOUNTERS = 8;
 
 export const mulberry32 = (a) => () => {
@@ -337,7 +339,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
   let liveEntries = Array.isArray(laneEntries) ? laneEntries : null;
   let source = 'snapshot';
   try {
-    if (!liveEntries) liveEntries = await fetchLaneEntries(lane);
+    if (!liveEntries && !TOY) liveEntries = await fetchLaneEntries(lane);
     if (liveEntries && liveEntries.length) {
       cacheLaneEntries(lane, liveEntries);
       source = 'live';
@@ -346,7 +348,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
     liveEntries = null;
   }
   if (!liveEntries || !liveEntries.length) {
-    const cached = loadCachedLaneEntries(lane);
+    const cached = TOY ? null : loadCachedLaneEntries(lane);
     if (cached) {
       liveEntries = cached.entries;
       source = 'cache';
@@ -407,7 +409,7 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
   }
   // 开局角色：人数 = 线号
   const base = starters && starters.length ? starters : [];
-  const collection = (state.customCards || []).map(card=>replaceStarterRareSkills(freshStarter(card),r));
+  const collection = (TOY ? [] : state.customCards || []).map(card=>replaceStarterRareSkills(freshStarter(card),r));
   const used = new Set(collection.map((c) => c.id));
   for (let i = 0; i < teamSize; i++) {
     let card = base[i]?freshStarter(base[i]):null;
@@ -415,7 +417,8 @@ export async function startRun(state, { seed = Date.now(), lane = '1A', clan = '
       const clan = ['青', '赤', '玄', '白'][Math.floor(r() * 4)];
       card = makeCard(randomName(r), clan);
     }
-    if (used.has(card.id)) card = makeCard(randomName(r), ['青', '赤', '玄', '白'][Math.floor(r() * 4)]);
+    // Toy 多人天梯用相同账户名建卡，仅库存 ID 分槽，不改变数值计算名字。
+    if (used.has(card.id)) card = TOY ? {...card,id:card.id+'#starter-'+i} : makeCard(randomName(r), ['青', '赤', '玄', '白'][Math.floor(r() * 4)]);
     used.add(card.id);
     // 新一局从零节点重新计算，随后统一重建天然属性，避免沿用旧局倍率。
     collection.push(withRunBuff(replaceStarterRareSkills(card,r), 0));

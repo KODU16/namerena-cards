@@ -8,8 +8,9 @@
 ## tswn-core
 
 - 仓库：<https://github.com/shenjackyuanjie/tswn-core>
-- 使用部分：官方 v0.7.0 发行包中的浏览器 WASM（`vendor/tswn_wasm/`，wasm 包装层 0.5.6 / core 0.7.0）。
-- 该仓库未声明开源许可证（`license: null`）。本作把它作为同人作品依赖使用，未修改其代码；如果上游后续补充许可证，以upstream为准。
+- 使用部分：修改版 KODU16/tswn-cards 的浏览器 WASM，位于 `vendor/tswn_wasm_duel/`；固定源码提交、构建方法和完整补丁见该目录 BUILD.md。
+- 本项目修改了受控战斗、遗物、逃跑等引擎行为。上游授权以其仓库声明及权利人许可为准，不因附带补丁而扩大授权。
+- 固定 Boss 像素图修复移植自 tswn-core 提交 e376bc37b9669b395987c1c74a20c5a28fc195d1，对应原站 https://github.com/namerena/namerena.github.io 的图标；素材权利归原权利人所有。
 
 ## 当前像素图标
 
@@ -23,8 +24,8 @@
 ## 天梯数据
 
 - 来源：<https://shenjack.top:10007/>（沙冰鱼分部，民间天梯）。
-- `data/ladder.json` 只保存 1A 列最底部 8 位成员的公开排名、分数与阵容字符串，用于生成对手。
-- 站点没有开放 CORS，页面会优先尝试实时抓取，失败则使用这份快照。
+- `data/ladder.json` 保存多个组别的公开排名、分数与阵容字符串，用于生成对手。
+- 普通网页优先抓取实时数据，失败则使用快照；Toy 版只使用随包快照。
 
 ## 字体
 

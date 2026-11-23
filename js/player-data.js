@@ -2,6 +2,7 @@
 // 只在同源（shenjack.top 下，任意子域/端口）启用；GitHub Pages、localhost 下完全静默，
 // 既不发请求也不显示徽标，因此公开演示版不受影响。
 
+import {TOY} from './platform.js';
 const BASE = '/api/cards';
 
 const ctx = {
@@ -15,6 +16,7 @@ const ctx = {
 };
 
 function sameOrigin() {
+  if (TOY) return false;
   // 部署在 https://shenjack.top/cards/ 或 https://cards.shenjack.top/ 都算同源可用
   return /(^|\.)shenjack\.top$/i.test(location.hostname);
 }
